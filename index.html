@@ -372,205 +372,218 @@
             color: var(--primary);
         }
 
-        /* ===== HERO REDISEÑADO - VERSIÓN PROFESIONAL UI/UX ===== */
+        /* ===== MAPA PROFESIONAL CON RUTA CONECTADA ===== */
 .hero-image {
-    flex: 1;
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
+    min-height: 500px;
 }
 
-/* Tarjeta principal elegante */
-.hero-card {
-    background: white;
-    border-radius: 48px;
-    padding: 28px 24px;
+.dashboard-card {
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(8px);
+    border-radius: 32px;
+    box-shadow: 0 25px 40px -12px rgba(0,0,0,0.2);
     width: 100%;
-    max-width: 460px;
-    box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(27, 94, 63, 0.1);
-    transition: transform 0.25s ease;
-    backdrop-filter: blur(2px);
+    max-width: 520px;
+    padding: 20px;
+    border: 1px solid rgba(27,94,63,0.15);
+    transition: transform 0.2s ease;
 }
 
-.hero-card:hover {
-    transform: translateY(-5px);
-}
-
-/* Header de la tarjeta */
-.card-header {
+.dash-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--primary-soft);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--gray-border);
 }
 
-.badge-live {
-    background: #10b981;
-    color: white;
-    font-size: 0.7rem;
+.dash-title {
     font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--primary);
+    background: var(--primary-soft);
     padding: 4px 12px;
-    border-radius: 40px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    border-radius: 30px;
 }
 
-.badge-live i {
-    font-size: 0.6rem;
-}
-
-.units-count {
-    font-size: 0.75rem;
+.dash-status {
+    display: flex;
+    gap: 12px;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--text-muted);
 }
 
-/* Área visual central: camión + gps + notificación */
-.visual-area {
-    background: linear-gradient(135deg, #F4F9F5 0%, #E8F3E8 100%);
-    border-radius: 32px;
-    padding: 24px 20px;
-    margin-bottom: 24px;
+.dash-status i {
+    color: #10b981;
+    font-size: 0.6rem;
+}
+
+/* Mini mapa mejorado */
+.mini-map {
+    background: linear-gradient(145deg, #EAF3E6 0%, #D3E5CA 100%);
+    border-radius: 24px;
+    padding: 12px;
+    margin-bottom: 16px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05), 0 6px 14px rgba(0,0,0,0.08);
+}
+
+.map-streets {
     position: relative;
-    text-align: center;
+    background-image: 
+        linear-gradient(#BED6B2 1px, transparent 1px),
+        linear-gradient(90deg, #BED6B2 1px, transparent 1px);
+    background-size: 28px 28px;
+    border-radius: 20px;
+    aspect-ratio: 1 / 0.85;
+    overflow: hidden;
+    isolation: isolate;
 }
 
-/* Icono del camión grande */
-.truck-big {
-    font-size: 5.5rem;
-    color: var(--primary);
-    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.1));
-    display: inline-block;
-    animation: floatTruck 3s infinite ease-in-out;
-}
-
-@keyframes floatTruck {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-
-/* Estela de velocidad (detrás del camión) */
-.trail {
+/* Ruta conectada (curva de bezier) */
+.route-connected {
     position: absolute;
-    bottom: 32px;
-    left: 20%;
-    width: 60%;
-    height: 4px;
-    background: linear-gradient(90deg, transparent, var(--secondary), transparent);
-    border-radius: 4px;
-    opacity: 0.5;
-    animation: trailMove 1.5s infinite;
+    top: 15%;
+    left: 10%;
+    width: 80%;
+    height: 70%;
+    background: transparent;
 }
 
-@keyframes trailMove {
-    0% { width: 20%; left: 15%; opacity: 0.3; }
-    100% { width: 70%; left: 15%; opacity: 0.7; }
-}
-
-/* Marcador GPS flotante */
-.gps-float {
+.route-connected svg {
     position: absolute;
-    top: 16px;
-    right: 20px;
-    background: white;
-    border-radius: 60px;
-    padding: 6px 12px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--primary);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    z-index: 2;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
 }
 
-.gps-float i {
-    color: var(--secondary);
-    font-size: 0.75rem;
+.route-line-path {
+    stroke: var(--secondary);
+    stroke-width: 3;
+    stroke-dasharray: 6 4;
+    fill: none;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+    animation: dashMove 20s linear infinite;
 }
 
-/* Notificación emergente (como push) */
-.notify-pop {
+@keyframes dashMove {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+/* Puntos de recolección sobre la ruta */
+.poi-connected {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
+    width: 12px;
+    height: 12px;
     background: var(--secondary);
-    color: white;
-    border-radius: 40px;
-    padding: 8px 16px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 8px 20px rgba(245,166,35,0.3);
-    backdrop-filter: blur(2px);
-    animation: bounceNotify 2s infinite;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(245,166,35,0.3);
+    z-index: 5;
+    transform: translate(-50%, -50%);
+}
+.poi-connected::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,0.4) 0%, rgba(245,166,35,0) 70%);
+    animation: pulse-poi 1.5s infinite;
+}
+/* Posiciones de los puntos (ajustadas sobre la curva) */
+.poi1 { top: 28%; left: 20%; }
+.poi2 { top: 48%; left: 38%; }
+.poi3 { top: 68%; left: 60%; }
+.poi4 { top: 45%; left: 80%; }
+
+/* Camión sobre la ruta (entre punto 2 y 3) */
+.truck-on-route {
+    position: absolute;
+    top: 58%;
+    left: 52%;
+    transform: translate(-50%, -50%);
+    font-size: 2.8rem;
+    color: var(--primary);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    z-index: 10;
+    animation: truckRoll 2s infinite alternate ease-in-out;
+}
+@keyframes truckRoll {
+    0% { transform: translate(-50%, -50%) translateX(-4px); }
+    100% { transform: translate(-50%, -50%) translateX(6px); }
+}
+/* Pequeña estela */
+.truck-on-route::after {
+    content: '';
+    position: absolute;
+    top: 40%;
+    left: -35px;
+    width: 45px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--secondary), transparent);
+    border-radius: 4px;
+    opacity: 0.7;
 }
 
-@keyframes bounceNotify {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-
-/* Información adicional en tarjetas pequeñas */
-.info-mini {
+/* Paneles de información (igual que antes pero sin cambios) */
+.info-panel {
     display: flex;
     gap: 12px;
-    margin-top: 8px;
+    margin-bottom: 12px;
 }
-
-.mini-card {
-    flex: 1;
-    background: var(--gray-light);
+.info-card {
+    background: white;
     border-radius: 20px;
     padding: 10px;
+    flex: 1;
     text-align: center;
-    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid var(--gray-border);
 }
-
-.mini-card i {
-    font-size: 1rem;
+.info-card i {
+    font-size: 1.1rem;
     color: var(--primary);
-    margin-bottom: 4px;
-    display: block;
+    margin-bottom: 5px;
 }
-
-.mini-card .label {
+.info-card .label {
     font-size: 0.6rem;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
 }
-
-.mini-card .value {
-    font-size: 0.8rem;
+.info-card .value {
+    font-size: 0.85rem;
     font-weight: 800;
     color: var(--dark);
 }
+.notif-badge {
+    background: var(--secondary);
+    color: white;
+    border-radius: 40px;
+    padding: 6px 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
 
-/* Responsive */
 @media (max-width: 900px) {
-    .hero-card {
-        max-width: 100%;
-        padding: 20px;
-    }
-    .truck-big {
-        font-size: 4rem;
-    }
-    .notify-pop {
-        font-size: 0.6rem;
-        padding: 6px 12px;
-    }
-    .gps-float {
-        font-size: 0.6rem;
-        padding: 4px 10px;
-    }
+    .hero-image { min-height: auto; }
+    .dashboard-card { max-width: 100%; padding: 16px; }
+    .truck-on-route { font-size: 2rem; top: 56%; left: 50%; }
+    .poi-connected { width: 9px; height: 9px; }
 }
 
         /* Footer */
@@ -691,63 +704,78 @@
     </div>
 </header>
 
-    <!-- Hero rediseñado profesionalmente -->
+    <!-- Hero con Dashboard y Ruta Conectada -->
     <section id="inicio" class="hero">
-        <div class="container hero-grid">
-            <div class="hero-content">
-                <div class="hero-badge">InnovaTecNM 2026 · Sostenibilidad Ambiental</div>
-                <h1>Transformamos la <span>recolección de residuos</span> con inteligencia y datos</h1>
-                <p>RUTALIMPIA es una plataforma IoT + IA que optimiza rutas de camiones recolectores, notifica a la ciudadanía y reduce la huella de carbono. Hecho en México para municipios sostenibles.</p>
-                <div class="hero-stats">
-                    <div class="stat-item"><h3>78K+</h3><p>habitantes beneficiados</p></div>
-                    <div class="stat-item"><h3>8</h3><p>camiones · Sahuayo</p></div>
-                    <div class="stat-item"><h3>-15%</h3><p>km recorridos</p></div>
-                </div>
-                <div style="display: flex; gap: 16px; margin-top: 20px;">
-                    <a href="#solucion" class="btn btn-primary">Conocer más <i class="fas fa-arrow-right"></i></a>
-                    <a href="#contacto" class="btn btn-outline">Aliados B2G</a>
-                </div>
-            </div>
-            <div class="hero-image">
-                <div class="hero-card">
-                    <div class="card-header">
-                        <span class="badge-live"><i class="fas fa-circle"></i> MONITOREO EN VIVO</span>
-                        <span class="units-count"><i class="fas fa-truck"></i> 8 unidades activas</span>
-                    </div>
-                    <div class="visual-area">
-                        <!-- Camión principal -->
-                        <i class="fas fa-truck-moving truck-big"></i>
-                        <div class="trail"></div>
-                        <!-- Marcador GPS -->
-                        <div class="gps-float">
-                            <i class="fas fa-satellite-dish"></i> Señal GPS en tiempo real
-                        </div>
-                        <!-- Notificación push ciudadana -->
-                        <div class="notify-pop">
-                            <i class="fas fa-bell"></i> Llegada en 15 min
-                        </div>
-                    </div>
-                    <div class="info-mini">
-                        <div class="mini-card">
-                            <i class="fas fa-map-pin"></i>
-                            <div class="label">Próxima parada</div>
-                            <div class="value">Colonia Centro</div>
-                        </div>
-                        <div class="mini-card">
-                            <i class="fas fa-tachometer-alt"></i>
-                            <div class="label">Velocidad</div>
-                            <div class="value">32 km/h</div>
-                        </div>
-                        <div class="mini-card">
-                            <i class="fas fa-charging-station"></i>
-                            <div class="label">Llenado</div>
-                            <div class="value">78%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+      <div class="container hero-grid">
+          <div class="hero-content">
+              <div class="hero-badge">InnovaTecNM 2026 · Sostenibilidad Ambiental</div>
+              <h1>Transformamos la <span>recolección de residuos</span> con inteligencia y datos</h1>
+              <p>RUTALIMPIA es una plataforma IoT + IA que optimiza rutas de camiones recolectores, notifica a la ciudadanía y reduce la huella de carbono. Hecho en México para municipios sostenibles.</p>
+              <div class="hero-stats">
+                  <div class="stat-item"><h3>78K+</h3><p>habitantes beneficiados</p></div>
+                  <div class="stat-item"><h3>8</h3><p>camiones · Sahuayo</p></div>
+                  <div class="stat-item"><h3>-15%</h3><p>km recorridos</p></div>
+              </div>
+              <div style="display: flex; gap: 16px; margin-top: 20px;">
+                  <a href="#solucion" class="btn btn-primary">Conocer más <i class="fas fa-arrow-right"></i></a>
+                  <a href="#contacto" class="btn btn-outline">Aliados B2G</a>
+              </div>
+          </div>
+          <div class="hero-image">
+              <div class="dashboard-card">
+                  <div class="dash-header">
+                      <span class="dash-title"><i class="fas fa-chart-line"></i> Monitoreo en tiempo real</span>
+                      <div class="dash-status">
+                          <span><i class="fas fa-circle"></i> 8 unidades activas</span>
+                          <span><i class="fas fa-sync-alt"></i> Actualizando</span>
+                      </div>
+                  </div>
+                  <!-- Mini mapa con ruta conectada (curva) -->
+                  <div class="mini-map">
+                      <div class="map-streets">
+                          <!-- SVG para la ruta curva conectada -->
+                          <div class="route-connected">
+                              <svg viewBox="0 0 300 220" preserveAspectRatio="none">
+                                  <path d="M 30 60 Q 80 40, 120 100 T 200 160 Q 240 180, 270 120" 
+                                        class="route-line-path" />
+                              </svg>
+                          </div>
+                          <!-- Puntos sobre la ruta (coordenadas ajustadas) -->
+                          <div class="poi-connected poi1"></div>
+                          <div class="poi-connected poi2"></div>
+                          <div class="poi-connected poi3"></div>
+                          <div class="poi-connected poi4"></div>
+                          <!-- Camión en movimiento sobre la ruta -->
+                          <div class="truck-on-route">
+                              <i class="fas fa-truck-moving"></i>
+                          </div>
+                      </div>
+                  </div>
+                  <!-- Paneles de información -->
+                  <div class="info-panel">
+                      <div class="info-card">
+                          <i class="fas fa-map-marker-alt"></i>
+                          <div class="label">Próxima parada</div>
+                          <div class="value">Colonia Centro</div>
+                      </div>
+                      <div class="info-card">
+                          <i class="fas fa-gauge-high"></i>
+                          <div class="label">Velocidad</div>
+                          <div class="value">32 km/h</div>
+                      </div>
+                      <div class="info-card">
+                          <i class="fas fa-trash-can"></i>
+                          <div class="label">Llenado</div>
+                          <div class="value">78%</div>
+                      </div>
+                  </div>
+                  <div class="notif-badge">
+                      <i class="fas fa-bell"></i> Llegada estimada en 15 minutos
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
 
     <!-- Problema -->
     <section id="problema" style="background: var(--gray-light);">
@@ -812,7 +840,7 @@
             <div class="cards-grid">
                 <div class="card">
                     <i class="fas fa-city card-icon"></i>
-                    <h3> Beneficios urbanos</h3>
+                    <h3>🌆 Beneficios urbanos</h3>
                     <ul style="margin-top: 16px; list-style: none;">
                         <li>✓ Reducción de basura en vía pública</li>
                         <li>✓ Mejor imagen urbana</li>
@@ -821,7 +849,7 @@
                 </div>
                 <div class="card">
                     <i class="fas fa-users card-icon"></i>
-                    <h3> Beneficios sociales</h3>
+                    <h3>🤝 Beneficios sociales</h3>
                     <ul style="margin-top: 16px; list-style: none;">
                         <li>✓ Comunicación gobierno-ciudadanía</li>
                         <li>✓ Mayor participación ciudadana</li>
@@ -830,7 +858,7 @@
                 </div>
                 <div class="card">
                     <i class="fas fa-seedling card-icon"></i>
-                    <h3> Beneficios ambientales</h3>
+                    <h3>🌱 Beneficios ambientales</h3>
                     <ul style="margin-top: 16px; list-style: none;">
                         <li>✓ Disminución de emisiones CO₂</li>
                         <li>✓ Manejo adecuado de residuos</li>
@@ -938,7 +966,7 @@
                 </div>
             </div>
             <div class="copyright">
-                <p>© 2026 RUTALIMPIA · Instituto Tecnológico de Jiquilpan · InnovaTecNM Etapa Local · Sostenibilidad Ambiental</p>
+                <p>©️ 2026 RUTALIMPIA · Instituto Tecnológico de Jiquilpan · InnovaTecNM Etapa Local · Sostenibilidad Ambiental</p>
                 <p style="margin-top: 8px; font-size: 0.7rem;">Proyecto con registro de propiedad intelectual en trámite (Modelo de Utilidad + Derechos de Autor)</p>
                 <p style="margin-top: 8px; font-size: 0.7rem;">Desarrollado por: Alondra Estefanía Castillo Montufar, Daniela Paola Ávila Bolaños, Edgar Cortés Reséndiz, Angel de Jesús Canela Figueroa, Sergio Octavio Cervantes Mújica</p>
             </div>
