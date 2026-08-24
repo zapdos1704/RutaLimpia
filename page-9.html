@@ -201,6 +201,39 @@
 .btn-warn:hover:not(:disabled) { background: rgba(245,158,11,.15); }
 .btn-warn:disabled { opacity: .4; cursor: not-allowed; }
 
+#d-force-btn { background: #7f1d1d; border-color: #b91c1c; }
+#d-force-btn:hover:not(:disabled) { background: #991b1b; }
+#d-force-btn[hidden] { display: none; }
+
+.del-error {
+  border: 1px solid rgba(239,68,68,.45); border-left-width: 3px;
+  background: rgba(239,68,68,.10); border-radius: var(--radius-sm); padding: 12px 14px;
+  animation: alertIn .22s ease-out;
+}
+.del-error[hidden] { display: none; }
+.de-title { font-size: 11px; font-weight: 800; color: #fca5a5; margin-bottom: 5px; }
+.de-msg   { font-size: 11px; line-height: 1.7; color: var(--text-1); }
+.de-raw   { margin-top: 9px; }
+.de-raw summary {
+  font-size: 10px; color: var(--text-2); cursor: pointer;
+  list-style: none; text-decoration: underline; text-underline-offset: 2px;
+}
+.de-raw summary::-webkit-details-marker { display: none; }
+.de-raw summary:hover { color: var(--text-1); }
+.de-raw code {
+  display: block; margin-top: 6px; padding: 9px 10px;
+  background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px;
+  line-height: 1.6; color: #fcd34d; white-space: pre-wrap; word-break: break-word;
+  max-height: 130px; overflow-y: auto;
+}
+.de-fix { font-size: 10px; color: var(--text-2); line-height: 1.7; margin-top: 8px; }
+.de-fix code {
+  background: var(--bg-base); border: 1px solid var(--border); border-radius: 4px;
+  padding: 1px 5px; font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px; color: #93c5fd;
+}
+
 /* Vista previa de ruta en el modal */
 .route-preview:empty { display: none; }
 .route-preview {
@@ -481,6 +514,16 @@
         deja de aparecer como activo pero conserva su historial de recolecciones y GPS.
       </div>
 
+      <!-- Detalle técnico del rechazo de la base; solo aparece si algo falla -->
+      <div class="del-error" id="d-error" hidden>
+        <div class="de-title" id="d-error-title"></div>
+        <div class="de-msg" id="d-error-msg"></div>
+        <details class="de-raw">
+          <summary>Ver respuesta exacta de la base de datos</summary>
+          <code id="d-error-raw"></code>
+        </details>
+      </div>
+
       <div class="form-field">
         <label class="form-label" for="d-confirm">Escribe <span id="d-confirm-hint">—</span> para confirmar</label>
         <input class="form-input" id="d-confirm" autocomplete="off" placeholder="Número económico del camión"/>
@@ -490,6 +533,7 @@
       <button class="btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
       <button class="btn-warn" id="d-deactivate" onclick="deactivateFromModal(this)">⏸ Dar de baja</button>
       <button class="btn-destructive" id="d-confirm-btn" disabled onclick="confirmDelete(this)">Eliminar definitivamente</button>
+      <button class="btn-destructive" id="d-force-btn" hidden onclick="confirmDelete(this, true)">🔥 Eliminar con todo su historial</button>
     </div>
   </div>
 </div>
@@ -499,7 +543,7 @@
 import {
   getVehicles, getVehicleCrew, getAllUsers, getRoutesByVehicle, getRoutes,
   insertVehicle, assignCrewMember, removeCrewMember, assignRouteToVehicle, updateVehicleStatus,
-  getVehicleUsage, deleteVehicle, VehicleInUseError,
+  getVehicleUsage, deleteVehicle,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
 
@@ -773,6 +817,7 @@ window.submitCrew = async function(btn) {
    que se pide confirmación escribiendo el número económico y se ofrece siempre
    la alternativa no destructiva (darlo de baja). */
 let _deleteVehicleId = null;
+let _lastUsage = null;
 
 window.openDeleteModal = function(vehicleId) {
   const v = _vehicles.find(x => x.id === vehicleId);
@@ -791,6 +836,9 @@ window.openDeleteModal = function(vehicleId) {
   $('d-deactivate').disabled   = v.status === 'inactive';
   $('d-deactivate').textContent = v.status === 'inactive' ? '⏸ Ya está de baja' : '⏸ Dar de baja';
   $('d-usage').innerHTML       = '<div class="del-usage-row">Revisando qué información tiene ligada…</div>';
+  _lastUsage    = null;
+  _forceConfirmed = false;
+  hideDeleteError();
 
   $('delete-modal').classList.add('open');
   $('d-confirm').focus();
@@ -801,6 +849,7 @@ window.openDeleteModal = function(vehicleId) {
 async function loadDeleteUsage(vehicleId) {
   const usage = await getVehicleUsage(vehicleId);
   if (_deleteVehicleId !== vehicleId) return;   // el usuario ya cerró o cambió de camión
+  _lastUsage = usage;
 
   const rows = [];
   rows.push(usage.crew > 0
@@ -838,30 +887,93 @@ $('d-confirm').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !$('d-confirm-btn').disabled) confirmDelete($('d-confirm-btn'));
 });
 
-window.confirmDelete = async function(btn) {
+function hideDeleteError() {
+  $('d-error').hidden = true;
+  $('d-force-btn').hidden = true;
+}
+
+/* Muestra el motivo REAL del rechazo. Según el motivo cambia la salida:
+   - fk         → el historial estorba: se ofrece borrarlo también (2ª confirmación)
+   - permission → es RLS: ningún botón lo arregla, hay que tocar la política */
+function showDeleteError(err, vehicle) {
+  const box = $('d-error');
+  box.hidden = false;
+  $('d-error-raw').textContent = err.raw || err.message || '—';
+
+  if (err.reason === 'fk') {
+    $('d-error-title').textContent = '❌ La base de datos bloqueó el borrado';
+    $('d-error-msg').innerHTML = `${escapeHtml(err.message)}
+      <div class="de-fix">Puedes:
+        <br/>· <strong>Dar de baja</strong> — lo saca de operación y conserva el historial (recomendado).
+        <br/>· <strong>Eliminar con todo su historial</strong> — borra también sus recolecciones,
+        registros GPS y telemetría. Es irreversible.
+        <br/>· O bien, en Supabase, declarar las llaves foráneas como
+        <code>ON DELETE CASCADE</code> para que la base lo haga sola.
+      </div>`;
+    $('d-force-btn').hidden = false;
+    $('d-force-btn').disabled = false;
+    $('d-force-btn').textContent = '🔥 Eliminar con todo su historial';
+    _forceConfirmed = false;
+    return;
+  }
+
+  if (err.reason === 'permission') {
+    $('d-error-title').textContent = '🔒 Supabase no permite borrar';
+    $('d-error-msg').innerHTML = `${escapeHtml(err.message)}
+      <div class="de-fix">Esto no se arregla desde la página: es una política de seguridad de la base.
+        En Supabase → <em>Authentication → Policies</em>, la tabla <code>vehicles</code> necesita una
+        política de <code>DELETE</code> para el rol autenticado.
+        Mientras tanto, <strong>Dar de baja</strong> sí funciona.
+      </div>`;
+    return;
+  }
+
+  $('d-error-title').textContent = '❌ No se pudo eliminar';
+  $('d-error-msg').textContent = err.message || 'Error desconocido.';
+}
+
+/* El borrado con historial exige un segundo clic: el primero solo advierte. */
+let _forceConfirmed = false;
+
+window.confirmDelete = async function(btn, force = false) {
   const v = _vehicles.find(x => x.id === _deleteVehicleId);
   if (!v || $('d-confirm').value.trim() !== v.economic_number) return;
 
+  if (force && !_forceConfirmed) {
+    _forceConfirmed = true;
+    const u = _lastUsage || {};
+    const partes = [
+      u.collections ? `${u.collections} ${u.collections === 1 ? 'recolección' : 'recolecciones'}` : null,
+      u.hasGpsHistory ? 'todo su historial GPS' : null,
+      u.hasTelemetry ? 'su telemetría' : null,
+      u.crew ? `${u.crew} ${u.crew === 1 ? 'asignación' : 'asignaciones'} de cuadrilla` : null,
+    ].filter(Boolean);
+    $('d-error-title').textContent = '🔥 Confirma: se destruirá el historial';
+    $('d-error-msg').innerHTML = `Se eliminará <strong>${escapeHtml(v.economic_number)}</strong> junto con
+      ${partes.length ? escapeHtml(partes.join(', ')) : 'todos sus registros dependientes'}.
+      <div class="de-fix">Esto no se puede deshacer y esos datos no se recuperan.
+        Vuelve a pulsar el botón para confirmar, o cierra el modal para cancelar.</div>`;
+    btn.textContent = '🔥 Sí, borrar todo definitivamente';
+    return;
+  }
+
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = 'Eliminando…';
+  btn.textContent = force ? 'Borrando historial…' : 'Eliminando…';
+  hideDeleteError();
   try {
-    await deleteVehicle(v.id);
+    await deleteVehicle(v.id, { force });
     window.closeDeleteModal();
-    showToast(`✅ ${v.economic_number} eliminado`);
+    showToast(force ? `✅ ${v.economic_number} y su historial eliminados` : `✅ ${v.economic_number} eliminado`);
     await loadData();
   } catch (err) {
     console.error('[deleteVehicle]', err);
-    if (err instanceof VehicleInUseError) {
-      /* No se puede borrar por el historial: se explica y se deja la baja a un clic. */
-      $('d-usage').innerHTML = `<div class="del-usage-row" style="color:#fca5a5">❌ ${escapeHtml(err.message)}</div>`;
-      showToast('❌ No se puede eliminar: tiene historial ligado');
-    } else {
-      showToast('❌ ' + (err.message || 'No se pudo eliminar el camión'));
-    }
+    showDeleteError(err, v);
+    showToast(err.reason === 'permission' ? '🔒 Supabase no permite borrar' : '❌ No se pudo eliminar');
   } finally {
     btn.textContent = original;
-    btn.disabled = !_deleteVehicleId || $('d-confirm').value.trim() !== (v?.economic_number ?? '');
+    btn.disabled = false;
+    if (!force) btn.disabled = !_deleteVehicleId || $('d-confirm').value.trim() !== (v?.economic_number ?? '');
   }
 };
 

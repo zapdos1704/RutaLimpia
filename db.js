@@ -250,32 +250,129 @@ export async function getVehicleUsage(vehicleId) {
   return usage;
 }
 
-export class VehicleInUseError extends Error {
-  constructor(message) { super(message); this.name = 'VehicleInUseError'; }
+/* Error de borrado con el motivo clasificado y el mensaje CRUDO de Postgres.
+   Ese mensaje crudo es lo único que permite distinguir "hay historial ligado"
+   de "la política RLS no te deja"; ocultarlo deja al usuario sin salida. */
+export class VehicleDeleteError extends Error {
+  /** @param {'fk'|'permission'|'unknown'} reason */
+  constructor(reason, message, { raw = null, blockedBy = null, table = null } = {}) {
+    super(message);
+    this.name = 'VehicleDeleteError';
+    this.reason = reason;
+    this.raw = raw;         // texto original de Supabase/Postgres
+    this.blockedBy = blockedBy; // tabla que impide el borrado, si Postgres la nombra
+    this.table = table;     // tabla en la que ocurrió el fallo
+  }
+}
+/* Alias histórico: page-9 lo usaba antes de tener la clasificación por motivo. */
+export const VehicleInUseError = VehicleDeleteError;
+
+const rawText = e => [e?.code, e?.message, e?.details, e?.hint].filter(Boolean).join(' · ');
+
+/* Postgres nombra la tabla en details:
+   'Key (id)=(…) is still referenced from table "collections".' */
+function referencedTable(error) {
+  const m = /still referenced from table "([^"]+)"/i.exec(`${error?.details || ''} ${error?.message || ''}`);
+  return m ? m[1] : null;
 }
 
-/* ── Baja definitiva de un camión ──
-   Las filas de vehicle_crew son asignaciones propias del camión, así que se
-   retiran primero. El historial (collections, gps_logs, device_telemetry) NO se
-   toca: si la base lo protege con llaves foráneas, el borrado falla a propósito
-   y se avisa para que se decida entre conservar el historial (dar de baja) o
-   depurarlo en la base. */
-export async function deleteVehicle(vehicleId) {
-  const crewDelete = await withTimeout(sb.from('vehicle_crew').delete().eq('vehicle_id', vehicleId));
-  if (crewDelete.error) throw crewDelete.error;
-
-  const { error } = await withTimeout(sb.from('vehicles').delete().eq('id', vehicleId));
-  if (!error) return;
-
-  const text = `${error.code || ''} ${error.message || ''} ${error.details || ''}`;
-  if (/23503|foreign key|violates|still referenced/i.test(text)) {
-    throw new VehicleInUseError(
-      'La base de datos no permite borrarlo porque todavía tiene historial ligado ' +
-      '(recolecciones o registros GPS). Puedes darlo de baja para sacarlo de operación ' +
-      'sin perder ese historial.'
-    );
+function classifyDeleteError(error, table) {
+  const text = rawText(error);
+  if (/23503|foreign key|still referenced/i.test(text)) {
+    const blockedBy = referencedTable(error);
+    return new VehicleDeleteError('fk',
+      blockedBy
+        ? `La base no permite borrarlo: todavía hay registros en "${blockedBy}" que apuntan a este camión.`
+        : 'La base no permite borrarlo: todavía tiene registros ligados (historial).',
+      { raw: text, blockedBy, table });
   }
-  throw error;
+  if (/42501|permission denied|row-level security|violates row-level/i.test(text)) {
+    return new VehicleDeleteError('permission',
+      `Supabase rechazó el borrado en "${table}" por permisos (RLS). Hace falta una política que permita DELETE.`,
+      { raw: text, table });
+  }
+  return new VehicleDeleteError('unknown', error?.message || 'No se pudo eliminar', { raw: text, table });
+}
+
+/* Tablas que dependen del camión, de la más desechable a la más histórica.
+   El orden importa: gps_logs referencia collections, así que va antes. */
+export const VEHICLE_DEPENDENT_TABLES = ['device_telemetry', 'gps_logs', 'collections', 'vehicle_crew'];
+
+/* Errores que solo significan "esa tabla/columna no existe en este esquema";
+   no deben abortar el borrado. */
+const isMissingRelation = e => /42P01|42703|does not exist|Could not find/i.test(rawText(e));
+
+/* Borra las filas dependientes y devuelve CUÁNTAS se borraron de verdad.
+   El conteo importa: si a una tabla le falta política de DELETE, Supabase
+   responde 204 sin error y borra 0 filas. Sin este dato, el borrado forzado
+   fallaría después en el camión sin poder decir qué tabla fue la culpable. */
+async function deleteDependent(table, vehicleId) {
+  const { count, error } = await withTimeout(
+    sb.from(table).delete({ count: 'exact' }).eq('vehicle_id', vehicleId), 20000
+  );
+  if (!error) return { table, deleted: count ?? 0 };
+  if (isMissingRelation(error)) {
+    console.warn(`[deleteVehicle] se omite ${table}:`, error.message);
+    return { table, deleted: 0, skipped: true };
+  }
+  throw classifyDeleteError(error, table);
+}
+
+/* "device_telemetry: 1 · gps_logs: 0 · collections: 0 · vehicle_crew: 2" */
+const formatReport = report => report
+  .map(r => `${r.table}: ${r.skipped ? 'no aplica' : r.deleted}`)
+  .join(' · ');
+
+/**
+ * Elimina un camión.
+ *
+ * Por omisión solo retira sus asignaciones de cuadrilla y CONSERVA el historial
+ * (recolecciones, GPS, telemetría). Si la base protege ese historial con llaves
+ * foráneas, el borrado falla a propósito y se informa el motivo real.
+ *
+ * Con `{ force: true }` se eliminan además TODAS las filas dependientes. Eso
+ * destruye historial de operación de forma irreversible; la interfaz lo pide con
+ * una segunda confirmación explícita.
+ *
+ * @param {string} vehicleId
+ * @param {{ force?: boolean }} [options]
+ */
+export async function deleteVehicle(vehicleId, options = {}) {
+  const tables = options.force ? VEHICLE_DEPENDENT_TABLES : ['vehicle_crew'];
+  const report = [];
+  for (const table of tables) report.push(await deleteDependent(table, vehicleId));
+
+  /* .select() devuelve las filas realmente borradas. Sin esto, un DELETE que
+     RLS bloquea responde 204 sin error y la app cantaría un éxito falso. */
+  const { data, error } = await withTimeout(
+    sb.from('vehicles').delete().eq('id', vehicleId).select()
+  );
+
+  if (error) {
+    const failure = classifyDeleteError(error, 'vehicles');
+    failure.report = report;
+    /* Si se pidió forzar y AUN ASÍ estorba una llave foránea, la causa casi
+       siempre es que esa tabla no dejó borrar sus filas (le falta política). */
+    if (options.force && failure.reason === 'fk') {
+      const culprit = report.find(r => r.table === failure.blockedBy);
+      failure.message = culprit && culprit.deleted === 0
+        ? `No se borró ninguna fila de "${failure.blockedBy}", así que sigue bloqueando al camión. ` +
+          `Lo más probable es que a esa tabla le falte una política de DELETE en Supabase.`
+        : failure.message;
+      failure.raw = `${failure.raw}\n\nFilas borradas por tabla → ${formatReport(report)}`;
+    }
+    throw failure;
+  }
+
+  if (!data || data.length === 0) {
+    const failure = new VehicleDeleteError('permission',
+      'Supabase no borró ninguna fila. Normalmente significa que la política RLS de "vehicles" ' +
+      'no permite DELETE a este usuario (o que el camión ya no existía).',
+      { raw: 'DELETE devolvió 0 filas y ningún error', table: 'vehicles' });
+    failure.report = report;
+    throw failure;
+  }
+  return { vehicle: data[0], report };
 }
 
 export async function removeCrewMember(id) {
