@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Incidencias</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Específico de Incidencias ── */
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.page-header {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* Stats rápidas */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.red::before    { background: var(--red); }
+.stat-card.yellow::before { background: var(--yellow); }
+.stat-card.green::before  { background: var(--green); }
+.stat-card.blue::before   { background: var(--blue); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.stat-value { font-size: 24px; font-weight: 800; }
+
+/* Barra de filtros */
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.fbar-btn {
+  font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2);
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.fbar-btn.active, .fbar-btn:hover {
+  background: var(--bg-raised); color: var(--text-1);
+  border-color: rgba(255,255,255,.25);
+}
+.fbar-btn.active { border-color: var(--green); color: var(--green-light); }
+
+/* Search */
+.search-input {
+  padding: 7px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: 20px;
+  color: var(--text-1); font-family: inherit; font-size: 11px;
+  outline: none; width: 200px;
+  transition: border-color var(--transition);
+}
+.search-input::placeholder { color: var(--text-2); }
+.search-input:focus { border-color: var(--green); }
+
+/* Lista */
+.inc-list { display: flex; flex-direction: column; gap: 10px; }
+
+.inc-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 16px;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: pointer;
+}
+.inc-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+/* Color del borde izquierdo según estado */
+.inc-card.alta    { border-left-color: var(--red); }
+.inc-card.atencion{ border-left-color: var(--yellow); }
+.inc-card.resuelta{ border-left-color: var(--green); }
+.inc-card.cerrada { border-left-color: var(--text-2); }
+
+.inc-left { flex: 1; min-width: 0; }
+
+.inc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.inc-id   { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.inc-name { font-size: 15px; font-weight: 700; }
+
+.inc-route {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #93c5fd; margin-bottom: 10px;
+}
+.inc-route svg { width: 11px; height: 11px; fill: #93c5fd; }
+
+.inc-section-label {
+  font-size: 10px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px;
+}
+.inc-motivo {
+  font-size: 12px; color: var(--text-1); line-height: 1.55;
+  margin-bottom: 12px;
+}
+
+/* Fotos placeholder */
+.inc-photos { display: flex; gap: 6px; margin-top: 4px; }
+.inc-photo  {
+  width: 52px; height: 40px; border-radius: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+.inc-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 8px; flex-shrink: 0; min-width: 140px;
+}
+.inc-date { font-size: 11px; color: var(--text-2); text-align: right; line-height: 1.5; }
+
+/* Badges */
+.badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+.badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-green  { background: var(--green-dim);     color: var(--green-light); }
+.badge-gray   { background: rgba(255,255,255,.07);color: var(--text-2); }
+
+.inc-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.btn-inc {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+  white-space: nowrap;
+}
+.btn-inc.outline {
+  background: transparent; border: 1px solid var(--border-md); color: var(--text-1);
+}
+.btn-inc.outline:hover { background: var(--bg-raised); border-color: rgba(255,255,255,.25); }
+.btn-inc.primary { background: var(--blue); border: none; color: #fff; }
+.btn-inc.primary:hover { background: #2563eb; }
+
+/* Vacío */
+.empty-state {
+  text-align: center; padding: 48px 20px;
+  color: var(--text-2); font-size: 13px;
+}
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* Botón nueva incidencia */
+.btn-new {
+  padding: 9px 18px; background: var(--red);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition), transform .1s;
+  white-space: nowrap;
+}
+.btn-new:hover  { background: #dc2626; }
+.btn-new:active { transform: scale(.97); }
+
+/* Sidebar vehicles */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── MODAL Nueva Incidencia ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius);
+  width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select, .form-textarea {
+  padding: 10px 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-2); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--red); }
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-select option { background: var(--bg-surface); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Upload placeholder */
+.upload-area {
+  border: 2px dashed var(--border-md);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.upload-area:hover { border-color: rgba(255,255,255,.3); color: var(--text-1); }
+.upload-icon { font-size: 24px; margin-bottom: 6px; }
+
+.modal-footer {
+  padding: 14px 20px 18px;
+  display: flex; gap: 10px; justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 10px 18px; background: transparent;
+  border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+}
+.btn-cancel:hover { background: var(--bg-raised); }
+.btn-submit {
+  padding: 10px 18px; background: var(--red);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition);
+}
+.btn-submit:hover { background: #dc2626; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page-inner  { padding: 16px; gap: 16px; }
+  .page-title  { font-size: 18px; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .inc-card    { flex-direction: column; }
+  .inc-right   { align-items: flex-start; flex-direction: row; flex-wrap: wrap; min-width: 0; }
+  .inc-actions { justify-content: flex-start; }
+  .search-input{ width: 100%; }
+  .filter-bar  { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .form-row    { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-vehicles" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-inner">
+
+        <!-- Header -->
+        <div class="page-header">
+          <div>
+            <div class="page-title">Incidencias</div>
+            <div class="page-sub">Registro y seguimiento de eventos en campo</div>
+          </div>
+          <button class="btn-new" onclick="openModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nueva incidencia
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-strip">
+          <div class="stat-card red">
+            <div class="stat-label">Alta prioridad</div>
+            <div class="stat-value" style="color:var(--red)">1</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">En atención</div>
+            <div class="stat-value" style="color:var(--yellow)">2</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Resueltas hoy</div>
+            <div class="stat-value" style="color:var(--green-light)">3</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Total mes</div>
+            <div class="stat-value" style="color:#93c5fd">12</div>
+          </div>
+        </div>
+
+        <!-- Filtros + búsqueda -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <button class="fbar-btn active" onclick="filterInc('all',this)">Todas</button>
+            <button class="fbar-btn" onclick="filterInc('alta',this)">Alta prioridad</button>
+            <button class="fbar-btn" onclick="filterInc('atencion',this)">En atención</button>
+            <button class="fbar-btn" onclick="filterInc('resuelta',this)">Resueltas</button>
+          </div>
+          <input class="search-input" id="search-inc" placeholder="🔍 Buscar incidencia…"/>
+        </div>
+
+        <!-- Lista -->
+        <div class="inc-list" id="inc-list"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<!-- MODAL Nueva Incidencia -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Nueva incidencia</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Vehículo</label>
+          <select class="form-select">
+            <option>VH-001 — Ruta Centro</option>
+            <option>VH-002 — Ruta Norte</option>
+            <option>VH-003 — Ruta Sur</option>
+            <option>VH-004 — Ruta Oriente</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Prioridad</label>
+          <select class="form-select">
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Tipo de incidencia</label>
+        <select class="form-select">
+          <option>Accidente de tráfico</option>
+          <option>Falla mecánica</option>
+          <option>Combustible insuficiente</option>
+          <option>Obstrucción de ruta</option>
+          <option>Falla de GPS / Señal</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Descripción del motivo</label>
+        <textarea class="form-textarea" placeholder="Describe lo que ocurrió, ubicación exacta y acciones tomadas…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Fecha</label>
+          <input class="form-input" type="date"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Hora</label>
+          <input class="form-input" type="time"/>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Ubicación</label>
+        <input class="form-input" type="text" placeholder="Ej. Calle Insurgentes esq. Constitución, Sahuayo"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Fotos / evidencia</label>
+        <div class="upload-area" onclick="showToast('📷 Selector de archivos (próximamente)')">
+          <div class="upload-icon">📷</div>
+          <div>Toca para adjuntar fotos</div>
+          <div style="font-size:10px;margin-top:4px;color:var(--text-2)">JPG, PNG hasta 10 MB</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-submit" onclick="submitIncident()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Registrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ── INIT ── */
+initShared('Incidencias');
+
+/* ── DATOS ── */
+const incidents = [
+  {
+    id: 'INC-001', estado: 'alta',
+    nombre: 'Accidente de tráfico',
+    ruta: 'Ruta Norte', vehiculo: 'VH-002',
+    motivo: 'Choque de dos vehículos 2 calles adelante de la ruta normal. Accidente en Calle Insurgentes y Calle Constitución, Sahuayo.',
+    fecha: '07/07/2026', hora: '6:52 PM',
+    fotos: ['🚛','📸'],
+  },
+  {
+    id: 'INC-002', estado: 'atencion',
+    nombre: 'Falla mecánica',
+    ruta: 'Ruta Centro', vehiculo: 'VH-001',
+    motivo: 'Falla en el sistema de frenos. Vehículo detenido en Calle Federico Higareda, en espera de asistencia técnica.',
+    fecha: '06/07/2026', hora: '10:15 AM',
+    fotos: ['🔧'],
+  },
+  {
+    id: 'INC-003', estado: 'atencion',
+    nombre: 'Obstrucción de ruta',
+    ruta: 'Ruta Sur', vehiculo: 'VH-003',
+    motivo: 'Obras municipales bloquean Prolongación Allende. Se requiere ruta alterna aprobada por supervisión.',
+    fecha: '06/07/2026', hora: '02:10 PM',
+    fotos: ['🚧','📸'],
+  },
+  {
+    id: 'INC-004', estado: 'resuelta',
+    nombre: 'Combustible insuficiente',
+    ruta: 'Ruta Oriente', vehiculo: 'VH-004',
+    motivo: 'Vehículo varado a 3 km del punto de repostaje en Calle Guerrero. Se coordinó suministro de emergencia. Problema resuelto.',
+    fecha: '05/07/2026', hora: '02:30 PM',
+    fotos: ['⛽','✅'],
+  },
+  {
+    id: 'INC-005', estado: 'resuelta',
+    nombre: 'Señal GPS débil',
+    ruta: 'Ruta Norte', vehiculo: 'VH-002',
+    motivo: 'Calidad de señal GPS reportada como "poor" durante 45 minutos. Señal recuperada sin intervención.',
+    fecha: '04/07/2026', hora: '09:00 AM',
+    fotos: ['📡'],
+  },
+];
+
+const badgeMap = {
+  alta:     '<span class="badge badge-red">Alta prioridad</span>',
+  atencion: '<span class="badge badge-yellow">En atención</span>',
+  resuelta: '<span class="badge badge-green">Resuelta</span>',
+  cerrada:  '<span class="badge badge-gray">Cerrada</span>',
+};
+
+function renderIncidents(list) {
+  const el = document.getElementById('inc-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>Sin incidencias en esta categoría.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(i => `
+    <div class="inc-card ${i.estado}">
+      <div class="inc-left">
+        <div class="inc-top">
+          <span class="inc-id">${i.id}</span>
+          <span class="inc-name">${i.nombre}</span>
+        </div>
+        <div class="inc-route">
+          <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+          ${i.ruta} · ${i.vehiculo}
+        </div>
+        <div class="inc-section-label">Motivo</div>
+        <div class="inc-motivo">${i.motivo}</div>
+        ${i.fotos.length ? `
+          <div class="inc-photos">
+            ${i.fotos.map(f => `<div class="inc-photo">${f}</div>`).join('')}
+          </div>` : ''}
+      </div>
+      <div class="inc-right">
+        <div class="inc-date">${i.fecha}<br/>${i.hora}</div>
+        ${badgeMap[i.estado]}
+        <div class="inc-actions">
+          <button class="btn-inc outline" onclick="showToast('🗺️ Abriendo mapa para ${i.id}');window.location.href='page-1.html'">Ver en mapa</button>
+          ${i.estado !== 'resuelta' && i.estado !== 'cerrada'
+            ? `<button class="btn-inc primary" onclick="resolveInc(this,'${i.id}')">Marcar resuelta</button>`
+            : ''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function resolveInc(btn, id) {
+  const inc = incidents.find(i => i.id === id);
+  if (inc) { inc.estado = 'resuelta'; renderIncidents(currentFilter()); }
+  showToast(`✅ ${id} marcada como resuelta`);
+}
+
+let _activeFilter = 'all';
+
+function currentFilter() {
+  return _activeFilter === 'all' ? incidents : incidents.filter(i => i.estado === _activeFilter);
+}
+
+function filterInc(type, btn) {
+  document.querySelectorAll('.fbar-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeFilter = type;
+  applySearch();
+}
+
+function applySearch() {
+  const q = document.getElementById('search-inc').value.toLowerCase();
+  let list = currentFilter();
+  if (q) list = list.filter(i =>
+    i.nombre.toLowerCase().includes(q) ||
+    i.ruta.toLowerCase().includes(q) ||
+    i.vehiculo.toLowerCase().includes(q) ||
+    i.motivo.toLowerCase().includes(q)
+  );
+  renderIncidents(list);
+}
+
+document.getElementById('search-inc').addEventListener('input', applySearch);
+
+renderIncidents(incidents);
+
+/* ── MODAL ── */
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+function submitIncident() {
+  closeModal();
+  showToast('⚠️ Incidencia registrada correctamente');
+}
+
+/* ── SIDEBAR VEHÍCULOS ── */
+const vehicles = [
+  { id:'VH-001', ruta:'Ruta Centro',  status:'green', fuel:70, estado:'active' },
+  { id:'VH-002', ruta:'Ruta Norte',   status:'red',   fuel:14, estado:'averia' },
+  { id:'VH-003', ruta:'Ruta Sur',     status:'green', fuel:55, estado:'active' },
+  { id:'VH-004', ruta:'Ruta Oriente', status:'gray',  fuel:90, estado:'active' },
+];
+
+function fuelColor(p) { return p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e'; }
+
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.id}</div><div class="vruta">${v.ruta}</div></div>
+        <div class="vdot dot-${v.status}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Combustible</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v.fuel}%;background:${fuelColor(v.fuel)}"></div></div>
+        <span class="bar-pct">${v.fuel}%</span>
+      </div>
+    </div>`).join('');
+}
+
+function filterVehicles(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all: vehicles, active: vehicles.filter(v=>v.estado==='active'), averia: vehicles.filter(v=>v.estado==='averia') };
+  renderVehicles(f[type]);
+}
+
+document.getElementById('search-vehicles').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(vehicles.filter(v => v.id.toLowerCase().includes(q) || v.ruta.toLowerCase().includes(q)));
+});
+
+renderVehicles(vehicles);
+</script>
+</body>
+</html>

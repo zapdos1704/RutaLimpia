@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Quejas</title>
+<link rel="stylesheet" href="shared.css"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
+<style>
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* ── Segmented control: Mapa de calor / Lista por ruta ── */
+.view-tabs {
+  display: flex; gap: 2px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  padding: 3px; border-radius: var(--radius-sm);
+}
+.vtab {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; padding: 7px 16px;
+  border-radius: 6px; border: none; background: transparent;
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.vtab svg { width: 13px; height: 13px; fill: currentColor; }
+.vtab:hover  { color: var(--text-1); }
+.vtab.active { background: var(--bg-raised); color: var(--text-1); }
+
+/* ── Stats ── */
+.stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.stat-card.red::before    { background: var(--red); }
+.stat-card.yellow::before { background: var(--yellow); }
+.stat-card.green::before  { background: var(--green); }
+.stat-card.blue::before   { background: var(--blue); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.stat-value { font-size: 24px; font-weight: 800; }
+.stat-value.sm { font-size: 14px; line-height: 1.35; padding-top: 4px; }
+
+/* ── Filtros ── */
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.fbar-btn {
+  font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-md); background: transparent; color: var(--text-2);
+  cursor: pointer; font-family: inherit; transition: all var(--transition);
+}
+.fbar-btn:hover  { background: var(--bg-raised); color: var(--text-1); }
+.fbar-btn.active { border-color: var(--green); color: var(--green-light); background: var(--green-dim); }
+
+.search-input {
+  padding: 7px 14px; background: var(--bg-surface); border: 1px solid var(--border-md);
+  border-radius: 20px; color: var(--text-1); font-family: inherit; font-size: 11px;
+  outline: none; width: 220px; transition: border-color var(--transition);
+}
+.search-input::placeholder { color: var(--text-2); }
+.search-input:focus { border-color: var(--green); }
+
+/* ── Vistas ── */
+.view { display: none; flex-direction: column; gap: 14px; }
+.view.active { display: flex; animation: fadeUp .25s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Vista mapa ── */
+.map-grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 14px; align-items: start; }
+.card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.card-title { font-size: 13px; font-weight: 700; }
+.card-sub   { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.card-badge { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
+
+.map-shell { position: relative; }
+#heat-map { height: 460px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #05070d; }
+.maplibregl-ctrl-attrib { font-size: 9px !important; }
+.maplibregl-popup.rl-popup .maplibregl-popup-content {
+  background: rgba(8,15,30,.94); color: var(--text-1);
+  border: 1px solid rgba(255,255,255,.15); border-radius: 10px;
+  padding: 10px 12px; font-family: 'Montserrat', sans-serif; font-size: 11px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: 220px;
+}
+.maplibregl-popup.rl-popup .maplibregl-popup-tip { border-top-color: rgba(8,15,30,.94); }
+.pop-title { font-weight: 700; margin-bottom: 3px; }
+.pop-meta  { color: var(--text-2); line-height: 1.45; }
+
+/* Filtros por categoría (con color) */
+.cat-filters { display: flex; gap: 7px; flex-wrap: wrap; }
+.cat-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 600; font-family: inherit;
+  padding: 6px 13px; border-radius: 20px; cursor: pointer;
+  background: var(--bg-surface); color: var(--text-2);
+  border: 1px solid var(--border-md);
+  transition: all var(--transition);
+}
+.cat-chip:hover { color: var(--text-1); transform: translateY(-1px); }
+.cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; transition: box-shadow var(--transition); }
+.cat-chip.active { color: var(--text-1); border-color: currentColor; }
+.cat-chip.active .cat-dot { box-shadow: 0 0 0 3px rgba(255,255,255,.14); }
+.cat-count { font-size: 10px; opacity: .7; }
+
+/* Tooltip de zona */
+.maplibregl-popup.zone-hover .maplibregl-popup-content { animation: popIn .18s ease-out; }
+@keyframes popIn { from { opacity: 0; transform: translateY(5px) scale(.97); } to { opacity: 1; transform: none; } }
+
+.zone-figures { display: flex; gap: 14px; margin: 7px 0 4px; }
+.zone-figure  { display: flex; flex-direction: column; }
+.zf-num { font-size: 17px; font-weight: 800; line-height: 1; }
+.zf-lbl { font-size: 9px; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+.zone-sec {
+  font-size: 8px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .5px;
+  margin: 8px 0 4px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.1);
+}
+.zone-line { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; line-height: 1.6; color: #cbd5e1; }
+.zone-line b { color: #fff; }
+
+.map-legend {
+  position: absolute; bottom: 12px; right: 12px; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(8,15,30,.85); border: 1px solid var(--border-md);
+  border-radius: 20px; padding: 6px 12px; backdrop-filter: blur(4px);
+}
+.map-legend-lbl { font-size: 9px; color: var(--text-2); font-weight: 600; }
+.map-legend-bar { width: 90px; height: 7px; border-radius: 4px; background: linear-gradient(to right, #1e3a8a, #1d4ed8, #3b82f6, #60a5fa, #dbeafe); }
+
+/* Ranking de categorías */
+.rank-list { display: flex; flex-direction: column; gap: 12px; }
+.rank-item { display: flex; flex-direction: column; gap: 5px; }
+.rank-row  { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; }
+.rank-name { color: var(--text-1); font-weight: 600; }
+.rank-count{ color: var(--text-2); font-size: 10px; }
+.rank-track{ height: 6px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.rank-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+
+/* ── Vista lista por ruta ── */
+.route-group {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--radius); overflow: hidden;
+}
+.rg-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; cursor: pointer;
+  transition: background var(--transition);
+}
+.rg-header:hover { background: rgba(255,255,255,.03); }
+.rg-name  { font-size: 14px; font-weight: 700; }
+.rg-type  { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.rg-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.rg-count {
+  font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+  background: var(--bg-raised); color: #93c5fd; white-space: nowrap;
+}
+.rg-chevron { color: var(--text-2); font-size: 13px; transition: transform var(--transition); }
+.route-group.open .rg-chevron { transform: rotate(90deg); }
+.rg-body { display: none; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
+.route-group.open .rg-body { display: flex; }
+
+.queja-card {
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-left: 3px solid var(--border-md);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+  display: flex; gap: 14px; align-items: flex-start;
+  transition: border-color var(--transition);
+}
+.queja-card:hover { border-color: var(--border-md); }
+.queja-card.pending  { border-left-color: var(--yellow); }
+.queja-card.resolved { border-left-color: var(--green); }
+
+.queja-photo {
+  width: 68px; height: 68px; border-radius: var(--radius-sm);
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0; overflow: hidden;
+}
+.queja-photo img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+
+.queja-body { flex: 1; min-width: 0; }
+.queja-top  { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; flex-wrap: wrap; }
+.queja-cat  { font-size: 13px; font-weight: 700; }
+.queja-dist { font-size: 10px; color: #93c5fd; font-weight: 600; }
+.queja-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: 5px 0 7px; }
+.queja-meta { font-size: 10px; color: var(--text-2); }
+
+.queja-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+
+.badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-green  { background: var(--green-dim);     color: var(--green-light); }
+.badge-blue   { background: rgba(59,130,246,.15); color: #93c5fd; }
+
+.btn-resolve {
+  padding: 6px 12px; border-radius: var(--radius-sm); font-family: inherit;
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all var(--transition);
+  white-space: nowrap; background: var(--blue); border: none; color: #fff;
+}
+.btn-resolve:hover { background: #2563eb; }
+.btn-resolve:disabled { opacity: .5; cursor: not-allowed; }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-2); font-size: 13px; }
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* Lightbox */
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 600;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; padding: 24px;
+}
+.lightbox.open { opacity: 1; pointer-events: all; }
+.lightbox img { max-width: 90vw; max-height: 90vh; border-radius: var(--radius); }
+
+@media (max-width: 1024px) {
+  .map-grid { grid-template-columns: 1fr; }
+  #heat-map { height: 340px; }
+}
+@media (max-width: 768px) {
+  .page-inner  { padding: 16px; gap: 14px; }
+  .page-title  { font-size: 18px; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .search-input{ width: 100%; }
+  .filter-bar  { flex-direction: column; align-items: stretch; }
+  .queja-card  { flex-direction: column; }
+  .queja-right { flex-direction: row; align-items: center; width: 100%; justify-content: space-between; }
+  .view-tabs   { width: 100%; }
+  .vtab        { flex: 1; justify-content: center; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+    <div class="main">
+      <div class="page-inner">
+
+        <div class="page-header">
+          <div>
+            <div class="page-title">Quejas ciudadanas</div>
+            <div class="page-sub">Reportes enviados por los vecinos desde la app móvil</div>
+          </div>
+          <div class="view-tabs">
+            <button class="vtab active" id="tab-map" onclick="setView('map')">
+              <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+              Zonas por ruta
+            </button>
+            <button class="vtab" id="tab-list" onclick="setView('list')">
+              <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+              Lista por ruta
+            </button>
+          </div>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-card blue">
+            <div class="stat-label">Total quejas</div>
+            <div class="stat-value" id="stat-total" style="color:#93c5fd">—</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">Pendientes</div>
+            <div class="stat-value" id="stat-pending" style="color:var(--yellow)">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Resueltas</div>
+            <div class="stat-value" id="stat-resolved" style="color:var(--green-light)">—</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Ruta más reportada</div>
+            <div class="stat-value sm" id="stat-top-route" style="color:var(--red)">—</div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-group" id="status-filters">
+            <button class="fbar-btn active" onclick="setStatusFilter('pending', this)">Pendientes</button>
+            <button class="fbar-btn" onclick="setStatusFilter('resolved', this)">Resueltas</button>
+            <button class="fbar-btn" onclick="setStatusFilter('all', this)">Todas</button>
+          </div>
+          <input class="search-input" id="search-input" placeholder="🔍 Buscar por descripción o categoría…"/>
+        </div>
+
+        <div class="cat-filters" id="cat-filters"></div>
+
+        <!-- ══ VISTA MAPA DE CALOR ══ -->
+        <div class="view active" id="view-map">
+          <div class="map-grid">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Zonas por ruta</div>
+                  <div class="card-sub">Pasa el mouse sobre una zona para ver sus quejas e incidencias · el color indica la carga</div>
+                </div>
+                <span class="card-badge">Zonas</span>
+              </div>
+              <div class="map-shell">
+                <div id="heat-map"></div>
+                <div class="map-legend">
+                  <span class="map-legend-lbl">Menos</span>
+                  <div class="map-legend-bar"></div>
+                  <span class="map-legend-lbl">Más</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Motivos más reportados</div>
+                  <div class="card-sub">Categorías con más quejas</div>
+                </div>
+                <span class="card-badge">Ranking</span>
+              </div>
+              <div class="rank-list" id="rank-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ VISTA LISTA POR RUTA ══ -->
+        <div class="view" id="view-list">
+          <div id="route-groups"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Foto de la queja"/>
+</div>
+
+<script src="shared.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<script type="module">
+import {
+  getReports, resolveReport, getRoutes, getCollections,
+  getSession, getCurrentUserProfile, getNotifications, signOut,
+} from './db.js';
+
+window.doLogout = async function() {
+  await signOut();
+  window.location.href = 'index.html';
+};
+
+const $ = id => document.getElementById(id);
+const MAPTILER_STYLE = 'https://api.maptiler.com/maps/019ce0a5-32b2-7581-b623-7e96b2b2898e/style.json?key=Gunxj5fPn1CLzgDqQOZb';
+const TOWN_BBOX = { west: -102.7624, south: 20.0171, east: -102.6824, north: 20.0971 };
+const RANK_COLORS = ['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+/* Un color por categoría de queja (las 4 que acepta la base) */
+const CATEGORY_META = {
+  camion_no_paso:   { color: '#f59e0b', label: 'Camión no pasó',  icon: '🚛' },
+  basura_acumulada: { color: '#ef4444', label: 'Basura acumulada', icon: '🗑️' },
+  queja_servicio:   { color: '#3b82f6', label: 'Queja de servicio', icon: '📋' },
+  otra:             { color: '#a855f7', label: 'Otra',             icon: '❓' },
+};
+const categoryMeta = cat => CATEGORY_META[cat] || { color: '#94a3b8', label: prettify(cat), icon: '•' };
+
+/* Radio máximo para considerar que una queja pertenece a una ruta */
+const ROUTE_MATCH_RADIUS_M = 600;
+const METERS_PER_DEGREE = 111320;
+
+let _reports = [], _routes = [], _incidents = [];
+let _statusFilter = 'pending', _categoryFilter = 'all', _view = 'map';
+
+/* ══ POLÍGONO DE ZONA POR RUTA ══
+   Cada ruta se convierte en una zona: envolvente convexa de su trazo, expandida
+   desde el centro para dar margen. Al ser un trazo cerrado (circuito), la
+   envolvente representa bien el área que atiende esa ruta. */
+function convexHull(points) {
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length < 3) return pts;
+  const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const build = list => {
+    const stack = [];
+    for (const p of list) {
+      while (stack.length >= 2 && cross(stack[stack.length-2], stack[stack.length-1], p) <= 0) stack.pop();
+      stack.push(p);
+    }
+    stack.pop();
+    return stack;
+  };
+  return [...build(pts), ...build([...pts].reverse())];
+}
+
+function expandFromCentroid(ring, factor = 1.22, minMarginDeg = 0.0012) {
+  const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+  const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+  return ring.map(([x, y]) => {
+    const dx = x - cx, dy = y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    return [
+      cx + dx * factor + (dx / len) * minMarginDeg,
+      cy + dy * factor + (dy / len) * minMarginDeg,
+    ];
+  });
+}
+
+function zonePolygon(route) {
+  const coords = lineCoords(route.geometry);
+  if (!coords || coords.length < 3) return null;
+  const hull = convexHull(coords);
+  if (hull.length < 3) return null;
+  const ring = expandFromCentroid(hull);
+  return [...ring, ring[0]];
+}
+
+const prettify = text => !text ? 'Sin categoría' : text.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ══ ASIGNACIÓN DE QUEJA → RUTA MÁS CERCANA ══ */
+function lineCoords(geometry) {
+  if (!geometry) return null;
+  if (geometry.type === 'LineString') return geometry.coordinates;
+  if (geometry.type === 'MultiLineString') return geometry.coordinates.flat();
+  return null;
+}
+
+function distanceToSegment(point, segStart, segEnd) {
+  const scale = Math.cos(point[1] * Math.PI / 180) * METERS_PER_DEGREE;
+  const toXY = ([lng, lat]) => [lng * scale, lat * METERS_PER_DEGREE];
+  const [px, py] = toXY(point), [ax, ay] = toXY(segStart), [bx, by] = toXY(segEnd);
+  const dx = bx - ax, dy = by - ay;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSq));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function nearestRoute(report) {
+  if (report.lat == null || report.lng == null) return { route: null, distance: Infinity };
+  const point = [report.lng, report.lat];
+  let best = { route: null, distance: Infinity };
+  _routes.forEach(route => {
+    const coords = lineCoords(route.geometry);
+    if (!coords || coords.length < 2) return;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const distance = distanceToSegment(point, coords[i], coords[i + 1]);
+      if (distance < best.distance) best = { route, distance };
+    }
+  });
+  return best.distance <= ROUTE_MATCH_RADIUS_M ? best : { route: null, distance: best.distance };
+}
+
+/* ══ FILTRADO ══ */
+function visibleReports() {
+  const query = ($('search-input')?.value || '').toLowerCase();
+  let list = _reports;
+  if (_statusFilter === 'pending')  list = list.filter(r => r.status !== 'resolved');
+  if (_statusFilter === 'resolved') list = list.filter(r => r.status === 'resolved');
+  if (_categoryFilter !== 'all')    list = list.filter(r => (r.category || 'otra') === _categoryFilter);
+  if (query) {
+    list = list.filter(r =>
+      (r.description || '').toLowerCase().includes(query) ||
+      (r.category || '').toLowerCase().includes(query));
+  }
+  return list;
+}
+
+function renderCategoryFilters() {
+  const counts = {};
+  _reports.forEach(r => { const k = r.category || 'otra'; counts[k] = (counts[k] || 0) + 1; });
+  const cats = Object.keys(CATEGORY_META).filter(k => counts[k]);
+
+  $('cat-filters').innerHTML =
+    `<button class="cat-chip ${_categoryFilter === 'all' ? 'active' : ''}" style="color:${_categoryFilter === 'all' ? '#f1f5f9' : ''}" onclick="setCategoryFilter('all', this)">
+       <span class="cat-dot" style="background:linear-gradient(135deg,#f59e0b,#ef4444,#3b82f6,#a855f7)"></span>
+       Todas <span class="cat-count">${_reports.length}</span>
+     </button>` +
+    cats.map(cat => {
+      const m = categoryMeta(cat);
+      const on = _categoryFilter === cat;
+      return `<button class="cat-chip ${on ? 'active' : ''}" style="${on ? `color:${m.color}` : ''}" onclick="setCategoryFilter('${cat}', this)">
+        <span class="cat-dot" style="background:${m.color}"></span>
+        ${m.icon} ${m.label} <span class="cat-count">${counts[cat]}</span>
+      </button>`;
+    }).join('');
+}
+
+window.setCategoryFilter = function(cat) {
+  _categoryFilter = cat;
+  renderCategoryFilters();
+  render();
+};
+
+window.setStatusFilter = function(status, btn) {
+  document.querySelectorAll('#status-filters .fbar-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _statusFilter = status;
+  render();
+};
+$('search-input').addEventListener('input', render);
+
+window.setView = function(view) {
+  _view = view;
+  $('tab-map').classList.toggle('active', view === 'map');
+  $('tab-list').classList.toggle('active', view === 'list');
+  $('view-map').classList.toggle('active', view === 'map');
+  $('view-list').classList.toggle('active', view === 'list');
+  if (view === 'map' && map) setTimeout(() => map.resize(), 50);
+};
+
+window.openLightbox = url => { $('lightbox-img').src = url; $('lightbox').classList.add('open'); };
+window.closeLightbox = () => $('lightbox').classList.remove('open');
+window.toggleRouteGroup = el => el.closest('.route-group').classList.toggle('open');
+
+/* ══ MAPA ══ */
+let map, mapReady = false, hoverPopup = null;
+
+function initMap() {
+  map = new maplibregl.Map({
+    container: 'heat-map',
+    style: MAPTILER_STYLE,
+    center: [(TOWN_BBOX.west + TOWN_BBOX.east) / 2, (TOWN_BBOX.south + TOWN_BBOX.north) / 2],
+    zoom: 12.5,
+  });
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+  hoverPopup = new maplibregl.Popup({
+    closeButton: false, closeOnClick: false, className: 'rl-popup zone-hover', offset: 14,
+  });
+
+  map.on('load', () => {
+    map.fitBounds([[TOWN_BBOX.west, TOWN_BBOX.south], [TOWN_BBOX.east, TOWN_BBOX.north]], { padding: 30, duration: 0 });
+
+    /* ── Zonas por ruta (polígonos) ── */
+    map.addSource('zones', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({
+      id: 'zones-fill',
+      type: 'fill',
+      source: 'zones',
+      paint: {
+        'fill-color': ['get', 'color'],
+        'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.60, 0.26],
+        'fill-opacity-transition': { duration: 260 },
+      },
+    });
+    map.addLayer({
+      id: 'zones-outline',
+      type: 'line',
+      source: 'zones',
+      layout: { 'line-join': 'round' },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3.2, 1.4],
+        'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0.65],
+        'line-width-transition': { duration: 260 },
+        'line-opacity-transition': { duration: 260 },
+      },
+    });
+
+    /* Trazo real de la ruta dentro de la zona */
+    map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({
+      id: 'routes-line',
+      type: 'line',
+      source: 'routes',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#94a3b8', 'line-width': 2, 'line-opacity': 0.55, 'line-dasharray': [2, 2] },
+    });
+
+    /* Puntos de queja */
+    map.addSource('reports', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({
+      id: 'reports-point',
+      type: 'circle',
+      source: 'reports',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 4, 17, 8],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': ['case', ['==', ['get', 'resolved'], true], '#22c55e', '#05070d'],
+        'circle-opacity': ['case', ['==', ['get', 'resolved'], true], 0.45, 0.95],
+      },
+    });
+
+    map.on('mouseenter', 'reports-point', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'reports-point', () => { map.getCanvas().style.cursor = ''; });
+
+    /* ── Hover animado sobre las zonas ── */
+    let hoveredZone = null;
+    map.on('mousemove', 'zones-fill', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const f = e.features[0];
+      if (hoveredZone !== null && hoveredZone !== f.id) {
+        map.setFeatureState({ source: 'zones', id: hoveredZone }, { hover: false });
+      }
+      hoveredZone = f.id;
+      map.setFeatureState({ source: 'zones', id: hoveredZone }, { hover: true });
+      hoverPopup.setLngLat(e.lngLat).setHTML(zoneTooltip(f.properties)).addTo(map);
+    });
+    map.on('mouseleave', 'zones-fill', () => {
+      map.getCanvas().style.cursor = '';
+      if (hoveredZone !== null) map.setFeatureState({ source: 'zones', id: hoveredZone }, { hover: false });
+      hoveredZone = null;
+      hoverPopup.remove();
+    });
+
+    map.on('click', 'reports-point', e => {
+      const p = e.features[0].properties;
+      new maplibregl.Popup({ className: 'rl-popup', offset: 10 })
+        .setLngLat(e.lngLat)
+        .setHTML(`<div class="pop-title">${p.category}</div>
+                  <div class="pop-meta">${p.description}</div>
+                  <div class="pop-meta" style="margin-top:5px">📍 ${p.route}<br/>${p.date}</div>`)
+        .addTo(map);
+    });
+
+    mapReady = true;
+    render();
+  });
+}
+
+function zoneTooltip(p) {
+  const incidencias = JSON.parse(p.incidentList || '[]');
+  const categorias  = JSON.parse(p.categoryList || '[]');
+  return `
+    <div class="pop-title">${p.name}</div>
+    <div class="zone-figures">
+      <div class="zone-figure"><span class="zf-num" style="color:#facc15">${p.quejas}</span><span class="zf-lbl">quejas</span></div>
+      <div class="zone-figure"><span class="zf-num" style="color:#f87171">${p.incidencias}</span><span class="zf-lbl">incidencias</span></div>
+    </div>
+    ${categorias.length ? `<div class="zone-sec">Motivos</div>${categorias.map(c =>
+      `<div class="zone-line"><span>${c[0]}</span><b>${c[1]}</b></div>`).join('')}` : ''}
+    ${incidencias.length ? `<div class="zone-sec">Incidencias de ruta</div>${incidencias.map(i =>
+      `<div class="zone-line"><span>${i}</span></div>`).join('')}` : ''}
+    ${!Number(p.quejas) && !Number(p.incidencias) ? '<div class="pop-meta">Sin reportes en esta zona.</div>' : ''}`;
+}
+
+const ZONE_SCALE = ['#1e3a8a', '#1d4ed8', '#3b82f6', '#60a5fa', '#93c5fd'];
+function zoneColor(count, max) {
+  if (!count) return '#334155';
+  const idx = Math.min(ZONE_SCALE.length - 1, Math.round((count / (max || 1)) * (ZONE_SCALE.length - 1)));
+  return ZONE_SCALE[idx];
+}
+
+function renderZones(list) {
+  const byRoute = new Map(_routes.map(r => [r.id, { quejas: [], incidencias: [] }]));
+  list.forEach(r => {
+    const { route } = nearestRoute(r);
+    if (route && byRoute.has(route.id)) byRoute.get(route.id).quejas.push(r);
+  });
+  _incidents.forEach(c => {
+    const id = c.route?.id || c.route_id;
+    if (id && byRoute.has(id)) byRoute.get(id).incidencias.push(c);
+  });
+
+  const maxQuejas = Math.max(...[...byRoute.values()].map(v => v.quejas.length), 1);
+  const features = [];
+  let fid = 1;
+
+  _routes.forEach(route => {
+    const ring = zonePolygon(route);
+    if (!ring) return;
+    const data = byRoute.get(route.id) || { quejas: [], incidencias: [] };
+
+    const counts = {};
+    data.quejas.forEach(q => { const k = prettify(q.category); counts[k] = (counts[k] || 0) + 1; });
+
+    features.push({
+      type: 'Feature',
+      id: fid++,
+      properties: {
+        name: route.name,
+        quejas: data.quejas.length,
+        incidencias: data.incidencias.length,
+        color: zoneColor(data.quejas.length, maxQuejas),
+        categoryList: JSON.stringify(Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4)),
+        incidentList: JSON.stringify(
+          data.incidencias.slice(0, 3).map(i => i.incomplete_reason || 'Recolección incompleta')),
+      },
+      geometry: { type: 'Polygon', coordinates: [ring] },
+    });
+  });
+
+  map.getSource('zones').setData({ type: 'FeatureCollection', features });
+}
+
+function renderMap(list) {
+  if (!mapReady) return;
+
+  renderZones(list);
+
+  map.getSource('routes').setData({
+    type: 'FeatureCollection',
+    features: _routes
+      .filter(r => lineCoords(r.geometry))
+      .map(r => ({
+        type: 'Feature',
+        properties: { name: r.name },
+        geometry: { type: 'LineString', coordinates: lineCoords(r.geometry) },
+      })),
+  });
+
+  map.getSource('reports').setData({
+    type: 'FeatureCollection',
+    features: list
+      .filter(r => r.lat != null && r.lng != null)
+      .map(r => ({
+        type: 'Feature',
+        properties: {
+          category:    categoryMeta(r.category).label,
+          icon:        categoryMeta(r.category).icon,
+          color:       categoryMeta(r.category).color,
+          description: r.description || 'Sin descripción',
+          route:       nearestRoute(r).route?.name || 'Fuera de ruta',
+          date:        formatDateTime(r.created_at),
+          resolved:    r.status === 'resolved',
+        },
+        geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+      })),
+  });
+}
+
+/* ══ RANKING DE CATEGORÍAS ══ */
+function renderRanking(list) {
+  const counts = {};
+  list.forEach(r => { const key = r.category || 'other'; counts[key] = (counts[key] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (!sorted.length) {
+    $('rank-list').innerHTML = `<div class="empty-state" style="padding:30px 10px">Sin quejas en este filtro.</div>`;
+    return;
+  }
+  const max = sorted[0][1];
+  $('rank-list').innerHTML = sorted.map(([category, count], i) => `
+    <div class="rank-item">
+      <div class="rank-row">
+        <span class="rank-name">${prettify(category)}</span>
+        <span class="rank-count">${count} queja${count > 1 ? 's' : ''}</span>
+      </div>
+      <div class="rank-track"><div class="rank-fill" style="width:${Math.round((count / max) * 100)}%;background:${RANK_COLORS[i % RANK_COLORS.length]}"></div></div>
+    </div>`).join('');
+}
+
+/* ══ LISTA AGRUPADA POR RUTA ══ */
+function groupByRoute(list) {
+  const groups = new Map();
+  list.forEach(report => {
+    const { route, distance } = nearestRoute(report);
+    const key = route?.id || 'unassigned';
+    if (!groups.has(key)) {
+      groups.set(key, { route, reports: [] });
+    }
+    groups.get(key).reports.push({ ...report, _distance: distance });
+  });
+  return [...groups.values()].sort((a, b) => b.reports.length - a.reports.length);
+}
+
+function statusBadge(status) {
+  if (status === 'resolved')    return '<span class="badge badge-green">Resuelta</span>';
+  if (status === 'in_progress') return '<span class="badge badge-blue">En atención</span>';
+  return '<span class="badge badge-yellow">Pendiente</span>';
+}
+
+function quejaCard(report) {
+  const isResolved = report.status === 'resolved';
+  const photo = report.photo_url
+    ? `<img src="${report.photo_url}" alt="Evidencia" onclick="openLightbox('${report.photo_url}')"/>`
+    : '📷';
+  const distance = Number.isFinite(report._distance)
+    ? `<span class="queja-dist">a ${Math.round(report._distance)} m de la ruta</span>` : '';
+  return `
+    <div class="queja-card ${isResolved ? 'resolved' : 'pending'}">
+      <div class="queja-photo">${photo}</div>
+      <div class="queja-body">
+        <div class="queja-top">
+          <span class="queja-cat">${prettify(report.category)}</span>
+          ${distance}
+        </div>
+        <div class="queja-desc">${report.description || 'Sin descripción adicional.'}</div>
+        <div class="queja-meta">Reportada: ${formatDateTime(report.created_at)}${isResolved ? ` · Resuelta: ${formatDateTime(report.resolved_at)}` : ''}</div>
+      </div>
+      <div class="queja-right">
+        ${statusBadge(report.status)}
+        ${isResolved ? '' : `<button class="btn-resolve" onclick="markResolved('${report.id}', this)">Marcar resuelta</button>`}
+      </div>
+    </div>`;
+}
+
+function renderList(list) {
+  const container = $('route-groups');
+  const groups = groupByRoute(list);
+
+  if (!groups.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>${
+      _statusFilter === 'pending' ? 'No hay quejas pendientes.' : 'Sin quejas que coincidan con este filtro.'}</div>`;
+    return;
+  }
+
+  container.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+  container.innerHTML = groups.map(({ route, reports }, index) => `
+    <div class="route-group ${index === 0 ? 'open' : ''}">
+      <div class="rg-header" onclick="toggleRouteGroup(this)">
+        <div>
+          <div class="rg-name">${route ? route.name : 'Fuera de ruta'}</div>
+          <div class="rg-type">${route ? prettify(route.route_type) : 'Quejas lejos de cualquier ruta registrada'}</div>
+        </div>
+        <div class="rg-right">
+          <span class="rg-count">${reports.length} queja${reports.length > 1 ? 's' : ''}</span>
+          <span class="rg-chevron">›</span>
+        </div>
+      </div>
+      <div class="rg-body">${reports.map(quejaCard).join('')}</div>
+    </div>`).join('');
+}
+
+/* ══ STATS ══ */
+function renderStats() {
+  const pending  = _reports.filter(r => r.status !== 'resolved').length;
+  const resolved = _reports.filter(r => r.status === 'resolved').length;
+
+  $('stat-total').textContent    = _reports.length;
+  $('stat-pending').textContent  = pending;
+  $('stat-resolved').textContent = resolved;
+
+  const groups = groupByRoute(_reports);
+  const top = groups[0];
+  $('stat-top-route').textContent = top
+    ? `${top.route ? top.route.name : 'Fuera de ruta'} (${top.reports.length})`
+    : '—';
+}
+
+function render() {
+  const list = visibleReports();
+  renderCategoryFilters();
+  renderStats();
+  renderMap(list);
+  renderRanking(list);
+  renderList(list);
+}
+
+window.markResolved = async function(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    await resolveReport(id);
+    showToast('✅ Queja marcada como resuelta');
+    await loadData();
+  } catch (err) {
+    console.error('[resolveReport]', err);
+    showToast('❌ ' + (err.message || 'No se pudo guardar'));
+    btn.disabled = false;
+    btn.textContent = 'Marcar resuelta';
+  }
+};
+
+/* ══ CARGA ══ */
+async function loadData() {
+  try {
+    const [reports, routes, collections] = await Promise.all([
+      getReports(), getRoutes(), getCollections('mensual'),
+    ]);
+    _reports   = reports;
+    _routes    = routes;
+    _incidents = collections.filter(c => c.status === 'incomplete' || c.status === 'cancelled');
+    render();
+  } catch (err) {
+    console.error('[quejas]', err);
+    showToast('❌ No se pudieron cargar las quejas');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try { window.renderNotifications?.(await getNotifications()); }
+  catch (err) { console.error('[notifications]', err); }
+}
+
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Quejas');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+  initMap();
+
+  await loadData();
+  refreshNotifications();
+
+  setInterval(loadData, 30_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+main();
+</script>
+</body>
+</html>

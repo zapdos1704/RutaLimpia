@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Mapa en vivo</title>
+<link rel="stylesheet" href="shared.css"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
+<style>
+/* ── Mapa ── */
+.map-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+#map {
+  flex: 1;
+  min-height: 0;
+  z-index: 1;
+  background: #05070d;
+}
+.maplibregl-ctrl-attrib { font-size: 9px !important; }
+.maplibregl-ctrl-group {
+  background: #111827 !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.4) !important;
+}
+.maplibregl-ctrl-group button { background: transparent !important; }
+.maplibregl-ctrl-group button:hover { background: #1a2540 !important; }
+.maplibregl-ctrl-icon { filter: invert(1) brightness(1.3); }
+
+/* ── Botones flotantes ── */
+.map-actions {
+  position: absolute;
+  top: 14px; right: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Panel de vehículo ── */
+#vehicle-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 280px;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  z-index: 20;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto;
+}
+#vehicle-panel.open { transform: translateX(0); }
+.vp-header { display: flex; align-items: center; justify-content: space-between; }
+.vp-title  { font-size: 14px; font-weight: 700; }
+.vp-close  { width:28px; height:28px; border-radius:6px; background:rgba(255,255,255,.1); border:1px solid var(--border-md); color:rgba(255,255,255,.6); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all var(--transition); }
+.vp-close:hover { background:rgba(255,255,255,.18); color:#fff; }
+
+.vp-avatar-row { display:flex; align-items:center; gap:12px; }
+.vp-avatar { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.vp-avatar svg { width:30px; height:30px; fill:rgba(255,255,255,.6); }
+.vp-id   { font-size:16px; font-weight:800; }
+.vp-ruta { font-size:11px; color:rgba(255,255,255,.5); margin-top:2px; }
+.vp-status { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; padding:4px 10px; border-radius:20px; margin-top:4px; }
+.vp-status.green { background:var(--green-dim); color:var(--green-light); }
+.vp-status.red   { background:rgba(239,68,68,.15); color:var(--red); }
+.vp-status.gray  { background:rgba(71,85,105,.3); color:#94a3b8; }
+
+.vp-section { display:flex; flex-direction:column; gap:8px; }
+.vp-section-title { font-size:10px; font-weight:700; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.5px; }
+.vp-row { display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:8px 10px; background:rgba(255,255,255,.05); border-radius:6px; }
+.vp-row-label { color:rgba(255,255,255,.45); }
+.vp-row-val   { font-weight:600; }
+
+.vp-gauge-row { display:flex; gap:8px; }
+.vp-gauge { flex:1; background:rgba(255,255,255,.05); border-radius:8px; padding:8px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.vp-gauge svg { width:52px; height:52px; }
+.vp-gauge-label { font-size:9px; color:rgba(255,255,255,.4); text-align:center; }
+
+.vp-actions { display:flex; gap:8px; margin-top:auto; }
+.vp-btn { flex:1; padding:10px; border-radius:var(--radius-sm); font-family:inherit; font-size:11px; font-weight:700; cursor:pointer; transition:all var(--transition); }
+.vp-btn.primary { background:var(--green); border:none; color:#fff; }
+.vp-btn.primary:hover { background:#16a34a; }
+.vp-btn.outline { background:transparent; border:1px solid var(--border-md); color:#fff; }
+.vp-btn.outline:hover { background:rgba(255,255,255,.08); }
+
+/* ── Vehicles list ── */
+.vehicles-list { display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1; }
+.vehicles-list::-webkit-scrollbar { width:3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .map-actions {
+    top: auto;
+    bottom: calc(var(--bottom-nav-h) + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+    flex-direction: row;
+    gap: 8px;
+  }
+  /* Botones más pequeños en mobile */
+  .map-actions .btn-primary,
+  .map-actions .btn-secondary {
+    font-size: 11px;
+    padding: 7px 12px;
+    gap: 4px;
+  }
+  .map-actions .btn-primary svg,
+  .map-actions .btn-secondary svg {
+    width: 11px; height: 11px;
+  }
+
+  /* Panel vehículo desde abajo en mobile */
+  #vehicle-panel {
+    width: 100%;
+    top: auto;
+    height: 62vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform .35s cubic-bezier(.4,0,.2,1);
+  }
+  #vehicle-panel.open { transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar" onclick="showToast('🚛 Abre formulario de nuevo camión')">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAPA -->
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <div class="map-actions">
+        <button class="btn-primary" onclick="showToast('📍 Formulario de nueva ruta')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Nueva ruta
+        </button>
+        <button class="btn-secondary" id="btn-rutas" onclick="toggleRoutes(this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+          Mostrar recorridos
+        </button>
+      </div>
+
+      <!-- Panel detalle vehículo -->
+      <div id="vehicle-panel">
+        <div class="vp-header">
+          <span class="vp-title">Detalle del vehículo</span>
+          <button class="vp-close" onclick="closeVehiclePanel()">✕</button>
+        </div>
+        <div class="vp-avatar-row">
+          <div class="vp-avatar">
+            <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          </div>
+          <div>
+            <div class="vp-id" id="vp-id">VH-001</div>
+            <div class="vp-ruta" id="vp-ruta">Ruta Norte</div>
+            <div class="vp-status green" id="vp-status">● Activo</div>
+          </div>
+        </div>
+        <div class="vp-section">
+          <div class="vp-section-title">Datos del vehículo</div>
+          <div class="vp-row"><span class="vp-row-label">Placa</span><span class="vp-row-val" id="vp-placa">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Capacidad</span><span class="vp-row-val" id="vp-cap">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Conductor</span><span class="vp-row-val" id="vp-enc">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Ayudantes</span><span class="vp-row-val" id="vp-trab">—</span></div>
+        </div>
+        <div class="vp-section">
+          <div class="vp-section-title">Ruta asignada</div>
+          <div class="vp-row"><span class="vp-row-label" id="vp-route-name">Sin ruta hoy</span><span class="vp-row-val" id="vp-route-km"></span></div>
+          <button class="vp-btn primary" id="vp-route-btn" onclick="toggleVehicleRoute()" style="width:100%">Mostrar ruta en el mapa</button>
+        </div>
+        <div class="vp-section">
+          <div class="vp-section-title">Estado en tiempo real</div>
+          <div class="vp-gauge-row">
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-fuel" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-fuel-txt">70%</text></svg>
+              <div class="vp-gauge-label">Combustible</div>
+            </div>
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-cap" stroke="#f59e0b" stroke-width="7" stroke-dasharray="69 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-cap-txt">50%</text></svg>
+              <div class="vp-gauge-label" id="gauge-cap-lbl">Cap. camión</div>
+            </div>
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-ruta" stroke="#3b82f6" stroke-width="7" stroke-dasharray="110 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-ruta-txt">80%</text></svg>
+              <div class="vp-gauge-label">% Ruta</div>
+            </div>
+          </div>
+        </div>
+        <div class="vp-actions">
+          <button class="vp-btn outline" onclick="closeVehiclePanel()">Cerrar</button>
+          <button class="vp-btn primary" onclick="showToast('🔄 Reasignando ruta…')">Reasignar ruta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<script src="shared.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<script type="module">
+import {
+  getVehicles, getTelemetry, getGpsLogs, capacityPct, capacityLabel,
+  getRoutesByVehicle, getVehicleCrew,
+  getSession, getCurrentUserProfile, getNotifications, signOut,
+} from './db.js';
+
+/* ── SESIÓN / LOGOUT ── */
+window.doLogout = async function() {
+  await signOut();
+  window.location.href = 'index.html';
+};
+
+/* ── ESTADO ── */
+let vehicles = [];   // datos DB + telemetry combinados
+let selectedId = null;
+const markers  = {};
+
+/* ── HELPERS ── */
+const fuelColor = p => p < 20 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
+const statusLabelMap = { active:'Activo', maintenance:'Avería/Mant.', inactive:'Inactivo' };
+
+/* Cada vehículo activo recibe un color distinto (para diferenciarlos en el mapa);
+   avería/inactivo siempre se marcan en rojo/gris como señal de alerta. */
+const FLEET_COLORS = ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316'];
+function colorForVehicle(v) {
+  if (v.status === 'maintenance') return '#ef4444';
+  if (v.status === 'inactive')    return '#64748b';
+  const s = String(v.economic_number || v.id || '');
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return FLEET_COLORS[hash % FLEET_COLORS.length];
+}
+
+/* ── MAPA — centrado en Sahuayo de Morelos ──
+   Mismo estilo MapTiler (MapLibre GL) que se usa en la página de Reportes. */
+const MAPTILER_STYLE = 'https://api.maptiler.com/maps/019ce0a5-32b2-7581-b623-7e96b2b2898e/style.json?key=Gunxj5fPn1CLzgDqQOZb';
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: MAPTILER_STYLE,
+  center: [-102.7224, 20.0572], // MapLibre usa [lng, lat]
+  zoom: 15,
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+let mapLoaded = false;
+let hasFittedBounds = false;
+
+/* ── RECORRIDOS REALES (histórico GPS de cada dispositivo) ──
+   Se dibuja el trayecto que registró cada camión en gps_logs, con el mismo
+   color que su marcador, más un punto de inicio en el primer registro. */
+function setupTrailLayers() {
+  // Ruta asignada al camión seleccionado (línea punteada por debajo del recorrido)
+  map.addSource('vehicle-route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'vehicle-route-line',
+    type: 'line',
+    source: 'vehicle-route',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': '#facc15',
+      'line-width': 5,
+      'line-opacity': 0.85,
+      'line-dasharray': [1.6, 1.2],
+    },
+  });
+
+  map.addSource('trails', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'trails-line',
+    type: 'line',
+    source: 'trails',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.9 },
+  });
+  map.addSource('trail-starts', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'trail-starts-dot',
+    type: 'circle',
+    source: 'trail-starts',
+    paint: {
+      'circle-radius': 5,
+      'circle-color': ['get', 'color'],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+    },
+  });
+}
+
+function trailFeatures(trails) {
+  const lines = [], starts = [];
+  trails.forEach(({ vehicle, points }) => {
+    if (points.length < 2) return;
+    const color = colorForVehicle(vehicle);
+    lines.push({
+      type: 'Feature',
+      properties: { color, label: vehicle.economic_number },
+      geometry: { type: 'LineString', coordinates: points.map(p => [p.lng, p.lat]) },
+    });
+    starts.push({
+      type: 'Feature',
+      properties: { color },
+      geometry: { type: 'Point', coordinates: [points[0].lng, points[0].lat] },
+    });
+  });
+  return { lines, starts };
+}
+
+let trailsVisible = false;
+window.toggleRoutes = async function(btn) {
+  if (!mapLoaded) return;
+  trailsVisible = !trailsVisible;
+  btn.classList.toggle('active', trailsVisible);
+
+  if (!trailsVisible) {
+    map.getSource('trails').setData({ type: 'FeatureCollection', features: [] });
+    map.getSource('trail-starts').setData({ type: 'FeatureCollection', features: [] });
+    showToast('🗺️ Recorridos ocultados');
+    return;
+  }
+
+  // Si hay un camión seleccionado se muestra solo el suyo; si no, todos.
+  const targets = selectedId ? vehicles.filter(v => v.id === selectedId) : vehicles;
+  btn.disabled = true;
+  showToast('🛰️ Cargando recorridos…');
+  try {
+    const trails = await Promise.all(
+      targets.map(async vehicle => ({ vehicle, points: await getGpsLogs(vehicle.id) }))
+    );
+    const { lines, starts } = trailFeatures(trails);
+    map.getSource('trails').setData({ type: 'FeatureCollection', features: lines });
+    map.getSource('trail-starts').setData({ type: 'FeatureCollection', features: starts });
+
+    if (!lines.length) {
+      showToast('ℹ️ Sin historial GPS registrado para estos camiones');
+      return;
+    }
+    const allPoints = lines.flatMap(f => f.geometry.coordinates);
+    const lngs = allPoints.map(c => c[0]), lats = allPoints.map(c => c[1]);
+    map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 60 });
+    showToast(`🗺️ ${lines.length} recorrido${lines.length > 1 ? 's' : ''} en pantalla`);
+  } catch (err) {
+    console.error('[trails]', err);
+    showToast('❌ No se pudo cargar el historial GPS');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ── MARCADORES ── */
+function markerElStyle(color, selected) {
+  const ring = selected ? `box-shadow:0 0 0 3px ${color},0 0 0 5px rgba(0,0,0,.3);` : `box-shadow:0 0 8px rgba(0,0,0,.5);`;
+  return `width:26px;height:26px;border-radius:50%;background:${color};border:2.5px solid #fff;${ring}display:flex;align-items:center;justify-content:center;cursor:pointer;`;
+}
+
+function buildMarkerElement(v, selected = false) {
+  const div = document.createElement('div');
+  div.style.cssText = markerElStyle(colorForVehicle(v), selected);
+  div.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>`;
+  return div;
+}
+
+function updateMarkerAppearance(id, selected) {
+  const m = markers[id];
+  const v = vehicles.find(x => x.id === id);
+  if (!m || !v) return;
+  m.el.style.cssText = markerElStyle(colorForVehicle(v), selected);
+}
+
+function placeMarkers() {
+  if (!mapLoaded) return; // se reintenta cuando el mapa termine de cargar su estilo
+
+  Object.values(markers).forEach(m => m.marker.remove());
+  Object.keys(markers).forEach(k => delete markers[k]);
+
+  const withGps = vehicles.filter(v => v._lat && v._lng);
+  withGps.forEach(v => {
+    const el = buildMarkerElement(v, v.id === selectedId);
+    el.addEventListener('click', () => openVehicleById(v.id));
+    const marker = new maplibregl.Marker({ element: el }).setLngLat([v._lng, v._lat]).addTo(map);
+    markers[v.id] = { marker, el };
+  });
+
+  // Solo se encuadra la primera vez: los refrescos cada 30s no deben mover la cámara.
+  if (withGps.length > 0 && !hasFittedBounds) {
+    const lats = withGps.map(v => v._lat), lngs = withGps.map(v => v._lng);
+    map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 60, duration: 0 });
+    hasFittedBounds = true;
+  }
+}
+
+map.on('load', () => {
+  mapLoaded = true;
+  setupTrailLayers();
+  placeMarkers(); // por si los vehículos ya habían llegado antes de que el mapa cargara
+});
+
+/* ── RUTA DEL CAMIÓN SELECCIONADO ── */
+let routeVisible = false;
+
+function routeLineCoords(geometry) {
+  if (!geometry) return null;
+  if (geometry.type === 'LineString') return geometry.coordinates;
+  if (geometry.type === 'MultiLineString') return geometry.coordinates.flat();
+  return null;
+}
+
+function clearVehicleRoute() {
+  routeVisible = false;
+  if (mapLoaded) map.getSource('vehicle-route').setData({ type: 'FeatureCollection', features: [] });
+  const btn = document.getElementById('vp-route-btn');
+  if (btn) btn.textContent = 'Mostrar ruta en el mapa';
+}
+
+window.toggleVehicleRoute = function() {
+  const route = selectedId ? _routesByVehicle[selectedId] : null;
+  if (!route) { showToast('ℹ️ Este camión no tiene ruta asignada hoy'); return; }
+
+  if (routeVisible) { clearVehicleRoute(); showToast('🗺️ Ruta ocultada'); return; }
+
+  const coords = routeLineCoords(route.geometry);
+  if (!coords || coords.length < 2) { showToast('⚠️ La ruta no tiene trazo guardado'); return; }
+
+  map.getSource('vehicle-route').setData({
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: { name: route.name }, geometry: { type: 'LineString', coordinates: coords } }],
+  });
+  const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+  map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 70 });
+
+  routeVisible = true;
+  document.getElementById('vp-route-btn').textContent = 'Ocultar ruta';
+  showToast('🗺️ ' + route.name);
+};
+
+/* ── PANEL VEHÍCULO ── */
+window.openVehicleById = function(id) {
+  const v = vehicles.find(x => x.id === id);
+  if (!v) return;
+  if (selectedId && selectedId !== id) updateMarkerAppearance(selectedId, false);
+  if (markers[v.id]) {
+    updateMarkerAppearance(v.id, true);
+    map.flyTo({ center: [v._lng || -102.7224, v._lat || 20.0572], zoom: 16 });
+  }
+  selectedId = v.id;
+
+  document.getElementById('vp-id').textContent   = v.economic_number;
+  document.getElementById('vp-ruta').textContent  = v._routeName || '—';
+  document.getElementById('vp-placa').textContent = v.plates || '—';
+  document.getElementById('vp-cap').textContent   = v.capacity_tons ? v.capacity_tons + ' ton' : '—';
+
+  const crew    = _crewByVehicle[v.id] || [];
+  const driver  = crew.find(c => c.crew_role === 'driver');
+  const helpers = crew.filter(c => c.crew_role !== 'driver');
+  document.getElementById('vp-enc').textContent  = driver?.user?.name || '—';
+  document.getElementById('vp-trab').textContent = helpers.length
+    ? helpers.map(h => h.user?.name).filter(Boolean).join(', ')
+    : '—';
+
+  // Ruta asignada hoy
+  clearVehicleRoute();
+  const route = _routesByVehicle[v.id];
+  document.getElementById('vp-route-name').textContent = route ? route.name : 'Sin ruta hoy';
+  document.getElementById('vp-route-km').textContent   = route?.distance_km ? Number(route.distance_km).toFixed(2) + ' km' : '';
+  document.getElementById('vp-route-btn').disabled     = !route;
+  document.getElementById('vp-route-btn').style.opacity = route ? '1' : '.45';
+  const st = document.getElementById('vp-status');
+  st.textContent = '● ' + (statusLabelMap[v.status]||v.status);
+  st.className   = 'vp-status ' + (v.status==='active'?'green':v.status==='maintenance'?'red':'gray');
+
+  setGauge('gauge-fuel','gauge-fuel-txt', v._bat||0, fuelColor(v._bat||0));
+  setGauge('gauge-cap', 'gauge-cap-txt',  v._capPct||0, '#f59e0b');
+  document.getElementById('gauge-cap-lbl').textContent = v._capLabel && v._capLabel !== '—' ? `Cap: ${v._capLabel}` : 'Cap. camión';
+  setGauge('gauge-ruta','gauge-ruta-txt', 0, '#3b82f6');
+
+  document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
+  const card = document.querySelector(`[data-id="${v.id}"]`);
+  if (card) card.classList.add('selected');
+  document.getElementById('vehicle-panel').classList.add('open');
+};
+
+window.closeVehiclePanel = function() {
+  document.getElementById('vehicle-panel').classList.remove('open');
+  clearVehicleRoute();
+  if (selectedId) updateMarkerAppearance(selectedId, false);
+  selectedId = null;
+  document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
+};
+
+function setGauge(cId, tId, pct, color) {
+  const filled = (pct/100)*138;
+  const el = document.getElementById(cId);
+  if (el) { el.setAttribute('stroke-dasharray', `${filled} 138`); el.setAttribute('stroke', color); }
+  const te = document.getElementById(tId);
+  if (te) te.textContent = Math.round(pct) + '%';
+}
+
+/* ── SIDEBAR VEHÍCULOS ── */
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard ${selectedId===v.id?'selected':''}" data-id="${v.id}" onclick="openVehicleById('${v.id}')">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.economic_number}</div><div class="vruta">${v.plates||'—'}</div></div>
+        <div class="vdot dot-${v.status==='active'?'green':v.status==='maintenance'?'red':'gray'}"></div>
+      </div>
+      <div class="bar-row"><span class="bar-label">Batería</span><div class="bar-track"><div class="bar-fill" style="width:${v._bat}%;background:${fuelColor(v._bat)}"></div></div><span class="bar-pct">${v._bat}%</span></div>
+    </div>`).join('') || '<div style="padding:12px;font-size:11px;color:rgba(255,255,255,.5)">Sin vehículos en DB</div>';
+}
+
+window.filterVehicles = function(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:vehicles, active:vehicles.filter(v=>v.status==='active'), averia:vehicles.filter(v=>v.status==='maintenance'||v.status==='inactive') };
+  renderVehicles(f[type]||vehicles);
+};
+
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(vehicles.filter(v=>v.economic_number.toLowerCase().includes(q)||(v.plates&&v.plates.toLowerCase().includes(q))));
+});
+
+/* ── CARGA DESDE SUPABASE ── */
+let _routesByVehicle = {};
+let _crewByVehicle   = {};
+
+async function loadMapData() {
+  try {
+    const [vehs, telem, routesByVehicle, crew] = await Promise.all([
+      getVehicles(), getTelemetry(), getRoutesByVehicle(), getVehicleCrew(),
+    ]);
+    _routesByVehicle = routesByVehicle;
+    _crewByVehicle = crew.reduce((acc, c) => {
+      (acc[c.vehicle_id] = acc[c.vehicle_id] || []).push(c);
+      return acc;
+    }, {});
+    vehicles = vehs.map(v => {
+      const t = telem.find(r=>r.vehicle_id===v.id);
+      return {
+        ...v,
+        _bat:      t ? (t.battery_pct??0) : 0,
+        _lat:      t ? t.lat : null,
+        _lng:      t ? t.lng : null,
+        _capPct:   t ? capacityPct(t.truck_capacity) : 0,
+        _capLabel: t ? capacityLabel(t.truck_capacity) : '—',
+        _driverName: null,
+        _routeName:  null,
+      };
+    });
+    renderVehicles(vehicles);
+    placeMarkers();
+  } catch (err) {
+    console.error('[map]', err);
+    showToast('❌ No se pudieron cargar los vehículos');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try {
+    window.renderNotifications?.(await getNotifications());
+  } catch (err) { console.error('[notifications]', err); }
+}
+
+/* ══ INICIO (requiere sesión activa) ══ */
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Mapa en vivo');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+
+  await loadMapData();
+  focusFromUrl();
+  refreshNotifications();
+
+  setInterval(loadMapData, 30_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+/* Al llegar desde Incidencias (?vehiculo=…&ruta=…) se abre ese camión
+   y se dibuja su ruta automáticamente. */
+function focusFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const vehicleId = params.get('vehiculo');
+  const routeId   = params.get('ruta');
+  if (!vehicleId && !routeId) return;
+
+  const openWhenReady = () => {
+    if (!mapLoaded) { setTimeout(openWhenReady, 250); return; }
+
+    if (vehicleId && vehicles.some(v => v.id === vehicleId)) {
+      openVehicleById(vehicleId);
+      if (_routesByVehicle[vehicleId]) window.toggleVehicleRoute();
+      showToast('📍 Camión de la incidencia');
+      return;
+    }
+    // Sin vehículo ubicable: al menos se resalta la ruta de la incidencia
+    const route = Object.values(_routesByVehicle).find(r => r.id === routeId);
+    if (route) {
+      const coords = routeLineCoords(route.geometry);
+      if (coords?.length > 1) {
+        map.getSource('vehicle-route').setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }],
+        });
+        const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+        map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 70 });
+        routeVisible = true;
+        showToast('🗺️ ' + route.name);
+        return;
+      }
+    }
+    showToast('ℹ️ La incidencia no tiene ubicación en el mapa');
+  };
+  openWhenReady();
+}
+
+main();
+
+</script>
+
+</body>
+</html>

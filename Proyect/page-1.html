@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Mapa en vivo</title>
+<link rel="stylesheet" href="shared.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ── Mapa ── */
+.map-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+#map {
+  flex: 1;
+  min-height: 0;
+  z-index: 1;
+}
+.leaflet-control-attribution { display: none !important; }
+.leaflet-control-zoom { border: none !important; box-shadow: 0 2px 12px rgba(0,0,0,.4) !important; }
+.leaflet-control-zoom a { background: #111827 !important; color: #f1f5f9 !important; border-color: rgba(255,255,255,.1) !important; font-family:'Montserrat',sans-serif !important; }
+.leaflet-control-zoom a:hover { background: #1a2540 !important; }
+
+/* ── Botones flotantes ── */
+.map-actions {
+  position: absolute;
+  top: 14px; right: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Panel de vehículo ── */
+#vehicle-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 280px;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  z-index: 20;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto;
+}
+#vehicle-panel.open { transform: translateX(0); }
+.vp-header { display: flex; align-items: center; justify-content: space-between; }
+.vp-title  { font-size: 14px; font-weight: 700; }
+.vp-close  { width:28px; height:28px; border-radius:6px; background:rgba(255,255,255,.1); border:1px solid var(--border-md); color:rgba(255,255,255,.6); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all var(--transition); }
+.vp-close:hover { background:rgba(255,255,255,.18); color:#fff; }
+
+.vp-avatar-row { display:flex; align-items:center; gap:12px; }
+.vp-avatar { width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.vp-avatar svg { width:30px; height:30px; fill:rgba(255,255,255,.6); }
+.vp-id   { font-size:16px; font-weight:800; }
+.vp-ruta { font-size:11px; color:rgba(255,255,255,.5); margin-top:2px; }
+.vp-status { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; padding:4px 10px; border-radius:20px; margin-top:4px; }
+.vp-status.green { background:var(--green-dim); color:var(--green-light); }
+.vp-status.red   { background:rgba(239,68,68,.15); color:var(--red); }
+.vp-status.gray  { background:rgba(71,85,105,.3); color:#94a3b8; }
+
+.vp-section { display:flex; flex-direction:column; gap:8px; }
+.vp-section-title { font-size:10px; font-weight:700; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.5px; }
+.vp-row { display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:8px 10px; background:rgba(255,255,255,.05); border-radius:6px; }
+.vp-row-label { color:rgba(255,255,255,.45); }
+.vp-row-val   { font-weight:600; }
+
+.vp-gauge-row { display:flex; gap:8px; }
+.vp-gauge { flex:1; background:rgba(255,255,255,.05); border-radius:8px; padding:8px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.vp-gauge svg { width:52px; height:52px; }
+.vp-gauge-label { font-size:9px; color:rgba(255,255,255,.4); text-align:center; }
+
+.vp-actions { display:flex; gap:8px; margin-top:auto; }
+.vp-btn { flex:1; padding:10px; border-radius:var(--radius-sm); font-family:inherit; font-size:11px; font-weight:700; cursor:pointer; transition:all var(--transition); }
+.vp-btn.primary { background:var(--green); border:none; color:#fff; }
+.vp-btn.primary:hover { background:#16a34a; }
+.vp-btn.outline { background:transparent; border:1px solid var(--border-md); color:#fff; }
+.vp-btn.outline:hover { background:rgba(255,255,255,.08); }
+
+/* ── Vehicles list ── */
+.vehicles-list { display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1; }
+.vehicles-list::-webkit-scrollbar { width:3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .map-actions {
+    top: auto;
+    bottom: calc(var(--bottom-nav-h) + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+    flex-direction: row;
+    gap: 8px;
+  }
+  /* Botones más pequeños en mobile */
+  .map-actions .btn-primary,
+  .map-actions .btn-secondary {
+    font-size: 11px;
+    padding: 7px 12px;
+    gap: 4px;
+  }
+  .map-actions .btn-primary svg,
+  .map-actions .btn-secondary svg {
+    width: 11px; height: 11px;
+  }
+
+  /* Panel vehículo desde abajo en mobile */
+  #vehicle-panel {
+    width: 100%;
+    top: auto;
+    height: 62vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform .35s cubic-bezier(.4,0,.2,1);
+  }
+  #vehicle-panel.open { transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar" onclick="showToast('🚛 Abre formulario de nuevo camión')">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAPA -->
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <div class="map-actions">
+        <button class="btn-primary" onclick="showToast('📍 Formulario de nueva ruta')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Nueva ruta
+        </button>
+        <button class="btn-secondary" id="btn-rutas" onclick="toggleRoutes(this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+          Mostrar rutas
+        </button>
+      </div>
+
+      <!-- Panel detalle vehículo -->
+      <div id="vehicle-panel">
+        <div class="vp-header">
+          <span class="vp-title">Detalle del vehículo</span>
+          <button class="vp-close" onclick="closeVehiclePanel()">✕</button>
+        </div>
+        <div class="vp-avatar-row">
+          <div class="vp-avatar">
+            <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          </div>
+          <div>
+            <div class="vp-id" id="vp-id">VH-001</div>
+            <div class="vp-ruta" id="vp-ruta">Ruta Norte</div>
+            <div class="vp-status green" id="vp-status">● Activo</div>
+          </div>
+        </div>
+        <div class="vp-section">
+          <div class="vp-section-title">Datos del vehículo</div>
+          <div class="vp-row"><span class="vp-row-label">Placa</span><span class="vp-row-val" id="vp-placa">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Capacidad</span><span class="vp-row-val" id="vp-cap">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Encargado</span><span class="vp-row-val" id="vp-enc">—</span></div>
+          <div class="vp-row"><span class="vp-row-label">Trabajadores</span><span class="vp-row-val" id="vp-trab">—</span></div>
+        </div>
+        <div class="vp-section">
+          <div class="vp-section-title">Estado en tiempo real</div>
+          <div class="vp-gauge-row">
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-fuel" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-fuel-txt">70%</text></svg>
+              <div class="vp-gauge-label">Combustible</div>
+            </div>
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-cap" stroke="#f59e0b" stroke-width="7" stroke-dasharray="69 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-cap-txt">50%</text></svg>
+              <div class="vp-gauge-label">Cap. camión</div>
+            </div>
+            <div class="vp-gauge">
+              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-ruta" stroke="#3b82f6" stroke-width="7" stroke-dasharray="110 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-ruta-txt">80%</text></svg>
+              <div class="vp-gauge-label">% Ruta</div>
+            </div>
+          </div>
+        </div>
+        <div class="vp-actions">
+          <button class="vp-btn outline" onclick="closeVehiclePanel()">Cerrar</button>
+          <button class="vp-btn primary" onclick="showToast('🔄 Reasignando ruta…')">Reasignar ruta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<script src="shared.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ── INIT ── */
+initShared('Mapa en vivo');
+
+/* ── DATOS — vehículos ubicados en Sahuayo de Morelos ── */
+const vehicles = [
+  // Centro / Plaza Principal — Parroquia de Santiago Apóstol
+  { id:'VH-001', ruta:'Ruta Centro',  status:'green', fuel:70, cap:50, rutaPct:80,
+    lat:20.0578, lng:-102.7224,
+    placa:'MIC-1234', capacidad:'8 ton', encargado:'J. Pérez',   trabajadores:3, estado:'active' },
+  // Zona Norte — Col. Insurgentes / Av. Constitución
+  { id:'VH-002', ruta:'Ruta Norte',   status:'red',   fuel:14, cap:80, rutaPct:45,
+    lat:20.0638, lng:-102.7218,
+    placa:'MIC-5678', capacidad:'10 ton', encargado:'M. López',  trabajadores:4, estado:'averia' },
+  // Zona Sur — Col. 5 de Mayo / Prolongación Allende
+  { id:'VH-003', ruta:'Ruta Sur',     status:'green', fuel:55, cap:30, rutaPct:62,
+    lat:20.0515, lng:-102.7231,
+    placa:'MIC-9012', capacidad:'8 ton',  encargado:'R. García', trabajadores:2, estado:'active' },
+  // Zona Oriente — Col. 20 de Noviembre / Calle Guerrero
+  { id:'VH-004', ruta:'Ruta Oriente', status:'gray',  fuel:90, cap:10, rutaPct:95,
+    lat:20.0572, lng:-102.7168,
+    placa:'MIC-3456', capacidad:'12 ton', encargado:'A. Torres', trabajadores:3, estado:'active' },
+];
+
+const statusColors = { green:'#22c55e', red:'#ef4444', gray:'#64748b' };
+const statusLabel  = { green:'Activo', red:'Avería', gray:'Inactivo' };
+
+function fuelColor(p) { return p < 20 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e'; }
+
+/* ── MAPA — centrado en Sahuayo de Morelos ── */
+const map = L.map('map', {
+  center: [20.0572, -102.7224],
+  zoom: 15,
+  zoomControl: true,
+});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+
+const markers = {};
+
+function createMarkerIcon(v, selected = false) {
+  const color = statusColors[v.status];
+  const ring  = selected
+    ? `box-shadow:0 0 0 3px ${color},0 0 0 5px rgba(0,0,0,.3);`
+    : `box-shadow:0 0 8px rgba(0,0,0,.5);`;
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2.5px solid #fff;${ring}display:flex;align-items:center;justify-content:center;">
+             <svg width="9" height="9" viewBox="0 0 24 24" fill="white">
+               <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/>
+             </svg>
+           </div>`,
+    iconSize:[18,18], iconAnchor:[9,9],
+  });
+}
+
+vehicles.forEach(v => {
+  markers[v.id] = L.marker([v.lat, v.lng], { icon: createMarkerIcon(v) })
+    .addTo(map)
+    .on('click', () => openVehicleById(v.id));
+});
+
+/*
+  ── RUTAS REALES sobre calles de Sahuayo de Morelos ──
+  Trazadas siguiendo el grid urbano real del municipio.
+  Coordenadas verificadas contra OpenStreetMap.
+
+  RUTA CENTRO (verde):
+    Calle Federico Higareda → Av. Insurgentes → Calle 5 de Mayo → Plaza Principal
+  RUTA NORTE (roja):
+    Calle Constitución → Calle Allende → Calle 16 de Septiembre → Col. Norte
+  RUTA SUR-ORIENTE (azul):
+    Calle Guerrero → Calle Rayón → Prolongación Constitución → Mercado
+*/
+const routePaths = [
+  {
+    name:  'Ruta Centro',
+    color: '#22c55e',
+    coords: [
+      [20.0578, -102.7224],   // Plaza Principal / Parroquia
+      [20.0578, -102.7238],   // Calle Federico Higareda hacia poniente
+      [20.0590, -102.7238],   // Giro norte por Higareda
+      [20.0590, -102.7210],   // Av. Insurgentes hacia oriente
+      [20.0605, -102.7210],   // Sube por Insurgentes
+      [20.0605, -102.7224],   // Regresa sur por 5 de Mayo
+      [20.0578, -102.7224],   // Cierra en Plaza Principal
+    ],
+  },
+  {
+    name:  'Ruta Norte',
+    color: '#ef4444',
+    coords: [
+      [20.0578, -102.7224],   // Plaza Principal
+      [20.0600, -102.7224],   // Sube por Calle Constitución
+      [20.0620, -102.7224],   // Continúa norte
+      [20.0638, -102.7218],   // Col. Insurgentes — vehículo VH-002
+      [20.0638, -102.7200],   // Giro oriente por 16 de Septiembre
+      [20.0625, -102.7200],   // Baja por Calle Allende
+      [20.0610, -102.7215],   // Diagonal hacia centro
+      [20.0578, -102.7224],   // Regresa Plaza Principal
+    ],
+  },
+  {
+    name:  'Ruta Sur-Oriente',
+    color: '#3b82f6',
+    coords: [
+      [20.0578, -102.7224],   // Plaza Principal
+      [20.0560, -102.7224],   // Baja por Calle Guerrero
+      [20.0540, -102.7224],   // Continúa sur
+      [20.0515, -102.7231],   // Col. 5 de Mayo — vehículo VH-003
+      [20.0515, -102.7200],   // Giro oriente por Prolongación Allende
+      [20.0540, -102.7180],   // Sube por Rayón
+      [20.0572, -102.7168],   // Col. 20 de Noviembre — VH-004
+      [20.0572, -102.7200],   // Regresa poniente
+      [20.0578, -102.7224],   // Cierra en Plaza Principal
+    ],
+  },
+];
+
+let routeLines = [], routesVisible = false;
+
+function toggleRoutes(btn) {
+  routesVisible = !routesVisible;
+  btn.classList.toggle('active', routesVisible);
+  if (routesVisible) {
+    routePaths.forEach(r => {
+      // Línea principal
+      routeLines.push(
+        L.polyline(r.coords, { color: r.color, weight: 4, opacity: .85, dashArray: null })
+          .addTo(map)
+      );
+      // Etiqueta de nombre de ruta al inicio
+      const mid = r.coords[Math.floor(r.coords.length / 2)];
+      routeLines.push(
+        L.marker(mid, {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="background:${r.color};color:#fff;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.4)">${r.name}</div>`,
+            iconAnchor: [40, 10],
+          }),
+        }).addTo(map)
+      );
+    });
+    showToast('🗺️ Rutas de Sahuayo visibles');
+  } else {
+    routeLines.forEach(l => map.removeLayer(l));
+    routeLines = [];
+    showToast('🗺️ Rutas ocultadas');
+  }
+}
+
+setTimeout(() => map.invalidateSize(), 200);
+
+/* ── PANEL VEHÍCULO ── */
+let selectedId = null;
+
+function openVehicleById(id) {
+  const v = vehicles.find(x => x.id === id);
+  if (!v) return;
+  if (selectedId && markers[selectedId]) markers[selectedId].setIcon(createMarkerIcon(vehicles.find(x=>x.id===selectedId)));
+  markers[v.id].setIcon(createMarkerIcon(v, true));
+  selectedId = v.id;
+  map.setView([v.lat, v.lng], 15, { animate:true });
+
+  document.getElementById('vp-id').textContent   = v.id;
+  document.getElementById('vp-ruta').textContent  = v.ruta;
+  document.getElementById('vp-placa').textContent = v.placa;
+  document.getElementById('vp-cap').textContent   = v.capacidad;
+  document.getElementById('vp-enc').textContent   = v.encargado;
+  document.getElementById('vp-trab').textContent  = v.trabajadores + ' personas';
+  const st = document.getElementById('vp-status');
+  st.textContent = '● ' + statusLabel[v.status];
+  st.className = 'vp-status ' + v.status;
+
+  setGauge('gauge-fuel','gauge-fuel-txt', v.fuel,    fuelColor(v.fuel));
+  setGauge('gauge-cap', 'gauge-cap-txt',  v.cap,     '#f59e0b');
+  setGauge('gauge-ruta','gauge-ruta-txt', v.rutaPct, '#3b82f6');
+
+  document.querySelectorAll('.vcard').forEach(c => c.classList.remove('selected'));
+  const card = document.querySelector(`[data-id="${v.id}"]`);
+  if (card) card.classList.add('selected');
+  document.getElementById('vehicle-panel').classList.add('open');
+}
+
+function closeVehiclePanel() {
+  document.getElementById('vehicle-panel').classList.remove('open');
+  if (selectedId && markers[selectedId]) markers[selectedId].setIcon(createMarkerIcon(vehicles.find(x=>x.id===selectedId)));
+  selectedId = null;
+  document.querySelectorAll('.vcard').forEach(c => c.classList.remove('selected'));
+}
+
+function setGauge(cId, tId, pct, color) {
+  const filled = (pct / 100) * 138;
+  document.getElementById(cId).setAttribute('stroke-dasharray', `${filled} 138`);
+  document.getElementById(cId).setAttribute('stroke', color);
+  document.getElementById(tId).textContent = pct + '%';
+}
+
+/* ── SIDEBAR VEHÍCULOS ── */
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard ${selectedId===v.id?'selected':''}" data-id="${v.id}" onclick="openVehicleById('${v.id}')">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.id}</div><div class="vruta">${v.ruta}</div></div>
+        <div class="vdot dot-${v.status}"></div>
+      </div>
+      <div class="bar-row"><span class="bar-label">Combustible</span><div class="bar-track"><div class="bar-fill" style="width:${v.fuel}%;background:${fuelColor(v.fuel)}"></div></div><span class="bar-pct">${v.fuel}%</span></div>
+      <div class="bar-row"><span class="bar-label">% Ruta</span><div class="bar-track"><div class="bar-fill" style="width:${v.rutaPct}%;background:#3b82f6"></div></div><span class="bar-pct">${v.rutaPct}%</span></div>
+    </div>`).join('');
+}
+
+function filterVehicles(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:vehicles, active:vehicles.filter(v=>v.estado==='active'), averia:vehicles.filter(v=>v.estado==='averia') };
+  renderVehicles(f[type]);
+}
+
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(vehicles.filter(v => v.id.toLowerCase().includes(q) || v.ruta.toLowerCase().includes(q)));
+});
+
+renderVehicles(vehicles);
+</script>
+</body>
+</html>

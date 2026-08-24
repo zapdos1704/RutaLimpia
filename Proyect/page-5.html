@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Campañas</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Específico de Campañas ── */
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* Filtro de estado */
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.fbar-btn {
+  font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2);
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.fbar-btn.active, .fbar-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text-1);
+  border-color: rgba(255,255,255,.25);
+}
+.fbar-btn.active { border-color: var(--green); color: var(--green-light); }
+
+/* Grid de campañas */
+.camp-grid { display: flex; flex-direction: column; gap: 12px; }
+
+.camp-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: default;
+}
+.camp-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+/* Barra de color izquierda según estado */
+.camp-card { border-left: 3px solid transparent; }
+.camp-card.activa     { border-left-color: var(--green); }
+.camp-card.planificada{ border-left-color: var(--yellow); }
+.camp-card.completada { border-left-color: var(--text-2); }
+.camp-card.cancelada  { border-left-color: var(--red); }
+
+.camp-left  { flex: 1; min-width: 0; }
+.camp-name  { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+.camp-desc  { font-size: 12px; color: var(--text-2); margin-bottom: 12px; line-height: 1.55; }
+
+.camp-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+.camp-meta-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #93c5fd;
+}
+.camp-meta-item svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* Progreso de campaña */
+.camp-progress { margin-top: 14px; }
+.cp-head { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
+.cp-track { height: 5px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.cp-fill  { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s; }
+
+.camp-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 8px; flex-shrink: 0;
+}
+
+/* Badges */
+.badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.badge-green  { background: var(--green-dim);              color: var(--green-light); }
+.badge-yellow { background: rgba(245,158,11,.15);           color: var(--yellow); }
+.badge-gray   { background: rgba(255,255,255,.07);          color: var(--text-2); }
+.badge-red    { background: rgba(239,68,68,.15);            color: var(--red); }
+
+.btn-camp-detail {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); white-space: nowrap;
+}
+.btn-camp-detail:hover { background: var(--bg-raised); border-color: rgba(255,255,255,.25); }
+
+/* Botón nueva campaña */
+.btn-new {
+  padding: 9px 18px;
+  background: var(--green);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition), transform .1s;
+  white-space: nowrap;
+}
+.btn-new:hover  { background: #16a34a; }
+.btn-new:active { transform: scale(.97); }
+
+/* Vehículos sidebar */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── MODAL Nueva Campaña ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius);
+  width: 100%; max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title  { font-size: 15px; font-weight: 700; }
+.modal-close  {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select, .form-textarea {
+  padding: 10px 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-2); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--green); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-select option { background: var(--bg-surface); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.modal-footer {
+  padding: 14px 20px 18px;
+  display: flex; gap: 10px; justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 10px 18px; background: transparent;
+  border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+}
+.btn-cancel:hover { background: var(--bg-raised); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page-inner { padding: 16px; gap: 16px; }
+  .page-title  { font-size: 18px; }
+  .camp-card   { flex-direction: column; }
+  .camp-right  { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .form-row    { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-inner">
+
+        <!-- Header -->
+        <div class="page-header">
+          <div>
+            <div class="page-title">Campañas</div>
+            <div class="page-sub">Gestión de operativos de recolección especiales</div>
+          </div>
+          <button class="btn-new" onclick="openModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nueva campaña
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+          <button class="fbar-btn active" onclick="filterCamp('all', this)">Todas</button>
+          <button class="fbar-btn" onclick="filterCamp('activa', this)">Activas</button>
+          <button class="fbar-btn" onclick="filterCamp('planificada', this)">Planificadas</button>
+          <button class="fbar-btn" onclick="filterCamp('completada', this)">Completadas</button>
+        </div>
+
+        <!-- Lista de campañas -->
+        <div class="camp-grid" id="camp-grid"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<!-- MODAL Nueva Campaña -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nueva campaña</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Nombre de la campaña</label>
+        <input class="form-input" type="text" placeholder="Ej. Operativo Zona Norte"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Tipo</label>
+        <select class="form-select">
+          <option>Limpieza vecinal</option>
+          <option>Residuos grandes</option>
+          <option>Residuos electrónicos</option>
+          <option>Zona industrial</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Descripción</label>
+        <textarea class="form-textarea" placeholder="Describe el objetivo y alcance de la campaña…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Fecha inicio</label>
+          <input class="form-input" type="date"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Fecha fin</label>
+          <input class="form-input" type="date"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Días</label>
+          <input class="form-input" type="text" placeholder="Ej. Lun – Vie"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Horario</label>
+          <input class="form-input" type="text" placeholder="Ej. 08:00 – 18:00"/>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Estado inicial</label>
+        <select class="form-select">
+          <option value="planificada">Planificada</option>
+          <option value="activa">Activa</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitCampaign()">Guardar campaña</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ── INIT ── */
+initShared('Campañas');
+
+/* ── DATOS ── */
+const campaigns = [
+  {
+    id: 1, status: 'activa',
+    name:  'Limpieza Zona Norte',
+    desc:  'Recolección intensiva en colonias de alta densidad de la zona norte de Sahuayo. Incrementar cobertura durante el primer trimestre.',
+    dias:  'Lun – Vie', hora: '08:00 – 18:00',
+    inicio:'12/01/2026', fin: '31/03/2026',
+    prog:  72, vehiculos: 3,
+  },
+  {
+    id: 2, status: 'activa',
+    name:  'Operativo Fin de Semana — Mercado',
+    desc:  'Atención a mercados y zonas comerciales del centro los sábados y domingos. Flota especial de 4 camiones compactadores.',
+    dias:  'Sáb – Dom', hora: '09:00 – 14:00',
+    inicio:'01/02/2026', fin: '30/06/2026',
+    prog:  45, vehiculos: 4,
+  },
+  {
+    id: 3, status: 'planificada',
+    name:  'Zona Industrial Matutina',
+    desc:  'Cobertura de parques industriales con flota especializada de carga pesada. Coordinación directa con administradores del parque.',
+    dias:  'Lun – Mié', hora: '07:00 – 13:00',
+    inicio:'01/04/2026', fin: '30/06/2026',
+    prog:  0, vehiculos: 2,
+  },
+  {
+    id: 4, status: 'completada',
+    name:  'Residuos Electrónicos — Enero',
+    desc:  'Recolección especial de residuos electrónicos en puntos estratégicos de la ciudad. Puntos fijos de acopio en 5 colonias.',
+    dias:  'Jue – Vie', hora: '10:00 – 16:00',
+    inicio:'05/01/2026', fin: '25/01/2026',
+    prog:  100, vehiculos: 2,
+  },
+];
+
+const statusBadge = {
+  activa:      '<span class="badge badge-green">Activa</span>',
+  planificada: '<span class="badge badge-yellow">Planificada</span>',
+  completada:  '<span class="badge badge-gray">Completada</span>',
+  cancelada:   '<span class="badge badge-red">Cancelada</span>',
+};
+
+const progColor = { activa:'#22c55e', planificada:'#f59e0b', completada:'#64748b', cancelada:'#ef4444' };
+
+function renderCampaigns(list) {
+  const el = document.getElementById('camp-grid');
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text-2);padding:40px;font-size:13px;">No hay campañas en esta categoría.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="camp-card ${c.status}">
+      <div class="camp-left">
+        <div class="camp-name">${c.name}</div>
+        <div class="camp-desc">${c.desc}</div>
+        <div class="camp-meta">
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${c.dias}
+          </div>
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${c.hora}
+          </div>
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            ${c.inicio} → ${c.fin}
+          </div>
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+            ${c.vehiculos} vehículos
+          </div>
+        </div>
+        <div class="camp-progress">
+          <div class="cp-head">
+            <span>Progreso</span><span style="color:${progColor[c.status]};font-weight:700">${c.prog}%</span>
+          </div>
+          <div class="cp-track">
+            <div class="cp-fill" style="width:${c.prog}%;background:${progColor[c.status]}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="camp-right">
+        ${statusBadge[c.status]}
+        <button class="btn-camp-detail" onclick="showToast('📋 Detalle de: ${c.name}')">Ver detalles</button>
+      </div>
+    </div>`).join('');
+}
+
+function filterCamp(type, btn) {
+  document.querySelectorAll('.fbar-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCampaigns(type === 'all' ? campaigns : campaigns.filter(c => c.status === type));
+}
+
+renderCampaigns(campaigns);
+
+/* ── MODAL ── */
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+function submitCampaign() {
+  closeModal();
+  showToast('✅ Campaña creada correctamente');
+}
+
+/* ── SIDEBAR VEHÍCULOS ── */
+const vehicles = [
+  { id:'VH-001', ruta:'Ruta Centro',  status:'green', fuel:70, estado:'active' },
+  { id:'VH-002', ruta:'Ruta Norte',   status:'red',   fuel:14, estado:'averia' },
+  { id:'VH-003', ruta:'Ruta Sur',     status:'green', fuel:55, estado:'active' },
+  { id:'VH-004', ruta:'Ruta Oriente', status:'gray',  fuel:90, estado:'active' },
+];
+
+function fuelColor(p) { return p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e'; }
+
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.id}</div><div class="vruta">${v.ruta}</div></div>
+        <div class="vdot dot-${v.status}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Combustible</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v.fuel}%;background:${fuelColor(v.fuel)}"></div></div>
+        <span class="bar-pct">${v.fuel}%</span>
+      </div>
+    </div>`).join('');
+}
+
+function filterVehicles(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all: vehicles, active: vehicles.filter(v=>v.estado==='active'), averia: vehicles.filter(v=>v.estado==='averia') };
+  renderVehicles(f[type]);
+}
+
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(vehicles.filter(v => v.id.toLowerCase().includes(q) || v.ruta.toLowerCase().includes(q)));
+});
+
+renderVehicles(vehicles);
+</script>
+</body>
+</html>

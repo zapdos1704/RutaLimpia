@@ -1,0 +1,22 @@
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Sirve archivos estáticos; si no existe el archivo exacto,
+    # intenta con .html, y si no, cae a 404.
+    # (Multi-página: /dashboard -> /dashboard.html si aplica)
+    location / {
+        try_files $uri $uri.html $uri/ =404;
+    }
+
+    # Cachea assets estáticos agresivamente
+    location ~* \.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    error_page 404 /404.html;
+}

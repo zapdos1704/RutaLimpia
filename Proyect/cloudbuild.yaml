@@ -1,0 +1,52 @@
+# cloudbuild.yaml - RutaLimpia
+# Se ejecuta automáticamente en cada push (vía trigger de Cloud Build).
+# Construye la imagen, la sube a Artifact Registry y la despliega a Cloud Run.
+#
+# Antes de usar, reemplaza:
+#   _REGION          -> ej. us-central1
+#   _REPOSITORY      -> nombre del repo en Artifact Registry (créalo antes con:
+#                        gcloud artifacts repositories create rutalimpia-repo \
+#                          --repository-format=docker --location=REGION)
+#   _SERVICE_NAME    -> nombre del servicio en Cloud Run, ej. rutalimpia
+
+substitutions:
+  _REGION: "us-central1"
+  _REPOSITORY: "rutalimpia-repo"
+  _SERVICE_NAME: "rutalimpia"
+
+steps:
+  # 1. Construir la imagen Docker
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$SHORT_SHA"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:latest"
+      - "."
+
+  # 2. Subir la imagen a Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}"
+
+  # 3. Desplegar a Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE_NAME}"
+      - "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$SHORT_SHA"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

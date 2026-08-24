@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Camiones</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+.btn-new {
+  padding: 9px 18px; background: var(--green); border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: background var(--transition), transform .1s;
+}
+.btn-new:hover { background: #16a34a; }
+.btn-new:active { transform: scale(.97); }
+
+.stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.stat-card.green::before  { background: var(--green); }
+.stat-card.blue::before   { background: var(--blue); }
+.stat-card.yellow::before { background: var(--yellow); }
+.stat-card.purple::before { background: var(--purple); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.stat-value { font-size: 24px; font-weight: 800; }
+
+/* ── Tarjeta de camión ── */
+.truck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+
+.truck-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--green); border-radius: var(--radius);
+  padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.truck-card:hover { border-color: var(--border-md); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+.truck-card.maintenance {
+  border-left-color: var(--red);
+  background: linear-gradient(180deg, rgba(239,68,68,.07), transparent 120px), var(--bg-surface);
+}
+.truck-card.inactive { border-left-color: #475569; opacity: .82; }
+
+.tc-head { display: flex; align-items: center; gap: 12px; }
+.tc-avatar {
+  width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,.07);
+  border: 1px solid var(--border-md);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tc-avatar svg { width: 24px; height: 24px; fill: var(--green-light); }
+.tc-id    { font-size: 16px; font-weight: 800; }
+.tc-plate { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.tc-status {
+  margin-left: auto; font-size: 9px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; white-space: nowrap;
+}
+.tc-status.active      { background: var(--green-dim); color: var(--green-light); }
+.tc-status.maintenance { background: rgba(239,68,68,.15); color: var(--red); }
+.tc-status.inactive    { background: rgba(71,85,105,.3); color: #94a3b8; }
+
+.tc-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tc-spec  { background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
+.tc-spec-label { font-size: 8px; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.tc-spec-value { font-size: 12px; font-weight: 700; margin-top: 3px; }
+
+.tc-route {
+  display: flex; align-items: center; gap: 8px; font-size: 11px;
+  background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2);
+  border-radius: var(--radius-sm); padding: 9px 11px;
+}
+.tc-route svg { width: 13px; height: 13px; fill: #93c5fd; flex-shrink: 0; }
+.tc-route-name { font-weight: 600; color: #bfdbfe; }
+.tc-route-km   { margin-left: auto; color: var(--text-2); font-size: 10px; white-space: nowrap; }
+.tc-route.empty { background: rgba(255,255,255,.03); border-color: var(--border); }
+.tc-route.empty .tc-route-name { color: var(--text-2); font-weight: 500; }
+
+/* Cuadrilla */
+.tc-crew-title {
+  font-size: 9px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .5px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tc-crew-add {
+  background: none; border: none; color: var(--green-light); font-family: inherit;
+  font-size: 10px; font-weight: 700; cursor: pointer; padding: 0;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.tc-crew-add:hover { color: #86efac; }
+.tc-crew { display: flex; flex-direction: column; gap: 6px; }
+.crew-row {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.crew-badge {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+}
+.crew-badge.driver    { background: rgba(34,197,94,.16); }
+.crew-badge.collector { background: rgba(59,130,246,.16); }
+.crew-name { font-size: 11px; font-weight: 600; }
+.crew-role { font-size: 9px; color: var(--text-2); margin-top: 1px; }
+.crew-del {
+  margin-left: auto; background: none; border: none; color: var(--text-2);
+  cursor: pointer; font-size: 13px; padding: 2px 5px; border-radius: 4px;
+  transition: all var(--transition);
+}
+.crew-del:hover { color: var(--red); background: rgba(239,68,68,.12); }
+.crew-empty { font-size: 10px; color: var(--text-2); padding: 8px 2px; }
+
+/* Alerta de avería */
+.tc-alert {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(239,68,68,.11); border: 1px solid rgba(239,68,68,.32);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  animation: alertIn .3s ease-out;
+}
+.tc-alert-icon { font-size: 17px; line-height: 1.2; animation: wobble 2.6s ease-in-out infinite; }
+.tc-alert-title { font-size: 11px; font-weight: 800; color: #fca5a5; }
+.tc-alert-desc  { font-size: 10px; color: var(--text-2); line-height: 1.45; margin-top: 2px; }
+@keyframes alertIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes wobble  { 0%,88%,100% { transform: rotate(0); } 92% { transform: rotate(-16deg); } 96% { transform: rotate(16deg); } }
+
+.tc-avatar.maintenance { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.35); }
+.tc-avatar.maintenance svg { fill: #fca5a5; }
+.tc-avatar.inactive svg { fill: #94a3b8; }
+
+.tc-model { font-size: 10px; color: var(--text-2); margin-top: -4px; }
+
+.tc-route-btn {
+  background: rgba(255,255,255,.07); border: 1px solid var(--border-md);
+  color: var(--text-1); font-family: inherit; font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px; cursor: pointer;
+  transition: all var(--transition); white-space: nowrap;
+}
+.tc-route-btn:hover { background: var(--blue); border-color: var(--blue); }
+
+.tc-toggle {
+  width: 100%; padding: 9px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all var(--transition); margin-top: auto;
+}
+.tc-toggle.break { background: transparent; border: 1px solid rgba(239,68,68,.35); color: #fca5a5; }
+.tc-toggle.break:hover { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.6); }
+.tc-toggle.fix { background: var(--green-dim); border: 1px solid rgba(74,222,128,.4); color: var(--green-light); }
+.tc-toggle.fix:hover { background: rgba(34,197,94,.25); }
+
+/* Vista previa de ruta en el modal */
+.route-preview:empty { display: none; }
+.route-preview {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-left: 3px solid var(--blue); border-radius: var(--radius-sm);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+  animation: alertIn .22s ease-out;
+}
+.rp-head { font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; gap: 10px; }
+.rp-km   { font-size: 11px; color: #93c5fd; font-weight: 600; }
+.rp-type { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.rp-desc { font-size: 11px; color: var(--text-1); line-height: 1.5; }
+.rp-flags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.rp-flag {
+  font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+  background: rgba(245,158,11,.15); color: var(--yellow);
+}
+.rp-notes { font-size: 10px; color: var(--text-2); line-height: 1.5; font-style: italic; }
+
+/* ── Modales ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 500;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-surface); border: 1px solid var(--border-md);
+  border-radius: var(--radius); width: 100%; max-width: 460px;
+  max-height: 90vh; overflow-y: auto; transform: translateY(18px); transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 6px; background: var(--bg-raised);
+  border: 1px solid var(--border-md); color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+}
+.modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select {
+  padding: 10px 14px; background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm); color: var(--text-1); font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input::placeholder { color: var(--text-2); }
+.form-input:focus, .form-select:focus { border-color: var(--green); }
+.form-select option { background: var(--bg-surface); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-footer {
+  padding: 14px 20px 18px; display: flex; gap: 10px; justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 10px 18px; background: transparent; border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm); color: var(--text-1); font-family: inherit;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all var(--transition);
+}
+.btn-cancel:hover { background: var(--bg-raised); }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-2); font-size: 13px; }
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+@media (max-width: 768px) {
+  .page-inner  { padding: 16px; gap: 14px; }
+  .page-title  { font-size: 18px; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .truck-grid  { grid-template-columns: 1fr; }
+  .form-row    { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+    <div class="main">
+      <div class="page-inner">
+
+        <div class="page-header">
+          <div>
+            <div class="page-title">Camiones</div>
+            <div class="page-sub">Flota, cuadrillas y rutas asignadas</div>
+          </div>
+          <button class="btn-new" onclick="openTruckModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nuevo camión
+          </button>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-card blue">
+            <div class="stat-label">Total flota</div>
+            <div class="stat-value" id="stat-total" style="color:#93c5fd">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Activos</div>
+            <div class="stat-value" id="stat-active" style="color:var(--green-light)">—</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">Capacidad total</div>
+            <div class="stat-value" id="stat-capacity" style="color:var(--yellow)">—</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">Personal asignado</div>
+            <div class="stat-value" id="stat-crew" style="color:#c4b5fd">—</div>
+          </div>
+        </div>
+
+        <div class="truck-grid" id="truck-grid"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<!-- MODAL: nuevo camión -->
+<div class="modal-overlay" id="truck-modal" onclick="if(event.target===this) closeTruckModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🚛 Nuevo camión</span>
+      <button class="modal-close" onclick="closeTruckModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Número económico *</label>
+          <input class="form-input" id="v-economic" placeholder="Ej. VH-005"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Placas *</label>
+          <input class="form-input" id="v-plates" placeholder="Ej. ABC-123-D"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="v-type">
+            <option value="compactor">Compactador</option>
+            <option value="simple">Simple</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Estado</label>
+          <select class="form-select" id="v-status">
+            <option value="active">Activo</option>
+            <option value="maintenance">Mantenimiento</option>
+            <option value="inactive">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Capacidad (ton) *</label>
+          <input class="form-input" id="v-capacity" type="number" step="0.5" min="0" placeholder="10"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Año</label>
+          <input class="form-input" id="v-year" type="number" min="1980" max="2100" placeholder="2020"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Marca</label>
+          <input class="form-input" id="v-brand" placeholder="Ej. International"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Modelo</label>
+          <input class="form-input" id="v-model" placeholder="Ej. 7400"/>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notas</label>
+        <input class="form-input" id="v-notes" placeholder="Observaciones del vehículo"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeTruckModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitTruck(this)">Guardar camión</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: asignar ruta -->
+<div class="modal-overlay" id="route-modal" onclick="if(event.target===this) closeRouteModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🗺️ Asignar ruta</span>
+      <button class="modal-close" onclick="closeRouteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Camión</label>
+        <input class="form-input" id="r-vehicle-name" disabled/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Ruta a asignar</label>
+        <select class="form-select" id="r-route"></select>
+      </div>
+      <div id="r-preview" class="route-preview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeRouteModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitRoute(this)">Asignar ruta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: asignar personal -->
+<div class="modal-overlay" id="crew-modal" onclick="if(event.target===this) closeCrewModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">👷 Asignar personal</span>
+      <button class="modal-close" onclick="closeCrewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Camión</label>
+        <input class="form-input" id="c-vehicle-name" disabled/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Persona</label>
+        <select class="form-select" id="c-user"></select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Rol en la cuadrilla</label>
+        <select class="form-select" id="c-role">
+          <option value="driver">Conductor</option>
+          <option value="employee">Ayudante</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeCrewModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitCrew(this)">Asignar</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script type="module">
+import {
+  getVehicles, getVehicleCrew, getAllUsers, getRoutesByVehicle, getRoutes,
+  insertVehicle, assignCrewMember, removeCrewMember, assignRouteToVehicle, updateVehicleStatus,
+  getSession, getCurrentUserProfile, getNotifications, signOut,
+} from './db.js';
+
+window.doLogout = async function() { await signOut(); window.location.href = 'index.html'; };
+
+const $ = id => document.getElementById(id);
+const STATUS_LABEL = { active: 'Activo', maintenance: 'Mantenimiento', inactive: 'Inactivo' };
+const TYPE_LABEL   = { compactor: 'Compactador', simple: 'Simple' };
+/* vehicle_crew.crew_role solo acepta 'driver' o 'employee' */
+const CREW_LABEL   = { driver: 'Conductor', employee: 'Ayudante', collector: 'Ayudante' };
+
+let _vehicles = [], _crew = [], _users = [], _vehicleRoutes = {}, _allRoutes = [];
+let _crewVehicleId = null, _routeVehicleId = null;
+
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+function crewOf(vehicleId) {
+  return _crew.filter(c => c.vehicle_id === vehicleId)
+              .sort((a, b) => (a.crew_role === 'driver' ? -1 : 1));
+}
+
+function renderStats() {
+  $('stat-total').textContent    = _vehicles.length;
+  $('stat-active').textContent   = _vehicles.filter(v => v.status === 'active').length;
+  $('stat-capacity').innerHTML   = _vehicles.reduce((s, v) => s + Number(v.capacity_tons || 0), 0).toFixed(1) +
+                                   '<span style="font-size:13px">t</span>';
+  $('stat-crew').textContent     = _crew.length;
+}
+
+const ROUTE_SVG = '<svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>';
+
+function routeBlock(vehicleId) {
+  const route = _vehicleRoutes[vehicleId];
+  const km = route?.distance_km ? Number(route.distance_km).toFixed(2) + ' km' : '';
+  return `<div class="tc-route ${route ? '' : 'empty'}">
+    ${ROUTE_SVG}
+    <span class="tc-route-name">${route ? escapeHtml(route.name) : 'Sin ruta asignada hoy'}</span>
+    <span class="tc-route-km">${km}</span>
+    <button class="tc-route-btn" onclick="openRouteModal('${vehicleId}')">${route ? 'Cambiar' : 'Asignar'}</button>
+  </div>`;
+}
+
+function crewBlock(vehicle) {
+  const crew = crewOf(vehicle.id);
+  const rows = crew.length ? crew.map(c => `
+    <div class="crew-row">
+      <div class="crew-badge ${c.crew_role === 'driver' ? 'driver' : 'collector'}">${c.crew_role === 'driver' ? '🧑‍✈️' : '🧤'}</div>
+      <div>
+        <div class="crew-name">${escapeHtml(c.user?.name || 'Sin nombre')}</div>
+        <div class="crew-role">${CREW_LABEL[c.crew_role] || c.crew_role}${c.user?.phone ? ' · ' + escapeHtml(c.user.phone) : ''}</div>
+      </div>
+      <button class="crew-del" title="Quitar de la cuadrilla" onclick="unassign('${c.id}')">✕</button>
+    </div>`).join('')
+    : '<div class="crew-empty">Sin personal asignado.</div>';
+
+  return `<div>
+    <div class="tc-crew-title">
+      <span>Cuadrilla (${crew.length})</span>
+      <button class="tc-crew-add" onclick="openCrewModal('${vehicle.id}')">+ Asignar</button>
+    </div>
+    <div class="tc-crew" style="margin-top:7px">${rows}</div>
+  </div>`;
+}
+
+function renderTrucks() {
+  const el = $('truck-grid');
+  if (!_vehicles.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🚛</div>No hay camiones registrados.</div>`;
+    return;
+  }
+  el.innerHTML = _vehicles.map(v => {
+    const broken = v.status === 'maintenance';
+    const off    = v.status === 'inactive';
+    return `
+    <div class="truck-card ${v.status}">
+      ${broken ? `<div class="tc-alert">
+        <span class="tc-alert-icon">🔧</span>
+        <div>
+          <div class="tc-alert-title">Camión con avería</div>
+          <div class="tc-alert-desc">${escapeHtml(v.notes || 'Fuera de servicio por mantenimiento.')}</div>
+        </div>
+      </div>` : ''}
+
+      <div class="tc-head">
+        <div class="tc-avatar ${v.status}">
+          <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+        </div>
+        <div>
+          <div class="tc-id">${escapeHtml(v.economic_number)}</div>
+          <div class="tc-plate">${escapeHtml(v.plates || 'sin placas')}</div>
+        </div>
+        <span class="tc-status ${v.status}">${broken ? '🔧 ' : off ? '⏸ ' : '● '}${STATUS_LABEL[v.status] || v.status}</span>
+      </div>
+
+      <div class="tc-specs">
+        <div class="tc-spec"><div class="tc-spec-label">Tipo</div><div class="tc-spec-value">${TYPE_LABEL[v.type] || v.type}</div></div>
+        <div class="tc-spec"><div class="tc-spec-label">Capacidad</div><div class="tc-spec-value">${v.capacity_tons ?? '—'} t</div></div>
+        <div class="tc-spec"><div class="tc-spec-label">Año</div><div class="tc-spec-value">${v.year || '—'}</div></div>
+      </div>
+
+      ${(v.brand || v.model) ? `<div class="tc-model">${escapeHtml([v.brand, v.model].filter(Boolean).join(' '))}</div>` : ''}
+
+      ${routeBlock(v.id)}
+      ${crewBlock(v)}
+
+      <button class="tc-toggle ${broken ? 'fix' : 'break'}"
+              onclick="cycleStatus('${v.id}', '${broken ? 'active' : 'maintenance'}')">
+        ${broken ? '✅ Marcar como reparado' : '🔧 Reportar avería'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ── Modal: nuevo camión ── */
+window.openTruckModal = function() {
+  ['v-economic','v-plates','v-capacity','v-year','v-brand','v-model','v-notes'].forEach(id => { $(id).value = ''; });
+  $('v-type').value = 'compactor';
+  $('v-status').value = 'active';
+  $('truck-modal').classList.add('open');
+  $('v-economic').focus();
+};
+window.closeTruckModal = () => $('truck-modal').classList.remove('open');
+
+window.submitTruck = async function(btn) {
+  const economic = $('v-economic').value.trim();
+  const plates   = $('v-plates').value.trim();
+  const capacity = $('v-capacity').value;
+
+  if (!economic) { showToast('⚠️ El número económico es obligatorio'); $('v-economic').focus(); return; }
+  if (!plates)   { showToast('⚠️ Las placas son obligatorias'); $('v-plates').focus(); return; }
+  if (!capacity) { showToast('⚠️ La capacidad es obligatoria'); $('v-capacity').focus(); return; }
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Guardando…';
+  try {
+    await insertVehicle({
+      economic_number: economic,
+      plates,
+      type:          $('v-type').value,
+      status:        $('v-status').value,
+      capacity_tons: Number(capacity),
+      year:          $('v-year').value ? Number($('v-year').value) : null,
+      brand:         $('v-brand').value.trim() || null,
+      model:         $('v-model').value.trim() || null,
+      notes:         $('v-notes').value.trim() || null,
+    });
+    window.closeTruckModal();
+    showToast('✅ Camión registrado');
+    await loadData();
+  } catch (err) {
+    console.error('[insertVehicle]', err);
+    const msg = /duplicate|unique/i.test(err.message || '')
+      ? 'Ya existe un camión con ese número económico o placas'
+      : (err.message || 'No se pudo guardar');
+    showToast('❌ ' + msg);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+};
+
+/* ── Modal: asignar ruta ── */
+const ROUTE_TYPE_LABEL = { residential: 'Residencial', commercial: 'Comercial', market: 'Mercado', rural: 'Rural' };
+
+function routePreview() {
+  const route = _allRoutes.find(r => r.id === $('r-route').value);
+  if (!route) { $('r-preview').innerHTML = ''; return; }
+  const flags = [
+    route.has_steep_terrain ? '⛰️ Pendiente pronunciada' : null,
+    route.has_narrow_alleys ? '↔️ Calles angostas' : null,
+  ].filter(Boolean);
+  $('r-preview').innerHTML = `
+    <div class="rp-head">${escapeHtml(route.name)}
+      <span class="rp-km">${route.distance_km ? Number(route.distance_km).toFixed(2) + ' km' : ''}</span></div>
+    <div class="rp-type">${ROUTE_TYPE_LABEL[route.route_type] || route.route_type}</div>
+    ${route.description ? `<div class="rp-desc">${escapeHtml(route.description)}</div>` : ''}
+    ${flags.length ? `<div class="rp-flags">${flags.map(f => `<span class="rp-flag">${f}</span>`).join('')}</div>` : ''}
+    ${route.collection_notes ? `<div class="rp-notes">${escapeHtml(route.collection_notes)}</div>` : ''}`;
+}
+
+window.openRouteModal = function(vehicleId) {
+  _routeVehicleId = vehicleId;
+  const vehicle = _vehicles.find(v => v.id === vehicleId);
+  $('r-vehicle-name').value = `${vehicle.economic_number} — ${vehicle.plates || 'sin placas'}`;
+
+  const current = _vehicleRoutes[vehicleId];
+  $('r-route').innerHTML = _allRoutes.length
+    ? _allRoutes.map(r => `<option value="${r.id}" ${current?.id === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')
+    : '<option value="">— no hay rutas registradas —</option>';
+  routePreview();
+  $('route-modal').classList.add('open');
+};
+window.closeRouteModal = () => $('route-modal').classList.remove('open');
+$('r-route').addEventListener('change', routePreview);
+
+window.submitRoute = async function(btn) {
+  const routeId = $('r-route').value;
+  if (!routeId) { showToast('⚠️ No hay rutas para asignar'); return; }
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Asignando…';
+  try {
+    await assignRouteToVehicle(_routeVehicleId, routeId);
+    window.closeRouteModal();
+    showToast('✅ Ruta asignada');
+    await loadData();
+  } catch (err) {
+    console.error('[assignRoute]', err);
+    showToast('❌ ' + (err.message || 'No se pudo asignar la ruta'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+};
+
+/* ── Cambiar estado (avería / servicio) ── */
+window.cycleStatus = async function(vehicleId, next) {
+  try {
+    await updateVehicleStatus(vehicleId, next);
+    showToast(next === 'maintenance' ? '🔧 Camión marcado con avería' : '✅ Camión de vuelta en servicio');
+    await loadData();
+  } catch (err) {
+    console.error('[updateVehicleStatus]', err);
+    showToast('❌ ' + (err.message || 'No se pudo actualizar'));
+  }
+};
+
+/* ── Modal: asignar personal ── */
+window.openCrewModal = function(vehicleId) {
+  _crewVehicleId = vehicleId;
+  const vehicle = _vehicles.find(v => v.id === vehicleId);
+  $('c-vehicle-name').value = `${vehicle.economic_number} — ${vehicle.plates || 'sin placas'}`;
+
+  const assigned = new Set(crewOf(vehicleId).map(c => c.user_id));
+  const available = _users.filter(u => !assigned.has(u.id));
+  $('c-user').innerHTML = available.length
+    ? available.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${u.role})</option>`).join('')
+    : '<option value="">— sin personas disponibles —</option>';
+  $('c-role').value = 'driver';
+  $('crew-modal').classList.add('open');
+};
+window.closeCrewModal = () => $('crew-modal').classList.remove('open');
+
+window.submitCrew = async function(btn) {
+  const userId = $('c-user').value;
+  if (!userId) { showToast('⚠️ Selecciona una persona'); return; }
+
+  btn.disabled = true;
+  try {
+    await assignCrewMember(_crewVehicleId, userId, $('c-role').value);
+    window.closeCrewModal();
+    showToast('✅ Personal asignado');
+    await loadData();
+  } catch (err) {
+    console.error('[assignCrew]', err);
+    showToast('❌ ' + (err.message || 'No se pudo asignar'));
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+window.unassign = async function(crewId) {
+  try {
+    await removeCrewMember(crewId);
+    showToast('✅ Persona retirada de la cuadrilla');
+    await loadData();
+  } catch (err) {
+    console.error('[removeCrew]', err);
+    showToast('❌ ' + (err.message || 'No se pudo quitar'));
+  }
+};
+
+/* ── Carga ── */
+async function loadData() {
+  try {
+    const [vehicles, crew, users, vehicleRoutes, allRoutes] = await Promise.all([
+      getVehicles(), getVehicleCrew(), getAllUsers(), getRoutesByVehicle(), getRoutes(),
+    ]);
+    _vehicles = vehicles; _crew = crew; _users = users;
+    _vehicleRoutes = vehicleRoutes; _allRoutes = allRoutes;
+    renderStats();
+    renderTrucks();
+  } catch (err) {
+    console.error('[camiones]', err);
+    showToast('❌ No se pudo cargar la flota');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try { window.renderNotifications?.(await getNotifications()); }
+  catch (err) { console.error('[notifications]', err); }
+}
+
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Camiones');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+
+  await loadData();
+  refreshNotifications();
+  setInterval(loadData, 60_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+main();
+</script>
+</body>
+</html>

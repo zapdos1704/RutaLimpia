@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Dashboard</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Solo estilos específicos del Dashboard ── */
+
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.dash-inner {
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* Header */
+.dash-header {
+  display: flex; align-items: flex-end;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.dash-title { font-size: 22px; font-weight: 800; }
+.dash-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+.period-tabs {
+  display: flex; gap: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 3px; border-radius: var(--radius-sm);
+}
+.ptab {
+  font-size: 11px; font-weight: 600; padding: 6px 16px;
+  border-radius: 6px; border: none; background: transparent;
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.ptab.active { background: var(--bg-raised); color: var(--text-1); }
+
+/* KPIs */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0,1fr));
+  gap: 12px;
+}
+.kpi {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px;
+  position: relative; overflow: hidden; min-width: 0;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.kpi:hover { border-color: var(--border-md); transform: translateY(-1px); }
+.kpi::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi.green::before  { background: var(--green); }
+.kpi.blue::before   { background: var(--blue); }
+.kpi.yellow::before { background: var(--yellow); }
+.kpi.red::before    { background: var(--red); }
+.kpi.purple::before { background: var(--purple); }
+.kpi-icon  { font-size: 16px; margin-bottom: 8px; opacity: .7; }
+.kpi-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.kpi-value { font-size: 26px; font-weight: 800; line-height: 1; }
+.kpi-sub   { font-size: 10px; color: var(--text-2); margin-top: 6px; }
+.kpi-sub.up   { color: var(--green-light); }
+.kpi-sub.warn { color: var(--yellow); }
+.kpi-sub.down { color: var(--red); }
+
+/* Charts */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color var(--transition);
+}
+.chart-card:hover { border-color: var(--border-md); }
+.chart-card.span2 { grid-column: span 2; }
+
+.chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.chart-title { font-size: 12px; font-weight: 700; }
+.chart-sub   { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.chart-badge { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
+
+.chart-body {
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+
+/* Animaciones de gráficas */
+.chart-card { animation: cardIn .4s ease-out both; }
+.charts-grid > .chart-card:nth-child(1) { animation-delay: .02s; }
+.charts-grid > .chart-card:nth-child(2) { animation-delay: .06s; }
+.charts-grid > .chart-card:nth-child(3) { animation-delay: .10s; }
+.charts-grid > .chart-card:nth-child(4) { animation-delay: .14s; }
+.charts-grid > .chart-card:nth-child(5) { animation-delay: .18s; }
+.charts-grid > .chart-card:nth-child(6) { animation-delay: .22s; }
+.charts-grid > .chart-card:nth-child(7) { animation-delay: .26s; }
+.charts-grid > .chart-card:nth-child(8) { animation-delay: .30s; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.kpi { animation: cardIn .35s ease-out both; }
+.kpi-grid .kpi:nth-child(2) { animation-delay: .04s; }
+.kpi-grid .kpi:nth-child(3) { animation-delay: .08s; }
+.kpi-grid .kpi:nth-child(4) { animation-delay: .12s; }
+.kpi-grid .kpi:nth-child(5) { animation-delay: .16s; }
+
+/* Barras y anillos con transición suave al actualizarse */
+.bar-rect   { transition: height .55s cubic-bezier(.34,1.2,.64,1); }
+.prog-fill  { transition: width .6s cubic-bezier(.34,1.2,.64,1); }
+.hcell      { transition: opacity .5s ease; }
+.donut-wrap circle, .gauges-wrap circle { transition: stroke-dasharray .7s cubic-bezier(.4,0,.2,1); }
+
+.bar-col:hover .bar-rect { filter: brightness(1.25); }
+.d-item { transition: color var(--transition); cursor: default; }
+.d-item:hover { color: var(--text-1); }
+
+/* Donut */
+.donut-wrap { display: flex; align-items: center; gap: 14px; padding: 12px; width: 100%; }
+.d-legend   { display: flex; flex-direction: column; gap: 7px; flex: 1; }
+.d-item     { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--text-2); }
+.d-dot      { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.d-val      { margin-left: auto; font-weight: 700; color: var(--text-1); font-size: 11px; }
+
+/* Progress bars */
+.prog-list  { display: flex; flex-direction: column; gap: 9px; padding: 12px 14px; width: 100%; }
+.prog-item  { display: flex; flex-direction: column; gap: 4px; }
+.prog-row   { display: flex; justify-content: space-between; font-size: 10px; }
+.prog-name  { color: var(--text-2); }
+.prog-val   { font-weight: 700; }
+.prog-track { height: 5px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.prog-fill  { height: 100%; border-radius: 3px; }
+
+/* Bar chart */
+.bars-wrap  { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 8px 12px 0; width: 100%; }
+.bar-col    { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+.bar-rect   { width: 100%; border-radius: 3px 3px 0 0; }
+.bar-lbl    { font-size: 8px; color: var(--text-2); text-align: center; }
+
+/* Heatmap */
+.hmap-wrap  { padding: 10px 14px; width: 100%; }
+.hmap-grid  { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+.hcell      { height: 15px; border-radius: 2px; background: var(--green); }
+.hmap-days  { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-top: 4px; }
+.hday       { font-size: 8px; color: var(--text-2); text-align: center; }
+.hmap-scale { display: flex; align-items: center; gap: 3px; margin-top: 6px; justify-content: flex-end; }
+.hscl       { font-size: 8px; color: var(--text-2); }
+
+/* Gauges */
+.gauges-wrap { display: flex; justify-content: space-around; align-items: center; padding: 14px; width: 100%; }
+.gauge-item  { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.gauge-lbl   { font-size: 9px; color: var(--text-2); text-align: center; line-height: 1.4; }
+
+/* Table */
+.mini-table { width: 100%; border-collapse: collapse; }
+.mini-table th { font-size: 9px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.mini-table td { font-size: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.03); color: var(--text-1); }
+.mini-table tr:last-child td { border-bottom: none; }
+
+.badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+.badge-green  { background: var(--green-dim); color: var(--green-light); }
+.badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-red    { background: rgba(239,68,68,.15); color: var(--red); }
+.badge-gray   { background: rgba(255,255,255,.07); color: var(--text-2); }
+
+/* Sidebar vehicle list */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .dash-inner { padding: 16px; gap: 16px; }
+  .dash-title { font-size: 18px; }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .kpi:nth-child(5) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 5px);
+    margin: 0 auto; width: 100%;
+  }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-card.span2 { grid-column: span 1; }
+  .kpi-value { font-size: 22px; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .kpi-grid    { grid-template-columns: repeat(3, 1fr); }
+  .charts-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-card.span2 { grid-column: span 2; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="dash-inner">
+
+        <!-- Header -->
+        <div class="dash-header">
+          <div>
+            <div class="dash-title">Dashboard</div>
+            <div class="dash-sub" id="dash-date"></div>
+          </div>
+          <div class="period-tabs">
+            <button class="ptab active" onclick="setPeriod(this)">Diario</button>
+            <button class="ptab" onclick="setPeriod(this)">Semanal</button>
+            <button class="ptab" onclick="setPeriod(this)">Mensual</button>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi green">
+            <div class="kpi-icon">✅</div>
+            <div class="kpi-label">Completadas</div>
+            <div class="kpi-value" id="kpi-completed" style="color:var(--green-light)">—</div>
+            <div class="kpi-sub up" id="kpi-completed-sub">cargando…</div>
+          </div>
+          <div class="kpi blue">
+            <div class="kpi-icon">🚛</div>
+            <div class="kpi-label">Vehículos activos</div>
+            <div class="kpi-value" id="kpi-vehicles" style="color:#93c5fd">—</div>
+            <div class="kpi-sub" id="kpi-vehicles-sub">cargando…</div>
+          </div>
+          <div class="kpi yellow">
+            <div class="kpi-icon">⚖️</div>
+            <div class="kpi-label">Toneladas</div>
+            <div class="kpi-value" id="kpi-tons" style="color:var(--yellow)">—</div>
+            <div class="kpi-sub warn" id="kpi-tons-sub">cargando…</div>
+          </div>
+          <div class="kpi red">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-label">Incompletas</div>
+            <div class="kpi-value" id="kpi-incomplete" style="color:var(--red)">—</div>
+            <div class="kpi-sub down" id="kpi-incomplete-sub">cargando…</div>
+          </div>
+          <div class="kpi purple">
+            <div class="kpi-icon">📣</div>
+            <div class="kpi-label">Campañas activas</div>
+            <div class="kpi-value" id="kpi-campaigns" style="color:#c4b5fd">—</div>
+            <div class="kpi-sub" id="kpi-campaigns-sub">cargando…</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+
+          <!-- Línea -->
+          <div class="chart-card span2">
+            <div class="chart-head">
+              <div><div class="chart-title">Toneladas recolectadas</div><div class="chart-sub">Tendencia semanal</div></div>
+              <span class="chart-badge">Línea</span>
+            </div>
+            <div class="chart-body" style="height:120px;">
+              <div style="padding:12px 16px 8px;width:100%;">
+                <svg id="chart-line-svg" width="100%" height="88" style="overflow:visible">
+                  <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".18"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs>
+                  <line x1="0" y1="18" x2="400" y2="18" stroke="#1a2540" stroke-width="1"/>
+                  <line x1="0" y1="38" x2="400" y2="38" stroke="#1a2540" stroke-width="1"/>
+                  <line x1="0" y1="58" x2="400" y2="58" stroke="#1a2540" stroke-width="1"/>
+                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10 L400,78 L0,78Z" fill="url(#lg)"/>
+                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="0"   cy="60" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="57"  cy="46" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="114" cy="50" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="171" cy="30" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="228" cy="35" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="285" cy="16" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="342" cy="21" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="400" cy="10" r="4" fill="#22c55e" stroke="#080f1e" stroke-width="2"/>
+                  <text x="0"   y="76" font-size="8" fill="#64748b" font-family="Montserrat">Lun</text>
+                  <text x="51"  y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mar</text>
+                  <text x="108" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mié</text>
+                  <text x="165" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Jue</text>
+                  <text x="222" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Vie</text>
+                  <text x="279" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Sáb</text>
+                  <text x="336" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Dom</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dona flota -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Estado de flota</div><div class="chart-sub">Distribución actual</div></div>
+              <span class="chart-badge">Dona</span>
+            </div>
+            <div class="chart-body" style="height:120px;">
+              <div class="donut-wrap" id="chart-fleet-donut">
+                <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#22c55e" stroke-width="13" stroke-dasharray="150 188"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#f59e0b" stroke-width="13" stroke-dasharray="25 188" stroke-dashoffset="-150"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#334155" stroke-width="13" stroke-dasharray="13 188" stroke-dashoffset="-175"/>
+                  <text x="45" y="49" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9" font-family="Montserrat">12/15</text>
+                </svg>
+                <div class="d-legend">
+                  <div class="d-item"><div class="d-dot" style="background:#22c55e"></div>Activos<div class="d-val">12</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#f59e0b"></div>Mantenimiento<div class="d-val">2</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#334155"></div>Inactivos<div class="d-val">1</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barras turnos -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Por turno</div><div class="chart-sub">Completadas vs pendientes</div></div>
+              <span class="chart-badge">Barras</span>
+            </div>
+            <div class="chart-body" style="height:120px;flex-direction:column;justify-content:flex-end;padding-bottom:8px;">
+              <div class="bars-wrap" id="chart-shift-bars">
+                <div class="bar-col"><div class="bar-rect" style="height:68px;background:#22c55e"></div><div class="bar-lbl">Mañ.</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:22px;background:rgba(34,197,94,.15)"></div><div class="bar-lbl"></div></div>
+                <div style="width:8px"></div>
+                <div class="bar-col"><div class="bar-rect" style="height:50px;background:#3b82f6;opacity:.8"></div><div class="bar-lbl">Tarde</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:28px;background:rgba(59,130,246,.15)"></div><div class="bar-lbl"></div></div>
+                <div style="width:8px"></div>
+                <div class="bar-col"><div class="bar-rect" style="height:30px;background:#8b5cf6;opacity:.7"></div><div class="bar-lbl">Noche</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:48px;background:rgba(139,92,246,.15)"></div><div class="bar-lbl"></div></div>
+              </div>
+              <div style="display:flex;gap:10px;padding:0 12px;">
+                <div style="display:flex;align-items:center;gap:4px;font-size:8px;color:#64748b"><div style="width:7px;height:7px;border-radius:1px;background:#f1f5f9;opacity:.6"></div>Completadas</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:8px;color:#64748b"><div style="width:7px;height:7px;border-radius:1px;background:#f1f5f9;opacity:.12"></div>Pendientes</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conductores -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Rendimiento conductores</div><div class="chart-sub">Rutas completadas hoy</div></div>
+              <span class="chart-badge">Barras horiz.</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="prog-list" id="chart-drivers"></div>
+            </div>
+          </div>
+
+          <!-- Dona rutas -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Tipos de ruta</div><div class="chart-sub">Por zona</div></div>
+              <span class="chart-badge">Dona</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="donut-wrap" id="chart-routetype-donut">
+                <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#3b82f6" stroke-width="13" stroke-dasharray="94 188"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#22c55e" stroke-width="13" stroke-dasharray="56 188" stroke-dashoffset="-94"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#f59e0b" stroke-width="13" stroke-dasharray="26 188" stroke-dashoffset="-150"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#8b5cf6" stroke-width="13" stroke-dasharray="12 188" stroke-dashoffset="-176"/>
+                </svg>
+                <div class="d-legend">
+                  <div class="d-item"><div class="d-dot" style="background:#3b82f6"></div>Resid.<div class="d-val">50%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#22c55e"></div>Comerc.<div class="d-val">30%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#f59e0b"></div>Mercado<div class="d-val">14%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#8b5cf6"></div>Rural<div class="d-val">6%</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gauges -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Telemetría flota</div><div class="chart-sub">Promedio en tiempo real</div></div>
+              <span class="chart-badge">Circular</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="gauges-wrap" id="chart-gauges">
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">71%</text></svg>
+                  <div class="gauge-lbl">Batería</div>
+                </div>
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#3b82f6" stroke-width="7" stroke-dasharray="117 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">85%</text></svg>
+                  <div class="gauge-lbl">GSM</div>
+                </div>
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#f59e0b" stroke-width="7" stroke-dasharray="69 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">50%</text></svg>
+                  <div class="gauge-lbl">Capacidad</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heatmap -->
+          <div class="chart-card span2">
+            <div class="chart-head">
+              <div><div class="chart-title">Actividad semanal</div><div class="chart-sub">Intensidad de rutas por día</div></div>
+              <span class="chart-badge">Heatmap</span>
+            </div>
+            <div class="chart-body" style="height:88px;">
+              <div class="hmap-wrap">
+                <div class="hmap-grid" id="chart-heatmap-grid">
+                  <div class="hcell" style="opacity:.1"></div><div class="hcell" style="opacity:.35"></div><div class="hcell" style="opacity:.9"></div><div class="hcell" style="opacity:.6"></div><div class="hcell" style="opacity:.25"></div><div class="hcell" style="opacity:.75"></div><div class="hcell" style="opacity:.1"></div>
+                  <div class="hcell" style="opacity:.2"></div><div class="hcell" style="opacity:.55"></div><div class="hcell" style="opacity:.4"></div><div class="hcell" style="opacity:.9"></div><div class="hcell" style="opacity:.45"></div><div class="hcell" style="opacity:.6"></div><div class="hcell" style="opacity:.05"></div>
+                  <div class="hcell" style="opacity:.45"></div><div class="hcell" style="opacity:.8"></div><div class="hcell" style="opacity:.55"></div><div class="hcell" style="opacity:.35"></div><div class="hcell" style="opacity:.7"></div><div class="hcell" style="opacity:.3"></div><div class="hcell" style="opacity:.05"></div>
+                </div>
+                <div class="hmap-days"><div class="hday">Lun</div><div class="hday">Mar</div><div class="hday">Mié</div><div class="hday">Jue</div><div class="hday">Vie</div><div class="hday">Sáb</div><div class="hday">Dom</div></div>
+                <div class="hmap-scale">
+                  <span class="hscl">Menos</span>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.1"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.35"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.6"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.85"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e"></div>
+                  <span class="hscl">Más</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Rutas activas</div><div class="chart-sub">Estado del turno</div></div>
+              <span class="chart-badge">Tabla</span>
+            </div>
+            <div class="chart-body" style="height:88px;align-items:flex-start;">
+              <table class="mini-table">
+                <thead><tr><th>Ruta</th><th>Conductor</th><th>Estado</th></tr></thead>
+                <tbody id="routes-table-body">
+                  <tr><td colspan="3" style="text-align:center;color:var(--text-2)">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /charts-grid -->
+      </div><!-- /dash-inner -->
+    </div><!-- /main -->
+  </div><!-- /body-layout -->
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<script src="shared.js"></script>
+<script type="module">
+import {
+  getVehicles, getTelemetry, getCollections, getCampaigns, getWasteStats, capacityPct,
+  getSession, getCurrentUserProfile, getNotifications, signOut,
+} from './db.js';
+
+/* ── SESIÓN / LOGOUT ── */
+window.doLogout = async function() {
+  await signOut();
+  window.location.href = 'index.html';
+};
+
+/* ── FECHA ── */
+const DAYS_ES   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const NOW       = new Date();
+document.getElementById('dash-date').textContent =
+  `${DAYS_ES[NOW.getDay()]}, ${NOW.getDate()} de ${MONTHS_ES[NOW.getMonth()]} · Turno matutino`;
+
+/* ── PERIOD TABS ── */
+let currentPeriod = 'diario';
+const periodMap   = { 'Diario':'diario', 'Semanal':'semanal', 'Mensual':'mensual' };
+window.setPeriod  = function(btn) {
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPeriod = periodMap[btn.textContent.trim()] || 'diario';
+  loadAll();
+};
+
+/* ── HELPERS ── */
+const fuelColor = p => p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
+const wkday     = ds => { const d = new Date(ds + 'T00:00:00'); return (d.getDay() + 6) % 7; };
+const avg       = (arr, fn) => arr.length ? arr.reduce((s, x) => s + (fn(x) || 0), 0) / arr.length : 0;
+const $         = id => document.getElementById(id);
+const DAYS_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+/* ══ KPIs ══ */
+function renderKPIs(colls, vehs, waste, camps) {
+  const completed   = colls.filter(c => c.status === 'completed').length;
+  const incomplete  = colls.filter(c => c.status === 'incomplete').length;
+  const activeV     = vehs.filter(v => v.status === 'active').length;
+  const maintV      = vehs.filter(v => v.status === 'maintenance').length;
+  const tons        = waste.reduce((s, w) => s + (w.tons_collected || 0), 0);
+  const activeCamps = camps.filter(c => c.status === 'active').length;
+
+  if ($('kpi-completed'))     $('kpi-completed').textContent = completed;
+  if ($('kpi-completed-sub')) $('kpi-completed-sub').textContent = `${colls.length} rutas en total`;
+  if ($('kpi-vehicles'))      $('kpi-vehicles').innerHTML = `${activeV}<span style="font-size:14px;color:var(--text-2)">/${vehs.length}</span>`;
+  if ($('kpi-vehicles-sub'))  $('kpi-vehicles-sub').textContent = `${maintV} en mantenimiento`;
+  if ($('kpi-tons'))          $('kpi-tons').innerHTML = `${tons.toFixed(1)}<span style="font-size:14px">t</span>`;
+  if ($('kpi-tons-sub'))      $('kpi-tons-sub').textContent = waste.length ? 'Recolectadas en el periodo' : 'Sin datos';
+  if ($('kpi-incomplete'))    $('kpi-incomplete').textContent = incomplete;
+  if ($('kpi-incomplete-sub'))$('kpi-incomplete-sub').textContent = incomplete > 0 ? 'Requieren atención' : 'Sin incidencias';
+  if ($('kpi-campaigns'))     $('kpi-campaigns').textContent = activeCamps;
+  if ($('kpi-campaigns-sub')) $('kpi-campaigns-sub').textContent = `${camps.length} campañas en total`;
+}
+
+/* ── Convierte una lista de puntos en una curva suave (Catmull-Rom → Bézier) ── */
+function smoothPath(pts) {
+  if (pts.length < 3) return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ');
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+
+/* ══ GRÁFICA LINEAL (toneladas por día) ══ */
+function renderLineChart(waste) {
+  const svg = $('chart-line-svg');
+  if (!svg) return;
+  const rect = svg.parentElement.getBoundingClientRect();
+  const W = rect.width > 0 ? rect.width : 400;
+  const H = 68;
+  svg.setAttribute('viewBox', `0 0 ${W} 78`);
+  const byDay = Array(7).fill(0);
+  waste.forEach(w => { byDay[wkday(w.date)] += w.tons_collected || 0; });
+  const maxV = Math.max(...byDay, 1);
+  const pts = byDay.map((v, i) => [Math.round((i / 6) * W), Math.round(H - (v / maxV) * H)]);
+  const path = smoothPath(pts);
+  const best = byDay.indexOf(Math.max(...byDay));
+  const gridLines = [18, 38, 58]
+    .map(y => `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#1a2540" stroke-width="1" stroke-dasharray="3 4"/>`).join('');
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="lg2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#22c55e" stop-opacity=".28"/>
+        <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lineStroke" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#16a34a"/><stop offset="100%" stop-color="#4ade80"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${path} L${W},${H} L0,${H}Z" fill="url(#lg2)">
+      <animate attributeName="opacity" from="0" to="1" dur=".6s" fill="freeze"/>
+    </path>
+    <path d="${path}" fill="none" stroke="url(#lineStroke)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          pathLength="1" stroke-dasharray="1" stroke-dashoffset="1">
+      <animate attributeName="stroke-dashoffset" from="1" to="0" dur=".9s" fill="freeze" calcMode="spline" keySplines=".4 0 .2 1"/>
+    </path>
+    ${pts.map((p, i) => {
+      const isMax = i === best && byDay[i] > 0;
+      const isLast = i === pts.length - 1;
+      const r = isLast ? 4 : isMax ? 3.6 : 2.8;
+      return `<g class="pt"><circle cx="${p[0]}" cy="${p[1]}" r="${r}"
+        fill="${isLast ? '#22c55e' : '#080f1e'}" stroke="${isMax ? '#facc15' : '#22c55e'}"
+        stroke-width="${isLast || isMax ? 2 : 1.5}" style="cursor:pointer">
+        <title>${DAYS_SHORT[i]}: ${byDay[i].toFixed(1)} t${isMax ? '  ← máximo' : ''}</title>
+        <animate attributeName="r" from="0" to="${r}" dur=".4s" begin="${0.45 + i * 0.06}s" fill="freeze"/>
+      </circle></g>`;
+    }).join('')}
+    ${DAYS_SHORT.map((d, i) => `<text x="${Math.max(0, Math.min(W-15, Math.round((i/6)*W - 8)))}" y="76" font-size="9" fill="${i === best ? '#94a3b8' : '#64748b'}" font-weight="${i === best ? '700' : '400'}" font-family="Montserrat">${d}</text>`).join('')}`;
+}
+
+/* ══ DONA FLOTA ══ */
+function renderFleetDonut(vehs) {
+  const el = $('chart-fleet-donut');
+  if (!el) return;
+  const active   = vehs.filter(v => v.status === 'active').length;
+  const maint    = vehs.filter(v => v.status === 'maintenance').length;
+  const inactive = vehs.filter(v => v.status === 'inactive').length;
+  const total    = vehs.length || 1;
+  const C = 2 * Math.PI * 30;
+  const aA = (active/total)*C, aM = (maint/total)*C;
+  el.innerHTML = `
+    <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+      <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+      <circle cx="45" cy="45" r="30" fill="none" stroke="#22c55e" stroke-width="13" stroke-dasharray="${aA.toFixed(1)} ${C.toFixed(1)}"><title>Activos: ${active}</title></circle>
+      <circle cx="45" cy="45" r="30" fill="none" stroke="#f59e0b" stroke-width="13" stroke-dasharray="${aM.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-aA).toFixed(1)}"><title>Mantenimiento: ${maint}</title></circle>
+      <circle cx="45" cy="45" r="30" fill="none" stroke="#334155" stroke-width="13" stroke-dasharray="${((inactive/total)*C).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-(aA+aM)).toFixed(1)}"><title>Inactivos: ${inactive}</title></circle>
+      <text x="45" y="49" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9" font-family="Montserrat">${active}/${total}</text>
+    </svg>
+    <div class="d-legend">
+      <div class="d-item"><div class="d-dot" style="background:#22c55e"></div>Activos<div class="d-val">${active}</div></div>
+      <div class="d-item"><div class="d-dot" style="background:#f59e0b"></div>Mantenimiento<div class="d-val">${maint}</div></div>
+      <div class="d-item"><div class="d-dot" style="background:#334155"></div>Inactivos<div class="d-val">${inactive}</div></div>
+    </div>`;
+}
+
+/* ══ BARRAS POR TURNO ══ */
+function renderShiftBars(colls) {
+  const el = $('chart-shift-bars');
+  if (!el) return;
+  if (!colls.length) {
+    el.innerHTML = `<div style="width:100%;text-align:center;color:var(--text-2);font-size:11px;">Sin datos en el periodo</div>`;
+    return;
+  }
+  const shifts = {};
+  colls.forEach(c => {
+    const n = c.shift?.name || 'Sin turno';
+    if (!shifts[n]) shifts[n] = { comp: 0, total: 0 };
+    shifts[n].total++;
+    if (c.status === 'completed') shifts[n].comp++;
+  });
+  const names  = Object.keys(shifts);
+  const colors = ['#22c55e','#3b82f6','#8b5cf6','#f59e0b'];
+  const maxH   = 68;
+  el.innerHTML = names.map((s, i) => {
+    const d = shifts[s];
+    const cH = d.total > 0 ? Math.round((d.comp/d.total)*maxH) : 0;
+    const col = colors[i % colors.length];
+    const lbl = s.length > 5 ? s.slice(0,5) + '.' : s;
+    return `<div class="bar-col" title="${s}: ${d.comp}/${d.total} completadas"><div class="bar-rect" style="height:${cH}px;background:${col}"></div><div class="bar-lbl">${lbl}</div></div>
+            <div class="bar-col"><div class="bar-rect" style="height:${maxH-cH}px;background:${col}22"></div><div class="bar-lbl"></div></div>
+            ${i < names.length-1 ? '<div style="width:8px"></div>' : ''}`;
+  }).join('');
+}
+
+/* ══ DONA TIPOS DE RUTA ══ */
+function renderRouteTypeDonut(colls) {
+  const el = $('chart-routetype-donut');
+  if (!el) return;
+  const COLORS = { residential:'#3b82f6', commercial:'#22c55e', market:'#f59e0b', rural:'#8b5cf6', other:'#64748b' };
+  const LABELS = { residential:'Resid.', commercial:'Comerc.', market:'Mercado', rural:'Rural', other:'Otro' };
+  const types = {};
+  colls.forEach(c => { const t = c.route?.route_type || 'other'; types[t] = (types[t]||0)+1; });
+  const total = Object.values(types).reduce((s,v)=>s+v,0) || 1;
+  const C = 2 * Math.PI * 30;
+  let offset = 0;
+  const entries = Object.entries(types);
+  const arcs = entries.map(([type, count]) => {
+    const arc = (count/total)*C;
+    const el2 = `<circle cx="45" cy="45" r="30" fill="none" stroke="${COLORS[type]||'#64748b'}" stroke-width="13" stroke-dasharray="${arc.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}"><title>${LABELS[type]||type}: ${count} (${Math.round((count/total)*100)}%)</title></circle>`;
+    offset += arc;
+    return { el: el2, type, count };
+  });
+  el.innerHTML = `
+    <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+      <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+      ${arcs.map(a=>a.el).join('')}
+    </svg>
+    <div class="d-legend">
+      ${arcs.map(a=>`<div class="d-item"><div class="d-dot" style="background:${COLORS[a.type]||'#64748b'}"></div>${LABELS[a.type]||a.type}<div class="d-val">${Math.round((a.count/total)*100)}%</div></div>`).join('')}
+    </div>`;
+}
+
+/* ══ GAUGES TELEMETRÍA ══ */
+function renderGauges(telemetry) {
+  const el = $('chart-gauges');
+  if (!el) return;
+  const dbmPct = dbm => dbm == null ? 0 : Math.max(0, Math.min(100, Math.round(((dbm-(-110))/60)*100)));
+  const batPct = avg(telemetry, r => r.battery_pct ?? 0);
+  const gsmPct = avg(telemetry, r => dbmPct(r.gsm_signal_dbm));
+  const capPct = avg(telemetry, r => capacityPct(r.truck_capacity));
+  const gaugeSvg = (pct, color) => {
+    const r = 22, C = 2*Math.PI*r;
+    const filled = ((pct/100)*C).toFixed(1);
+    return `<svg width="58" height="58" viewBox="0 0 60 60">
+      <circle cx="30" cy="30" r="${r}" fill="none" stroke="#1a2540" stroke-width="7"/>
+      <circle cx="30" cy="30" r="${r}" fill="none" stroke="${color}" stroke-width="7"
+              stroke-dasharray="${filled} ${C.toFixed(1)}" stroke-dashoffset="34" stroke-linecap="round"
+              transform="rotate(-90 30 30)" opacity=".95">
+        <animate attributeName="stroke-dasharray" from="0 ${C.toFixed(1)}" to="${filled} ${C.toFixed(1)}"
+                 dur=".9s" fill="freeze" calcMode="spline" keySplines=".4 0 .2 1"/>
+      </circle>
+      <text x="30" y="34" text-anchor="middle" font-size="11" font-weight="800" fill="#f1f5f9" font-family="Montserrat">${Math.round(pct)}%</text>
+    </svg>`;
+  };
+  el.innerHTML = `
+    <div class="gauge-item">${gaugeSvg(batPct,'#22c55e')}<div class="gauge-lbl">Batería</div></div>
+    <div class="gauge-item">${gaugeSvg(gsmPct,'#3b82f6')}<div class="gauge-lbl">GSM</div></div>
+    <div class="gauge-item">${gaugeSvg(capPct,'#f59e0b')}<div class="gauge-lbl">Capacidad</div></div>`;
+}
+
+/* ══ RENDIMIENTO POR CONDUCTOR ══ */
+function renderDriverPerformance(colls) {
+  const el = $('chart-drivers');
+  if (!el) return;
+
+  const byDriver = {};
+  colls.forEach(c => {
+    const name = c.driver?.name;
+    if (!name) return;
+    if (!byDriver[name]) byDriver[name] = { done: 0, total: 0 };
+    byDriver[name].total++;
+    if (c.status === 'completed') byDriver[name].done++;
+  });
+
+  const ranked = Object.entries(byDriver)
+    .sort((a, b) => (b[1].done / b[1].total) - (a[1].done / a[1].total))
+    .slice(0, 5);
+
+  if (!ranked.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-2);font-size:11px;padding:20px 0">Sin recolecciones asignadas en el periodo</div>';
+    return;
+  }
+
+  const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'];
+  el.innerHTML = ranked.map(([name, stats], i) => {
+    const pct = Math.round((stats.done / stats.total) * 100);
+    const color = pct >= 75 ? 'var(--green-light)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+    return `<div class="prog-item">
+      <div class="prog-row"><span class="prog-name">${name}</span><span class="prog-val" style="color:${color}">${stats.done}/${stats.total}</span></div>
+      <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${colors[i % colors.length]}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ HEATMAP ══ */
+function renderHeatmap(colls) {
+  const el = $('chart-heatmap-grid');
+  if (!el) return;
+  const counts = Array(7).fill(0);
+  colls.filter(c=>c.status==='completed').forEach(c => counts[wkday(c.scheduled_date)]++);
+  const maxV = Math.max(...counts, 1);
+  let html = '';
+  for (let row = 0; row < 3; row++)
+    for (let col = 0; col < 7; col++)
+      html += `<div class="hcell" style="opacity:${(0.05+(counts[col]/maxV)*0.95).toFixed(2)}"></div>`;
+  el.innerHTML = html;
+}
+
+/* ══ TABLA RUTAS ACTIVAS ══ */
+function renderRoutesTable(colls) {
+  const tbody = $('routes-table-body');
+  if (!tbody) return;
+  const today  = new Date().toISOString().slice(0,10);
+  const toShow = (colls.filter(c=>c.scheduled_date===today).length > 0
+    ? colls.filter(c=>c.scheduled_date===today)
+    : colls).slice(0,6);
+  const badge = { completed:'<span class="badge badge-green">Completada</span>', incomplete:'<span class="badge badge-red">Incompleta</span>', in_progress:'<span class="badge badge-yellow">En progreso</span>', pending:'<span class="badge badge-gray">Pendiente</span>', cancelled:'<span class="badge badge-gray">Cancelada</span>' };
+  tbody.innerHTML = toShow.map(c=>`<tr><td>${c.route?.name||'—'}</td><td>${c.driver?.name||'—'}</td><td>${badge[c.status]||`<span class="badge badge-gray">${c.status}</span>`}</td></tr>`).join('')
+    || '<tr><td colspan="3" style="text-align:center;color:var(--text-2)">Sin datos disponibles</td></tr>';
+}
+
+/* ══ SIDEBAR VEHÍCULOS ══ */
+let _vehicles = [];
+function renderVehicleList(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard" onclick="selectVehicle(this)">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.economic_number}</div><div class="vruta">${v.plates||'—'}</div></div>
+        <div class="vdot dot-${v.status==='active'?'green':v.status==='maintenance'?'red':'gray'}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Batería</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v._bat}%;background:${v._bat<25?'#ef4444':v._bat<50?'#f59e0b':'#22c55e'}"></div></div>
+        <span class="bar-pct">${v._bat}%</span>
+      </div>
+    </div>`).join('') || '<div style="padding:12px;font-size:11px;color:var(--text-2)">Sin vehículos</div>';
+}
+
+window.selectVehicle = function(card) {
+  document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+};
+window.filterVehicles = function(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:_vehicles, active:_vehicles.filter(v=>v.status==='active'), averia:_vehicles.filter(v=>v.status==='maintenance'||v.status==='inactive') };
+  renderVehicleList(f[type]||_vehicles);
+};
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicleList(_vehicles.filter(v=>v.economic_number.toLowerCase().includes(q)||(v.plates&&v.plates.toLowerCase().includes(q))));
+});
+window.setPeriod = window.setPeriod || function(){};
+
+/* ══ CARGA PRINCIPAL ══ */
+async function loadAll() {
+  try {
+    // La gráfica de línea siempre muestra la semana ("Tendencia semanal"),
+    // mientras que el KPI de toneladas sí respeta el periodo elegido.
+    const [vehs, telem, colls, camps, waste, weeklyWaste] = await Promise.all([
+      getVehicles(), getTelemetry(),
+      getCollections(currentPeriod),
+      getCampaigns(),
+      getWasteStats(currentPeriod),
+      getWasteStats('semanal'),
+    ]);
+    _vehicles = vehs.map(v => {
+      const t = telem.find(r=>r.vehicle_id===v.id);
+      return { ...v, _bat: t ? (t.battery_pct??0) : 0 };
+    });
+    renderKPIs(colls, vehs, waste, camps);
+    renderLineChart(weeklyWaste);
+    renderFleetDonut(vehs);
+    renderShiftBars(colls);
+    renderRouteTypeDonut(colls);
+    renderGauges(telem);
+    renderDriverPerformance(colls);
+    renderHeatmap(colls);
+    renderRoutesTable(colls);
+    renderVehicleList(_vehicles);
+  } catch (err) {
+    console.error('[dashboard]', err);
+    showToast('❌ No se pudieron cargar los datos. Reintentando…');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try {
+    window.renderNotifications?.(await getNotifications());
+  } catch (err) { console.error('[notifications]', err); }
+}
+
+/* ══ INICIO (requiere sesión activa) ══ */
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Dashboard');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+
+  await loadAll();
+  refreshNotifications();
+
+  setInterval(loadAll, 30_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+main();
+</script>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Campañas</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Específico de Campañas ── */
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* Filtro de estado */
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.fbar-btn {
+  font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2);
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.fbar-btn.active, .fbar-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text-1);
+  border-color: rgba(255,255,255,.25);
+}
+.fbar-btn.active { border-color: var(--green); color: var(--green-light); }
+
+/* Grid de campañas */
+.camp-grid { display: flex; flex-direction: column; gap: 12px; }
+
+.camp-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: default;
+}
+.camp-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+/* Barra de color izquierda según estado */
+.camp-card { border-left: 3px solid transparent; }
+.camp-card.active    { border-left-color: var(--green); }
+.camp-card.planned   { border-left-color: var(--yellow); }
+.camp-card.completed { border-left-color: var(--text-2); }
+.camp-card.cancelled { border-left-color: var(--red); }
+
+.camp-left  { flex: 1; min-width: 0; }
+.camp-name  { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+.camp-desc  { font-size: 12px; color: var(--text-2); margin-bottom: 12px; line-height: 1.55; }
+
+.camp-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+.camp-meta-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #93c5fd;
+}
+.camp-meta-item svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* Progreso de campaña */
+.camp-progress { margin-top: 14px; }
+.cp-head { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
+.cp-track { height: 5px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.cp-fill  { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s; }
+
+.camp-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 8px; flex-shrink: 0;
+}
+
+/* Badges */
+.badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.badge-green  { background: var(--green-dim);              color: var(--green-light); }
+.badge-yellow { background: rgba(245,158,11,.15);           color: var(--yellow); }
+.badge-gray   { background: rgba(255,255,255,.07);          color: var(--text-2); }
+.badge-red    { background: rgba(239,68,68,.15);            color: var(--red); }
+
+.btn-camp-detail {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition); white-space: nowrap;
+}
+.btn-camp-detail:hover { background: var(--bg-raised); border-color: rgba(255,255,255,.25); }
+
+/* Botón nueva campaña */
+.btn-new {
+  padding: 9px 18px;
+  background: var(--green);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition), transform .1s;
+  white-space: nowrap;
+}
+.btn-new:hover  { background: #16a34a; }
+.btn-new:active { transform: scale(.97); }
+
+/* Vehículos sidebar */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── MODAL Nueva Campaña ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius);
+  width: 100%; max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title  { font-size: 15px; font-weight: 700; }
+.modal-close  {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select, .form-textarea {
+  padding: 10px 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-2); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--green); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-select option { background: var(--bg-surface); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.modal-footer {
+  padding: 14px 20px 18px;
+  display: flex; gap: 10px; justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 10px 18px; background: transparent;
+  border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+}
+.btn-cancel:hover { background: var(--bg-raised); }
+
+/* ── Detalle de campaña ── */
+.detail-hero {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  background: var(--bg-raised); border-left: 3px solid var(--text-2);
+  animation: slideIn .25s ease-out;
+}
+.detail-hero.active    { border-left-color: var(--green); }
+.detail-hero.planned   { border-left-color: var(--yellow); }
+.detail-hero.completed { border-left-color: var(--text-2); }
+.detail-hero.cancelled { border-left-color: var(--red); }
+.detail-type { font-size: 12px; color: var(--text-2); margin-left: auto; }
+.detail-desc { font-size: 13px; line-height: 1.6; color: var(--text-1); }
+.detail-grid { display: flex; flex-direction: column; gap: 1px; border-radius: var(--radius-sm); overflow: hidden; }
+.vp-detail-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px 14px; background: var(--bg-raised); font-size: 12px;
+}
+.vp-detail-label { color: var(--text-2); }
+.vp-detail-value { font-weight: 600; text-align: right; }
+.detail-notes {
+  font-size: 12px; line-height: 1.55; color: var(--text-2);
+  background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page-inner { padding: 16px; gap: 16px; }
+  .page-title  { font-size: 18px; }
+  .camp-card   { flex-direction: column; }
+  .camp-right  { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .form-row    { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-inner">
+
+        <!-- Header -->
+        <div class="page-header">
+          <div>
+            <div class="page-title">Campañas</div>
+            <div class="page-sub">Gestión de operativos de recolección especiales</div>
+          </div>
+          <button class="btn-new" onclick="openModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nueva campaña
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+          <button class="fbar-btn active" onclick="filterCamp('all', this)">Todas</button>
+          <button class="fbar-btn" onclick="filterCamp('active', this)">Activas</button>
+          <button class="fbar-btn" onclick="filterCamp('planned', this)">Planificadas</button>
+          <button class="fbar-btn" onclick="filterCamp('completed', this)">Completadas</button>
+          <button class="fbar-btn" onclick="filterCamp('cancelled', this)">Canceladas</button>
+        </div>
+
+        <!-- Lista de campañas -->
+        <div class="camp-grid" id="camp-grid"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<!-- MODAL Detalle de Campaña -->
+<div class="modal-overlay" id="detail-overlay" onclick="if(event.target===this) closeDetail()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="d-title">Detalle</span>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="d-body"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeDetail()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL Nueva Campaña -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nueva campaña</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Nombre de la campaña</label>
+        <input class="form-input" type="text" id="camp-name" placeholder="Ej. Operativo Zona Norte"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" id="camp-type">
+          <option value="neighborhood_cleanup">Limpieza vecinal</option>
+          <option value="large_waste">Residuos grandes</option>
+          <option value="electronic_waste">Residuos electrónicos</option>
+          <option value="other">Otro</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Descripción</label>
+        <textarea class="form-textarea" id="camp-desc" placeholder="Describe el objetivo y alcance de la campaña…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Fecha inicio</label>
+          <input class="form-input" type="date" id="camp-start"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Fecha fin</label>
+          <input class="form-input" type="date" id="camp-end"/>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notas</label>
+        <input class="form-input" type="text" id="camp-notes" placeholder="Ej. Lun – Vie, 08:00 – 18:00"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Estado inicial</label>
+        <select class="form-select" id="camp-status">
+          <option value="planned">Planificada</option>
+          <option value="active">Activa</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitCampaign(this)">Guardar campaña</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script type="module">
+import { getCampaigns, getVehicles, getTelemetry, insertCampaign, getSession, getCurrentUserProfile, getNotifications, signOut } from './db.js';
+
+/* ── SESIÓN / LOGOUT ── */
+window.doLogout = async function() {
+  await signOut();
+  window.location.href = 'index.html';
+};
+
+/* ── MAPAS DE STATUS (se usa el campo "status" real de Supabase) ── */
+const statusBadge = {
+  active:    '<span class="badge badge-green">Activa</span>',
+  planned:   '<span class="badge badge-yellow">Planificada</span>',
+  completed: '<span class="badge badge-gray">Completada</span>',
+  cancelled: '<span class="badge badge-red">Cancelada</span>',
+};
+const progColor = { active:'#22c55e', planned:'#f59e0b', completed:'#64748b', cancelled:'#ef4444' };
+const statusText = { active:'En curso', planned:'Planificada', completed:'Completada', cancelled:'Cancelada' };
+const typeLabel = { neighborhood_cleanup:'Limpieza vecinal', large_waste:'Residuos grandes', electronic_waste:'Residuos electrónicos', other:'Otro' };
+
+let _campaigns = [];
+let _activeFilter = 'all';
+
+function formatDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+function renderCampaigns(list) {
+  const el = document.getElementById('camp-grid');
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text-2);padding:40px;font-size:13px;">No hay campañas en esta categoría.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="camp-card ${c.status}">
+      <div class="camp-left">
+        <div class="camp-name">${c.name}</div>
+        <div class="camp-desc">${c.description || typeLabel[c.campaign_type] || '—'}</div>
+        <div class="camp-meta">
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${typeLabel[c.campaign_type] || 'Campaña'}
+          </div>
+          <div class="camp-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${formatDate(c.start_date)} → ${formatDate(c.end_date)}
+          </div>
+        </div>
+        <div class="camp-progress">
+          <div class="cp-head">
+            <span>Estado</span><span style="color:${progColor[c.status]||'#64748b'};font-weight:700">${statusBadge[c.status]||c.status}</span>
+          </div>
+          <div class="cp-track">
+            <div class="cp-fill" style="width:${c.status==='completed'?100:c.status==='active'?60:c.status==='planned'?0:100}%;background:${progColor[c.status]||'#64748b'}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="camp-right">
+        ${statusBadge[c.status]||`<span class="badge badge-gray">${c.status}</span>`}
+        <button class="btn-camp-detail" onclick="showCampaignDetail('${c.id}')">Ver detalles</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ── DETALLE DE CAMPAÑA ── */
+const detailRow = (label, value) =>
+  `<div class="vp-detail-row"><span class="vp-detail-label">${label}</span><span class="vp-detail-value">${value}</span></div>`;
+
+window.showCampaignDetail = function(id) {
+  const c = _campaigns.find(x => String(x.id) === String(id));
+  if (!c) { showToast('⚠️ No se encontró la campaña'); return; }
+
+  const days = c.end_date
+    ? Math.ceil((new Date(c.end_date + 'T00:00:00') - new Date(c.start_date + 'T00:00:00')) / 86400000) + 1
+    : null;
+  const remaining = c.end_date
+    ? Math.ceil((new Date(c.end_date + 'T00:00:00') - new Date()) / 86400000)
+    : null;
+
+  document.getElementById('d-title').textContent = c.name;
+  document.getElementById('d-body').innerHTML = `
+    <div class="detail-hero ${c.status}">
+      ${statusBadge[c.status] || `<span class="badge badge-gray">${c.status}</span>`}
+      <div class="detail-type">${typeLabel[c.campaign_type] || c.campaign_type}</div>
+    </div>
+    <p class="detail-desc">${c.description || 'Esta campaña no tiene descripción registrada.'}</p>
+    <div class="detail-grid">
+      ${detailRow('Inicio', formatDate(c.start_date))}
+      ${detailRow('Fin', formatDate(c.end_date))}
+      ${detailRow('Duración', days ? `${days} día${days > 1 ? 's' : ''}` : '—')}
+      ${detailRow('Estado', c.status === 'active' && remaining !== null
+          ? (remaining >= 0 ? `Faltan ${remaining} día${remaining === 1 ? '' : 's'}` : 'Fecha de cierre vencida')
+          : (statusText[c.status] || c.status))}
+      ${detailRow('Registrada', c.created_at ? formatDate(c.created_at.slice(0, 10)) : '—')}
+    </div>
+    ${c.notes ? `<div class="detail-notes"><b>Notas:</b> ${c.notes}</div>` : ''}`;
+
+  document.getElementById('detail-overlay').classList.add('open');
+};
+window.closeDetail = () => document.getElementById('detail-overlay').classList.remove('open');
+
+window.filterCamp = function(type, btn) {
+  document.querySelectorAll('.fbar-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeFilter = type;
+  renderCampaigns(type === 'all' ? _campaigns : _campaigns.filter(c => c.status === type));
+};
+
+/* ── MODAL ── */
+const $ = id => document.getElementById(id);
+
+window.openModal = function() {
+  ['camp-name','camp-desc','camp-end','camp-notes'].forEach(id => { $(id).value = ''; });
+  $('camp-start').value = new Date().toISOString().slice(0, 10);
+  $('camp-type').value = 'neighborhood_cleanup';
+  $('camp-status').value = 'planned';
+  $('modal-overlay').classList.add('open');
+  $('camp-name').focus();
+};
+window.closeModal = function() { $('modal-overlay').classList.remove('open'); };
+window.handleOverlayClick = function(e) { if (e.target === $('modal-overlay')) window.closeModal(); };
+
+window.submitCampaign = async function(btn) {
+  const name  = $('camp-name').value.trim();
+  const start = $('camp-start').value;
+
+  if (!name)  { showToast('⚠️ El nombre es obligatorio'); $('camp-name').focus(); return; }
+  if (!start) { showToast('⚠️ La fecha de inicio es obligatoria'); $('camp-start').focus(); return; }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Guardando…';
+  try {
+    await insertCampaign({
+      name,
+      campaign_type: $('camp-type').value,
+      description:   $('camp-desc').value.trim() || null,
+      start_date:    start,
+      end_date:      $('camp-end').value || null,
+      notes:         $('camp-notes').value.trim() || null,
+      status:        $('camp-status').value,
+    });
+    window.closeModal();
+    showToast('✅ Campaña creada correctamente');
+    await loadData();
+  } catch(err) {
+    console.error('[insertCampaign]', err);
+    showToast('❌ ' + (err.message || 'No se pudo guardar la campaña'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+/* ── SIDEBAR VEHÍCULOS ── */
+let _vehicles = [];
+const fuelColor = p => p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
+
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.economic_number}</div><div class="vruta">${v.plates||'—'}</div></div>
+        <div class="vdot dot-${v.status==='active'?'green':v.status==='maintenance'?'red':'gray'}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Batería</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v._bat}%;background:${fuelColor(v._bat)}"></div></div>
+        <span class="bar-pct">${v._bat}%</span>
+      </div>
+    </div>`).join('') || '<div style="padding:12px;font-size:11px;color:var(--text-2)">Sin vehículos</div>';
+}
+
+window.filterVehicles = function(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:_vehicles, active:_vehicles.filter(v=>v.status==='active'), averia:_vehicles.filter(v=>v.status==='maintenance'||v.status==='inactive') };
+  renderVehicles(f[type]||_vehicles);
+};
+
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(_vehicles.filter(v=>v.economic_number.toLowerCase().includes(q)||(v.plates&&v.plates.toLowerCase().includes(q))));
+});
+
+/* ── CARGA DE DATOS ── */
+async function loadData() {
+  try {
+    const [camps, vehs, telem] = await Promise.all([getCampaigns(), getVehicles(), getTelemetry()]);
+    _campaigns = camps;
+    _vehicles  = vehs.map(v => { const t = telem.find(r=>r.vehicle_id===v.id); return { ...v, _bat: t?(t.battery_pct??0):0 }; });
+    renderCampaigns(_activeFilter === 'all' ? _campaigns : _campaigns.filter(c=>c.status===_activeFilter));
+    renderVehicles(_vehicles);
+  } catch (err) {
+    console.error('[campaigns]', err);
+    showToast('❌ No se pudieron cargar las campañas');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try {
+    window.renderNotifications?.(await getNotifications());
+  } catch (err) { console.error('[notifications]', err); }
+}
+
+/* ══ INICIO (requiere sesión activa) ══ */
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Campañas');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+
+  await loadData();
+  refreshNotifications();
+
+  setInterval(loadData, 30_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+main();
+
+</script>
+
+</body>
+</html>

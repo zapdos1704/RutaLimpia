@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Dashboard</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Solo estilos específicos del Dashboard ── */
+
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.dash-inner {
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* Header */
+.dash-header {
+  display: flex; align-items: flex-end;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.dash-title { font-size: 22px; font-weight: 800; }
+.dash-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+.period-tabs {
+  display: flex; gap: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 3px; border-radius: var(--radius-sm);
+}
+.ptab {
+  font-size: 11px; font-weight: 600; padding: 6px 16px;
+  border-radius: 6px; border: none; background: transparent;
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.ptab.active { background: var(--bg-raised); color: var(--text-1); }
+
+/* KPIs */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0,1fr));
+  gap: 12px;
+}
+.kpi {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px;
+  position: relative; overflow: hidden; min-width: 0;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.kpi:hover { border-color: var(--border-md); transform: translateY(-1px); }
+.kpi::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi.green::before  { background: var(--green); }
+.kpi.blue::before   { background: var(--blue); }
+.kpi.yellow::before { background: var(--yellow); }
+.kpi.red::before    { background: var(--red); }
+.kpi.purple::before { background: var(--purple); }
+.kpi-icon  { font-size: 16px; margin-bottom: 8px; opacity: .7; }
+.kpi-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.kpi-value { font-size: 26px; font-weight: 800; line-height: 1; }
+.kpi-sub   { font-size: 10px; color: var(--text-2); margin-top: 6px; }
+.kpi-sub.up   { color: var(--green-light); }
+.kpi-sub.warn { color: var(--yellow); }
+.kpi-sub.down { color: var(--red); }
+
+/* Charts */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color var(--transition);
+}
+.chart-card:hover { border-color: var(--border-md); }
+.chart-card.span2 { grid-column: span 2; }
+
+.chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.chart-title { font-size: 12px; font-weight: 700; }
+.chart-sub   { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.chart-badge { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
+
+.chart-body {
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+
+/* Donut */
+.donut-wrap { display: flex; align-items: center; gap: 14px; padding: 12px; width: 100%; }
+.d-legend   { display: flex; flex-direction: column; gap: 7px; flex: 1; }
+.d-item     { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--text-2); }
+.d-dot      { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.d-val      { margin-left: auto; font-weight: 700; color: var(--text-1); font-size: 11px; }
+
+/* Progress bars */
+.prog-list  { display: flex; flex-direction: column; gap: 9px; padding: 12px 14px; width: 100%; }
+.prog-item  { display: flex; flex-direction: column; gap: 4px; }
+.prog-row   { display: flex; justify-content: space-between; font-size: 10px; }
+.prog-name  { color: var(--text-2); }
+.prog-val   { font-weight: 700; }
+.prog-track { height: 5px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.prog-fill  { height: 100%; border-radius: 3px; }
+
+/* Bar chart */
+.bars-wrap  { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 8px 12px 0; width: 100%; }
+.bar-col    { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+.bar-rect   { width: 100%; border-radius: 3px 3px 0 0; }
+.bar-lbl    { font-size: 8px; color: var(--text-2); text-align: center; }
+
+/* Heatmap */
+.hmap-wrap  { padding: 10px 14px; width: 100%; }
+.hmap-grid  { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+.hcell      { height: 15px; border-radius: 2px; background: var(--green); }
+.hmap-days  { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-top: 4px; }
+.hday       { font-size: 8px; color: var(--text-2); text-align: center; }
+.hmap-scale { display: flex; align-items: center; gap: 3px; margin-top: 6px; justify-content: flex-end; }
+.hscl       { font-size: 8px; color: var(--text-2); }
+
+/* Gauges */
+.gauges-wrap { display: flex; justify-content: space-around; align-items: center; padding: 14px; width: 100%; }
+.gauge-item  { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.gauge-lbl   { font-size: 9px; color: var(--text-2); text-align: center; line-height: 1.4; }
+
+/* Table */
+.mini-table { width: 100%; border-collapse: collapse; }
+.mini-table th { font-size: 9px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.mini-table td { font-size: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.03); color: var(--text-1); }
+.mini-table tr:last-child td { border-bottom: none; }
+
+.badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+.badge-green  { background: var(--green-dim); color: var(--green-light); }
+.badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-red    { background: rgba(239,68,68,.15); color: var(--red); }
+.badge-gray   { background: rgba(255,255,255,.07); color: var(--text-2); }
+
+/* Sidebar vehicle list */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .dash-inner { padding: 16px; gap: 16px; }
+  .dash-title { font-size: 18px; }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .kpi:nth-child(5) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 5px);
+    margin: 0 auto; width: 100%;
+  }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-card.span2 { grid-column: span 1; }
+  .kpi-value { font-size: 22px; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .kpi-grid    { grid-template-columns: repeat(3, 1fr); }
+  .charts-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-card.span2 { grid-column: span 2; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="dash-inner">
+
+        <!-- Header -->
+        <div class="dash-header">
+          <div>
+            <div class="dash-title">Dashboard</div>
+            <div class="dash-sub" id="dash-date"></div>
+          </div>
+          <div class="period-tabs">
+            <button class="ptab active" onclick="setPeriod(this)">Diario</button>
+            <button class="ptab" onclick="setPeriod(this)">Semanal</button>
+            <button class="ptab" onclick="setPeriod(this)">Mensual</button>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi green">
+            <div class="kpi-icon">✅</div>
+            <div class="kpi-label">Completadas</div>
+            <div class="kpi-value" style="color:var(--green-light)">47</div>
+            <div class="kpi-sub up">↑ 12% vs ayer</div>
+          </div>
+          <div class="kpi blue">
+            <div class="kpi-icon">🚛</div>
+            <div class="kpi-label">Vehículos activos</div>
+            <div class="kpi-value" style="color:#93c5fd">12<span style="font-size:14px;color:var(--text-2)">/15</span></div>
+            <div class="kpi-sub">3 en mantenimiento</div>
+          </div>
+          <div class="kpi yellow">
+            <div class="kpi-icon">⚖️</div>
+            <div class="kpi-label">Toneladas</div>
+            <div class="kpi-value" style="color:var(--yellow)">38<span style="font-size:14px">t</span></div>
+            <div class="kpi-sub warn">Temporada normal</div>
+          </div>
+          <div class="kpi red">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-label">Incompletas</div>
+            <div class="kpi-value" style="color:var(--red)">3</div>
+            <div class="kpi-sub down">Requieren atención</div>
+          </div>
+          <div class="kpi purple">
+            <div class="kpi-icon">📣</div>
+            <div class="kpi-label">Campañas activas</div>
+            <div class="kpi-value" style="color:#c4b5fd">4</div>
+            <div class="kpi-sub">2 finalizan esta semana</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+
+          <!-- Línea -->
+          <div class="chart-card span2">
+            <div class="chart-head">
+              <div><div class="chart-title">Toneladas recolectadas</div><div class="chart-sub">Tendencia semanal</div></div>
+              <span class="chart-badge">Línea</span>
+            </div>
+            <div class="chart-body" style="height:120px;">
+              <div style="padding:12px 16px 8px;width:100%;">
+                <svg width="100%" height="88" viewBox="0 0 400 78" preserveAspectRatio="none">
+                  <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".18"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs>
+                  <line x1="0" y1="18" x2="400" y2="18" stroke="#1a2540" stroke-width="1"/>
+                  <line x1="0" y1="38" x2="400" y2="38" stroke="#1a2540" stroke-width="1"/>
+                  <line x1="0" y1="58" x2="400" y2="58" stroke="#1a2540" stroke-width="1"/>
+                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10 L400,78 L0,78Z" fill="url(#lg)"/>
+                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="0"   cy="60" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="57"  cy="46" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="114" cy="50" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="171" cy="30" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="228" cy="35" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="285" cy="16" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="342" cy="21" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
+                  <circle cx="400" cy="10" r="4" fill="#22c55e" stroke="#080f1e" stroke-width="2"/>
+                  <text x="0"   y="76" font-size="8" fill="#64748b" font-family="Montserrat">Lun</text>
+                  <text x="51"  y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mar</text>
+                  <text x="108" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mié</text>
+                  <text x="165" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Jue</text>
+                  <text x="222" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Vie</text>
+                  <text x="279" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Sáb</text>
+                  <text x="336" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Dom</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dona flota -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Estado de flota</div><div class="chart-sub">Distribución actual</div></div>
+              <span class="chart-badge">Dona</span>
+            </div>
+            <div class="chart-body" style="height:120px;">
+              <div class="donut-wrap">
+                <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#22c55e" stroke-width="13" stroke-dasharray="150 188"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#f59e0b" stroke-width="13" stroke-dasharray="25 188" stroke-dashoffset="-150"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#334155" stroke-width="13" stroke-dasharray="13 188" stroke-dashoffset="-175"/>
+                  <text x="45" y="49" text-anchor="middle" font-size="12" font-weight="700" fill="#f1f5f9" font-family="Montserrat">12/15</text>
+                </svg>
+                <div class="d-legend">
+                  <div class="d-item"><div class="d-dot" style="background:#22c55e"></div>Activos<div class="d-val">12</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#f59e0b"></div>Mantenimiento<div class="d-val">2</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#334155"></div>Inactivos<div class="d-val">1</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barras turnos -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Por turno</div><div class="chart-sub">Completadas vs pendientes</div></div>
+              <span class="chart-badge">Barras</span>
+            </div>
+            <div class="chart-body" style="height:120px;flex-direction:column;justify-content:flex-end;padding-bottom:8px;">
+              <div class="bars-wrap">
+                <div class="bar-col"><div class="bar-rect" style="height:68px;background:#22c55e"></div><div class="bar-lbl">Mañ.</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:22px;background:rgba(34,197,94,.15)"></div><div class="bar-lbl"></div></div>
+                <div style="width:8px"></div>
+                <div class="bar-col"><div class="bar-rect" style="height:50px;background:#3b82f6;opacity:.8"></div><div class="bar-lbl">Tarde</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:28px;background:rgba(59,130,246,.15)"></div><div class="bar-lbl"></div></div>
+                <div style="width:8px"></div>
+                <div class="bar-col"><div class="bar-rect" style="height:30px;background:#8b5cf6;opacity:.7"></div><div class="bar-lbl">Noche</div></div>
+                <div class="bar-col"><div class="bar-rect" style="height:48px;background:rgba(139,92,246,.15)"></div><div class="bar-lbl"></div></div>
+              </div>
+              <div style="display:flex;gap:10px;padding:0 12px;">
+                <div style="display:flex;align-items:center;gap:4px;font-size:8px;color:#64748b"><div style="width:7px;height:7px;border-radius:1px;background:#f1f5f9;opacity:.6"></div>Completadas</div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:8px;color:#64748b"><div style="width:7px;height:7px;border-radius:1px;background:#f1f5f9;opacity:.12"></div>Pendientes</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conductores -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Rendimiento conductores</div><div class="chart-sub">Rutas completadas hoy</div></div>
+              <span class="chart-badge">Barras horiz.</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="prog-list">
+                <div class="prog-item"><div class="prog-row"><span class="prog-name">J. Pérez</span><span class="prog-val" style="color:var(--green-light)">8/9</span></div><div class="prog-track"><div class="prog-fill" style="width:88%;background:#22c55e"></div></div></div>
+                <div class="prog-item"><div class="prog-row"><span class="prog-name">M. López</span><span class="prog-val" style="color:var(--green-light)">7/9</span></div><div class="prog-track"><div class="prog-fill" style="width:77%;background:#3b82f6"></div></div></div>
+                <div class="prog-item"><div class="prog-row"><span class="prog-name">R. García</span><span class="prog-val" style="color:var(--yellow)">5/9</span></div><div class="prog-track"><div class="prog-fill" style="width:55%;background:#f59e0b"></div></div></div>
+                <div class="prog-item"><div class="prog-row"><span class="prog-name">A. Torres</span><span class="prog-val" style="color:var(--red)">3/9</span></div><div class="prog-track"><div class="prog-fill" style="width:33%;background:#ef4444"></div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dona rutas -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Tipos de ruta</div><div class="chart-sub">Por zona</div></div>
+              <span class="chart-badge">Dona</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="donut-wrap">
+                <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#3b82f6" stroke-width="13" stroke-dasharray="94 188"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#22c55e" stroke-width="13" stroke-dasharray="56 188" stroke-dashoffset="-94"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#f59e0b" stroke-width="13" stroke-dasharray="26 188" stroke-dashoffset="-150"/>
+                  <circle cx="45" cy="45" r="30" fill="none" stroke="#8b5cf6" stroke-width="13" stroke-dasharray="12 188" stroke-dashoffset="-176"/>
+                </svg>
+                <div class="d-legend">
+                  <div class="d-item"><div class="d-dot" style="background:#3b82f6"></div>Resid.<div class="d-val">50%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#22c55e"></div>Comerc.<div class="d-val">30%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#f59e0b"></div>Mercado<div class="d-val">14%</div></div>
+                  <div class="d-item"><div class="d-dot" style="background:#8b5cf6"></div>Rural<div class="d-val">6%</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gauges -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Telemetría flota</div><div class="chart-sub">Promedio en tiempo real</div></div>
+              <span class="chart-badge">Circular</span>
+            </div>
+            <div class="chart-body" style="height:130px;">
+              <div class="gauges-wrap">
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">71%</text></svg>
+                  <div class="gauge-lbl">Batería</div>
+                </div>
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#3b82f6" stroke-width="7" stroke-dasharray="117 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">85%</text></svg>
+                  <div class="gauge-lbl">GSM</div>
+                </div>
+                <div class="gauge-item">
+                  <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#f59e0b" stroke-width="7" stroke-dasharray="69 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">50%</text></svg>
+                  <div class="gauge-lbl">Capacidad</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heatmap -->
+          <div class="chart-card span2">
+            <div class="chart-head">
+              <div><div class="chart-title">Actividad semanal</div><div class="chart-sub">Intensidad de rutas por día</div></div>
+              <span class="chart-badge">Heatmap</span>
+            </div>
+            <div class="chart-body" style="height:88px;">
+              <div class="hmap-wrap">
+                <div class="hmap-grid">
+                  <div class="hcell" style="opacity:.1"></div><div class="hcell" style="opacity:.35"></div><div class="hcell" style="opacity:.9"></div><div class="hcell" style="opacity:.6"></div><div class="hcell" style="opacity:.25"></div><div class="hcell" style="opacity:.75"></div><div class="hcell" style="opacity:.1"></div>
+                  <div class="hcell" style="opacity:.2"></div><div class="hcell" style="opacity:.55"></div><div class="hcell" style="opacity:.4"></div><div class="hcell" style="opacity:.9"></div><div class="hcell" style="opacity:.45"></div><div class="hcell" style="opacity:.6"></div><div class="hcell" style="opacity:.05"></div>
+                  <div class="hcell" style="opacity:.45"></div><div class="hcell" style="opacity:.8"></div><div class="hcell" style="opacity:.55"></div><div class="hcell" style="opacity:.35"></div><div class="hcell" style="opacity:.7"></div><div class="hcell" style="opacity:.3"></div><div class="hcell" style="opacity:.05"></div>
+                </div>
+                <div class="hmap-days"><div class="hday">Lun</div><div class="hday">Mar</div><div class="hday">Mié</div><div class="hday">Jue</div><div class="hday">Vie</div><div class="hday">Sáb</div><div class="hday">Dom</div></div>
+                <div class="hmap-scale">
+                  <span class="hscl">Menos</span>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.1"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.35"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.6"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e;opacity:.85"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#22c55e"></div>
+                  <span class="hscl">Más</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla -->
+          <div class="chart-card">
+            <div class="chart-head">
+              <div><div class="chart-title">Rutas activas</div><div class="chart-sub">Estado del turno</div></div>
+              <span class="chart-badge">Tabla</span>
+            </div>
+            <div class="chart-body" style="height:88px;align-items:flex-start;">
+              <table class="mini-table">
+                <thead><tr><th>Ruta</th><th>Conductor</th><th>Estado</th></tr></thead>
+                <tbody>
+                  <tr><td>Norte</td><td>J. Pérez</td><td><span class="badge badge-green">Completada</span></td></tr>
+                  <tr><td>Sur</td><td>M. López</td><td><span class="badge badge-yellow">En progreso</span></td></tr>
+                  <tr><td>Centro</td><td>R. García</td><td><span class="badge badge-red">Incompleta</span></td></tr>
+                  <tr><td>Este</td><td>A. Torres</td><td><span class="badge badge-gray">Pendiente</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /charts-grid -->
+      </div><!-- /dash-inner -->
+    </div><!-- /main -->
+  </div><!-- /body-layout -->
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ── INIT ── */
+initShared('Dashboard');
+
+/* ── FECHA ── */
+const days   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const now    = new Date();
+document.getElementById('dash-date').textContent =
+  `${days[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} · Turno matutino`;
+
+/* ── PERIOD TABS ── */
+function setPeriod(btn) {
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ── VEHICLES ── */
+const vehicles = [
+  { id:'VH-001', ruta:'Ruta Norte', status:'green', fuel:70, estado:'active' },
+  { id:'VH-002', ruta:'Ruta Sur',   status:'red',   fuel:40, estado:'averia' },
+  { id:'VH-003', ruta:'Ruta Centro',status:'green', fuel:85, estado:'active' },
+  { id:'VH-004', ruta:'Ruta Este',  status:'gray',  fuel:55, estado:'active' },
+];
+
+function fuelColor(p) { return p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e'; }
+
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard" onclick="selectVehicle(this)">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.id}</div><div class="vruta">${v.ruta}</div></div>
+        <div class="vdot dot-${v.status}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Combustible</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v.fuel}%;background:${fuelColor(v.fuel)}"></div></div>
+        <span class="bar-pct">${v.fuel}%</span>
+      </div>
+    </div>`).join('');
+}
+
+function selectVehicle(card) {
+  document.querySelectorAll('.vcard').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+function filterVehicles(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:vehicles, active:vehicles.filter(v=>v.estado==='active'), averia:vehicles.filter(v=>v.estado==='averia') };
+  renderVehicles(f[type]);
+}
+
+document.getElementById('search-input').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(vehicles.filter(v => v.id.toLowerCase().includes(q) || v.ruta.toLowerCase().includes(q)));
+});
+
+renderVehicles(vehicles);
+</script>
+</body>
+</html>

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Incidencias</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+/* ── Específico de Incidencias ── */
+.main {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
+}
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
+
+.page-inner {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.page-header {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 800; }
+.page-sub   { font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* Stats rápidas */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.red::before    { background: var(--red); }
+.stat-card.yellow::before { background: var(--yellow); }
+.stat-card.green::before  { background: var(--green); }
+.stat-card.blue::before   { background: var(--blue); }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.stat-value { font-size: 24px; font-weight: 800; }
+
+/* Barra de filtros */
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.fbar-btn {
+  font-size: 11px; font-weight: 600;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2);
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.fbar-btn.active, .fbar-btn:hover {
+  background: var(--bg-raised); color: var(--text-1);
+  border-color: rgba(255,255,255,.25);
+}
+.fbar-btn.active { border-color: var(--green); color: var(--green-light); }
+
+/* Search */
+.search-input {
+  padding: 7px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: 20px;
+  color: var(--text-1); font-family: inherit; font-size: 11px;
+  outline: none; width: 200px;
+  transition: border-color var(--transition);
+}
+.search-input::placeholder { color: var(--text-2); }
+.search-input:focus { border-color: var(--green); }
+
+/* Lista */
+.inc-list { display: flex; flex-direction: column; gap: 10px; }
+
+.inc-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 16px;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: pointer;
+}
+.inc-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+/* Color del borde izquierdo según estado */
+.inc-card.alta    { border-left-color: var(--red); }
+.inc-card.atencion{ border-left-color: var(--yellow); }
+.inc-card.resuelta{ border-left-color: var(--green); }
+.inc-card.cerrada { border-left-color: var(--text-2); }
+
+.inc-left { flex: 1; min-width: 0; }
+
+.inc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.inc-id   { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.inc-name { font-size: 15px; font-weight: 700; }
+
+.inc-route {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #93c5fd; margin-bottom: 10px;
+}
+.inc-route svg { width: 11px; height: 11px; fill: #93c5fd; }
+
+.inc-section-label {
+  font-size: 10px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px;
+}
+.inc-motivo {
+  font-size: 12px; color: var(--text-1); line-height: 1.55;
+  margin-bottom: 12px;
+}
+
+/* Fotos placeholder */
+.inc-photos { display: flex; gap: 6px; margin-top: 4px; }
+.inc-photo  {
+  width: 52px; height: 40px; border-radius: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+.inc-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 8px; flex-shrink: 0; min-width: 140px;
+}
+.inc-date { font-size: 11px; color: var(--text-2); text-align: right; line-height: 1.5; }
+
+/* Badges */
+.badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+.badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-green  { background: var(--green-dim);     color: var(--green-light); }
+.badge-gray   { background: rgba(255,255,255,.07);color: var(--text-2); }
+
+.inc-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.btn-inc {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+  white-space: nowrap;
+}
+.btn-inc.outline {
+  background: transparent; border: 1px solid var(--border-md); color: var(--text-1);
+}
+.btn-inc.outline:hover { background: var(--bg-raised); border-color: rgba(255,255,255,.25); }
+.btn-inc.primary { background: var(--blue); border: none; color: #fff; }
+.btn-inc.primary:hover { background: #2563eb; }
+
+/* Vacío */
+.empty-state {
+  text-align: center; padding: 48px 20px;
+  color: var(--text-2); font-size: 13px;
+}
+.empty-state .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* Botón nueva incidencia */
+.btn-new {
+  padding: 9px 18px; background: var(--red);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition), transform .1s;
+  white-space: nowrap;
+}
+.btn-new:hover  { background: #dc2626; }
+.btn-new:active { transform: scale(.97); }
+
+/* Sidebar vehicles */
+.vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.vehicles-list::-webkit-scrollbar { width: 3px; }
+.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+/* ── MODAL Nueva Incidencia ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius);
+  width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+.form-input, .form-select, .form-textarea {
+  padding: 10px 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-2); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--red); }
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-select option { background: var(--bg-surface); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Upload placeholder */
+.upload-area {
+  border: 2px dashed var(--border-md);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.upload-area:hover { border-color: rgba(255,255,255,.3); color: var(--text-1); }
+.upload-icon { font-size: 24px; margin-bottom: 6px; }
+
+.modal-footer {
+  padding: 14px 20px 18px;
+  display: flex; gap: 10px; justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 10px 18px; background: transparent;
+  border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+  color: var(--text-1); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+}
+.btn-cancel:hover { background: var(--bg-raised); }
+.btn-submit {
+  padding: 10px 18px; background: var(--red);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition);
+}
+.btn-submit:hover { background: #dc2626; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page-inner  { padding: 16px; gap: 16px; }
+  .page-title  { font-size: 18px; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .inc-card    { flex-direction: column; }
+  .inc-right   { align-items: flex-start; flex-direction: row; flex-wrap: wrap; min-width: 0; }
+  .inc-actions { justify-content: flex-start; }
+  .search-input{ width: 100%; }
+  .filter-bar  { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .form-row    { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar"></div>
+
+  <div class="body-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <input class="sidebar-search" id="search-vehicles" placeholder="Buscar vehículo…"/>
+      <div class="filter-tabs">
+        <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
+        <button class="ftab" onclick="filterVehicles('active',this)">Activas</button>
+        <button class="ftab" onclick="filterVehicles('averia',this)">Averías</button>
+      </div>
+      <div class="vehicles-list" id="vehicles-list"></div>
+      <div class="sidebar-footer">
+        <button class="btn-sidebar">+ Nuevo camión</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-inner">
+
+        <!-- Header -->
+        <div class="page-header">
+          <div>
+            <div class="page-title">Incidencias</div>
+            <div class="page-sub">Registro y seguimiento de eventos en campo</div>
+          </div>
+          <button class="btn-new" onclick="openModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nueva incidencia
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-strip">
+          <div class="stat-card red">
+            <div class="stat-label">Alta prioridad</div>
+            <div class="stat-value" id="stat-alta" style="color:var(--red)">—</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">En atención</div>
+            <div class="stat-value" id="stat-atencion" style="color:var(--yellow)">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Resueltas hoy</div>
+            <div class="stat-value" id="stat-resueltas" style="color:var(--green-light)">—</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Total mes</div>
+            <div class="stat-value" id="stat-total" style="color:#93c5fd">—</div>
+          </div>
+        </div>
+
+        <!-- Filtros + búsqueda -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <button class="fbar-btn active" onclick="filterInc('all',this)">Todas</button>
+            <button class="fbar-btn" onclick="filterInc('alta',this)">Alta prioridad</button>
+            <button class="fbar-btn" onclick="filterInc('atencion',this)">En atención</button>
+            <button class="fbar-btn" onclick="filterInc('resuelta',this)">Resueltas</button>
+          </div>
+          <input class="search-input" id="search-inc" placeholder="🔍 Buscar incidencia…"/>
+        </div>
+
+        <!-- Lista -->
+        <div class="inc-list" id="inc-list"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav"></nav>
+</div>
+
+<!-- MODAL Nueva Incidencia -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Nueva incidencia</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Vehículo</label>
+          <select class="form-select" id="inc-vehicle"></select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Prioridad</label>
+          <select class="form-select" id="inc-priority">
+            <option value="high">Alta</option>
+            <option value="normal" selected>Normal</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Ruta</label>
+          <select class="form-select" id="inc-route"></select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Turno</label>
+          <select class="form-select" id="inc-shift"></select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Conductor</label>
+        <select class="form-select" id="inc-driver"></select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Tipo de incidencia</label>
+        <select class="form-select" id="inc-type">
+          <option>Accidente de tráfico</option>
+          <option>Falla mecánica</option>
+          <option>Combustible insuficiente</option>
+          <option>Obstrucción de ruta</option>
+          <option>Falla de GPS / Señal</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Descripción del motivo</label>
+        <textarea class="form-textarea" id="inc-desc" placeholder="Describe lo que ocurrió y las acciones tomadas…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Fecha</label>
+          <input class="form-input" type="date" id="inc-date"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Hora</label>
+          <input class="form-input" type="time" id="inc-time"/>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Ubicación</label>
+        <input class="form-input" type="text" id="inc-location" placeholder="Ej. Calle Insurgentes esq. Constitución, Sahuayo"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-submit" onclick="submitIncident(this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Registrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script type="module">
+import {
+  getCollections, getVehicles, getTelemetry, resolveCollection, insertIncident,
+  getRoutes, getDrivers, getAllUsers, getShifts,
+  getSession, getCurrentUserProfile, getNotifications, signOut,
+} from './db.js';
+
+/* ── SESIÓN / LOGOUT ── */
+window.doLogout = async function() {
+  await signOut();
+  window.location.href = 'index.html';
+};
+
+/* ── ESTADO ── */
+let _incidents = [];
+let _vehicles  = [];
+let _activeFilter = 'all';
+const fuelColor = p => p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
+
+/* ── MAPAS DE ESTADO ── */
+const badgeMap = {
+  high:       '<span class="badge badge-red">Alta prioridad</span>',
+  incomplete: '<span class="badge badge-yellow">Incompleta</span>',
+  cancelled:  '<span class="badge badge-gray">Cancelada</span>',
+};
+
+function formatDate(d) { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`; }
+
+/* ── STATS ── */
+function renderStats(list) {
+  const today = new Date().toISOString().slice(0,10);
+  const alta  = list.filter(i => i.priority === 'high' || i._priority === 'high').length;
+  const aten  = list.filter(i => i.status === 'incomplete').length;
+  const res   = list.filter(i => i.status === 'completed' && i.scheduled_date === today).length;
+  const tot   = list.length;
+  if($('stat-alta'))     $('stat-alta').textContent     = alta;
+  if($('stat-atencion')) $('stat-atencion').textContent  = aten;
+  if($('stat-resueltas'))$('stat-resueltas').textContent = res;
+  if($('stat-total'))    $('stat-total').textContent     = tot;
+}
+
+/* ── RENDER INCIDENCIAS ── */
+function renderIncidents(list) {
+  const el = document.getElementById('inc-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>Sin incidencias en esta categoría.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(i => {
+    const isHigh = i.priority === 'high';
+    const isInc  = i.status === 'incomplete';
+    const veh    = i.vehicle?.economic_number || '—';
+    const route  = i.route?.name || '—';
+    const reason = i.incomplete_reason || (i.status === 'cancelled' ? 'Colección cancelada' : i.status);
+    const estado = isHigh ? 'alta' : isInc ? 'atencion' : 'resuelta';
+    const badge  = isHigh ? badgeMap.high : isInc ? badgeMap.incomplete : badgeMap.cancelled;
+    return `
+    <div class="inc-card ${estado}">
+      <div class="inc-left">
+        <div class="inc-top">
+          <span class="inc-id">${i.id?.toString().slice(0,8)||'—'}</span>
+          <span class="inc-name">${isHigh ? 'Alta prioridad' : 'Ruta ' + estado}</span>
+        </div>
+        <div class="inc-route">
+          <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+          ${route} · ${veh}
+        </div>
+        <div class="inc-section-label">Motivo</div>
+        <div class="inc-motivo">${reason}</div>
+      </div>
+      <div class="inc-right">
+        <div class="inc-date">${formatDate(i.scheduled_date)}</div>
+        ${badge || '<span class="badge badge-gray">Pendiente</span>'}
+        <div class="inc-actions">
+          <button class="btn-inc outline" onclick="verEnMapa('${i.vehicle_id || ''}','${i.route_id || ''}')">Ver en mapa</button>
+          ${i.status !== 'completed' ? `<button class="btn-inc primary" onclick="markResolved('${i.id}',this)">Marcar resuelta</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* Abre el mapa centrado en el vehículo de la incidencia y con su ruta visible */
+window.verEnMapa = function(vehicleId, routeId) {
+  if (!vehicleId && !routeId) { showToast('⚠️ Esta incidencia no tiene vehículo ni ruta'); return; }
+  const params = new URLSearchParams();
+  if (vehicleId) params.set('vehiculo', vehicleId);
+  if (routeId)   params.set('ruta', routeId);
+  window.location.href = 'page-1.html?' + params.toString();
+};
+
+window.markResolved = async function(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    await resolveCollection(id);
+    showToast('✅ Marcada como resuelta');
+    await loadData();
+  } catch(err) {
+    showToast('❌ Error: ' + (err.message||'No se pudo guardar'));
+    btn.disabled = false;
+    btn.textContent = 'Marcar resuelta';
+  }
+};
+
+/* ── FILTROS ── */
+window.filterInc = function(type, btn) {
+  document.querySelectorAll('.fbar-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeFilter = type;
+  applySearch();
+};
+
+function applySearch() {
+  const q = (document.getElementById('search-inc')?.value || '').toLowerCase();
+  let list = _activeFilter === 'all' ? _incidents : _incidents.filter(i => {
+    if (_activeFilter === 'alta')    return i.priority === 'high';
+    if (_activeFilter === 'atencion') return i.status === 'incomplete';
+    if (_activeFilter === 'resuelta') return i.status === 'completed';
+    return true;
+  });
+  if (q) list = list.filter(i =>
+    (i.vehicle?.economic_number||'').toLowerCase().includes(q) ||
+    (i.route?.name||'').toLowerCase().includes(q) ||
+    (i.incomplete_reason||'').toLowerCase().includes(q)
+  );
+  renderIncidents(list);
+}
+
+document.getElementById('search-inc')?.addEventListener('input', applySearch);
+
+/* ── MODAL NUEVA INCIDENCIA ── */
+const $ = id => document.getElementById(id);
+let _catalogs = { routes: [], drivers: [], shifts: [] };
+
+function fillSelect(id, items, labelFor) {
+  $(id).innerHTML = items.length
+    ? items.map(item => `<option value="${item.id}">${labelFor(item)}</option>`).join('')
+    : '<option value="">— sin registros —</option>';
+}
+
+async function loadCatalogs() {
+  const [routes, driversByRole, shifts] = await Promise.all([getRoutes(), getDrivers(), getShifts()]);
+
+  // collections.driver_id es obligatorio. Si todavía no hay usuarios con rol
+  // "driver", se ofrece la lista completa para que el formulario siga siendo
+  // usable en vez de quedar bloqueado.
+  const drivers = driversByRole.length ? driversByRole : await getAllUsers();
+  _catalogs = { routes, drivers, shifts };
+  fillSelect('inc-vehicle', _vehicles, v => `${v.economic_number} — ${v.plates || 's/placa'}`);
+  fillSelect('inc-route',   routes,    r => r.name);
+  fillSelect('inc-driver',  drivers,   d => d.name);
+  fillSelect('inc-shift',   shifts,    s => s.name);
+}
+
+window.openModal = function() {
+  const now = new Date();
+  $('inc-date').value = now.toISOString().slice(0, 10);
+  $('inc-time').value = now.toTimeString().slice(0, 5);
+  $('inc-desc').value = '';
+  $('inc-location').value = '';
+  $('inc-priority').value = 'normal';
+  fillSelect('inc-vehicle', _vehicles, v => `${v.economic_number} — ${v.plates || 's/placa'}`);
+  $('modal-overlay').classList.add('open');
+};
+window.closeModal = function() { $('modal-overlay').classList.remove('open'); };
+window.handleOverlayClick = function(e) { if (e.target === $('modal-overlay')) window.closeModal(); };
+
+window.submitIncident = async function(btn) {
+  const vehicleId = $('inc-vehicle').value;
+  const routeId   = $('inc-route').value;
+  const driverId  = $('inc-driver').value;
+  const shiftId   = $('inc-shift').value;
+
+  if (!vehicleId || !routeId || !driverId || !shiftId) {
+    showToast('⚠️ Vehículo, ruta, conductor y turno son obligatorios');
+    return;
+  }
+
+  const date     = $('inc-date').value;
+  const time     = $('inc-time').value;
+  const location = $('inc-location').value.trim();
+  const desc     = $('inc-desc').value.trim();
+  const notes    = [desc, location && `Ubicación: ${location}`].filter(Boolean).join(' · ') || null;
+
+  btn.disabled = true;
+  try {
+    await insertIncident({
+      vehicle_id:        vehicleId,
+      route_id:          routeId,
+      driver_id:         driverId,
+      shift_id:          shiftId,
+      status:            'incomplete',
+      priority:          $('inc-priority').value,
+      scheduled_date:    date || new Date().toISOString().slice(0, 10),
+      started_at:        date && time ? new Date(`${date}T${time}`).toISOString() : null,
+      incomplete_reason: $('inc-type').value,
+      notes,
+    });
+    window.closeModal();
+    showToast('✅ Incidencia registrada');
+    await loadData();
+  } catch (err) {
+    console.error('[insertIncident]', err);
+    showToast('❌ ' + (err.message || 'No se pudo registrar la incidencia'));
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ── SIDEBAR VEHÍCULOS ── */
+function renderVehicles(list) {
+  document.getElementById('vehicles-list').innerHTML = list.map(v => `
+    <div class="vcard">
+      <div class="vcard-head">
+        <div class="vavatar"><svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg></div>
+        <div><div class="vid">${v.economic_number}</div><div class="vruta">${v.plates||'—'}</div></div>
+        <div class="vdot dot-${v.status==='active'?'green':v.status==='maintenance'?'red':'gray'}"></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Batería</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v._bat}%;background:${fuelColor(v._bat)}"></div></div>
+        <span class="bar-pct">${v._bat}%</span>
+      </div>
+    </div>`).join('') || '<div style="padding:12px;font-size:11px;color:var(--text-2)">Sin vehículos</div>';
+}
+
+window.filterVehicles = function(type, btn) {
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const f = { all:_vehicles, active:_vehicles.filter(v=>v.status==='active'), averia:_vehicles.filter(v=>v.status==='maintenance'||v.status==='inactive') };
+  renderVehicles(f[type]||_vehicles);
+};
+
+document.getElementById('search-vehicles')?.addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderVehicles(_vehicles.filter(v=>v.economic_number.toLowerCase().includes(q)||(v.plates&&v.plates.toLowerCase().includes(q))));
+});
+
+/* ── CARGA DESDE SUPABASE ── */
+async function loadData() {
+  try {
+    const [colls, vehs, telem] = await Promise.all([
+      getCollections('mensual'), getVehicles(), getTelemetry()
+    ]);
+    // Incidencias = colecciones incompletas o canceladas
+    _incidents = colls.filter(c => c.status === 'incomplete' || c.status === 'cancelled');
+    _vehicles  = vehs.map(v => { const t = telem.find(r=>r.vehicle_id===v.id); return { ...v, _bat: t?(t.battery_pct??0):0 }; });
+    renderStats(colls);
+    applySearch();
+    renderVehicles(_vehicles);
+  } catch (err) {
+    console.error('[incidents]', err);
+    showToast('❌ No se pudieron cargar las incidencias');
+  } finally {
+    window.hidePageLoader?.();
+  }
+}
+
+async function refreshNotifications() {
+  try {
+    window.renderNotifications?.(await getNotifications());
+  } catch (err) { console.error('[notifications]', err); }
+}
+
+/* ══ INICIO (requiere sesión activa) ══ */
+async function main() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  initShared('Incidencias');
+  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+
+  await loadData();
+  loadCatalogs();
+  refreshNotifications();
+
+  setInterval(loadData, 30_000);
+  setInterval(refreshNotifications, 30_000);
+}
+
+main();
+</script>
+
+
+</body>
+</html>
