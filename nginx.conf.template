@@ -12,10 +12,26 @@ server {
         try_files $uri $uri.html $uri/ =404;
     }
 
-    # Cachea assets estáticos agresivamente
-    location ~* \.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
-        expires 7d;
-        add_header Cache-Control "public";
+    # ── Código de la aplicación: SIEMPRE revalidar ──
+    # Este proyecto no tiene build ni hashes en los nombres de archivo:
+    # db.js sigue llamándose db.js en cada despliegue. Cachearlo "agresivamente"
+    # hacía que, tras publicar, el navegador siguiera ejecutando la versión
+    # anterior durante días — de ahí las páginas que se quedaban con datos y
+    # comportamiento viejos.
+    #
+    # no-cache NO significa "no guardar": el navegador conserva el archivo y
+    # pregunta con If-None-Match. Si no cambió, nginx responde 304 (unos bytes)
+    # y la carga sigue siendo rápida, pero nunca se sirve código obsoleto.
+    location ~* \.(html|js|css|json)$ {
+        add_header Cache-Control "no-cache, must-revalidate";
+        etag on;
+    }
+
+    # ── Recursos que sí pueden cachearse mucho tiempo ──
+    # Imágenes y tipografías cambian de nombre cuando cambian de contenido.
+    location ~* \.(png|jpg|jpeg|gif|svg|ico|webp|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
     }
 
     error_page 404 /404.html;

@@ -191,6 +191,98 @@
 .vehicles-list::-webkit-scrollbar { width:3px; }
 .vehicles-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
 
+/* ══ Panel del vehículo: indicadores ══ */
+.vp-gauge-row { display:flex; gap:8px; }
+.vp-gauge svg { width:100%; height:auto; max-width:56px; }
+
+.vp-signals { display:flex; flex-direction:column; gap:7px; margin-top:2px; }
+.vp-signal  { display:flex; align-items:center; gap:8px; font-size:10px; }
+.vp-signal-ico { width:15px; text-align:center; flex-shrink:0; }
+.vp-signal-name { color:rgba(255,255,255,.5); min-width:34px; }
+/* Barritas escalonadas tipo antena: se leen de un vistazo */
+.vp-bars { display:flex; align-items:flex-end; gap:2px; height:14px; flex-shrink:0; }
+.vp-bar  { width:4px; border-radius:1px; background:rgba(255,255,255,.16); transition:background var(--transition); }
+.vp-bar:nth-child(1){height:5px} .vp-bar:nth-child(2){height:8px}
+.vp-bar:nth-child(3){height:11px} .vp-bar:nth-child(4){height:14px}
+.vp-signal-val { margin-left:auto; font-weight:700; text-align:right; }
+
+/* ── Recorrido ── */
+.vp-trail-stats {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px;
+}
+.vp-trail-stat {
+  background:rgba(255,255,255,.05); border-radius:6px; padding:7px 6px; text-align:center;
+}
+.vp-trail-k { font-size:8px; color:rgba(255,255,255,.45); text-transform:uppercase; letter-spacing:.3px; }
+.vp-trail-v { font-size:12px; font-weight:800; margin-top:2px; }
+.vp-trail-empty { grid-column:1/-1; font-size:10px; color:rgba(255,255,255,.45); padding:6px 2px; }
+.vp-trail-btns { display:flex; gap:8px; }
+.vp-trail-btns .vp-btn { padding:9px 6px; font-size:10px; }
+.vp-check { display:flex; align-items:center; gap:7px; font-size:10px; color:rgba(255,255,255,.65); cursor:pointer; }
+.vp-check input { accent-color:var(--green); cursor:pointer; }
+.vp-snap-note { font-size:9px; line-height:1.5; color:rgba(255,255,255,.45); }
+.vp-snap-note.warn { color:#fcd34d; }
+
+/* ══ Reproductor del recorrido ══ */
+.playbar {
+  position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+  z-index:25; width:min(520px, calc(100% - 28px));
+  background:rgba(8,15,30,.95); border:1px solid var(--border-md);
+  border-radius:14px; padding:12px 14px 10px;
+  box-shadow:0 12px 40px rgba(0,0,0,.6);
+  display:flex; flex-direction:column; gap:9px;
+  animation:pbIn .25s cubic-bezier(.34,1.2,.64,1);
+}
+.playbar[hidden] { display:none; }
+@keyframes pbIn { from { opacity:0; transform:translate(-50%, 14px); } to { opacity:1; transform:translate(-50%, 0); } }
+
+.pb-top { display:flex; align-items:center; gap:11px; }
+.pb-play {
+  width:38px; height:38px; border-radius:50%; flex-shrink:0;
+  background:var(--green); border:none; color:#fff; font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background var(--transition), transform .1s;
+}
+.pb-play:hover { background:#16a34a; }
+.pb-play:active { transform:scale(.94); }
+.pb-info { min-width:0; flex:1; }
+.pb-veh   { font-size:12px; font-weight:800; }
+.pb-clock { font-size:11px; color:var(--green-light); font-variant-numeric:tabular-nums; margin-top:1px; }
+.pb-speeds { display:flex; gap:3px; flex-shrink:0; }
+.pb-speed {
+  font-family:inherit; font-size:10px; font-weight:700; padding:4px 7px;
+  border-radius:6px; cursor:pointer; border:1px solid var(--border);
+  background:rgba(255,255,255,.06); color:var(--text-2); transition:all var(--transition);
+}
+.pb-speed:hover  { color:var(--text-1); border-color:var(--border-md); }
+.pb-speed.active { background:var(--green-dim); border-color:rgba(74,222,128,.5); color:var(--green-light); }
+.pb-close {
+  width:26px; height:26px; border-radius:6px; flex-shrink:0;
+  background:rgba(255,255,255,.08); border:1px solid var(--border-md);
+  color:rgba(255,255,255,.6); font-size:12px; cursor:pointer;
+}
+.pb-close:hover { background:rgba(255,255,255,.18); color:#fff; }
+
+.pb-scrub { -webkit-appearance:none; appearance:none; width:100%; height:5px; border-radius:3px; background:var(--bg-raised); outline:none; cursor:pointer; }
+.pb-scrub::-webkit-slider-thumb {
+  -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+  background:var(--green-light); border:2px solid #08111f; cursor:pointer;
+  box-shadow:0 1px 5px rgba(0,0,0,.5);
+}
+.pb-scrub::-moz-range-thumb {
+  width:15px; height:15px; border-radius:50%; background:var(--green-light);
+  border:2px solid #08111f; cursor:pointer;
+}
+.pb-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:9px; color:rgba(255,255,255,.45); }
+.pb-stat { color:var(--text-1); font-weight:700; }
+
+@media (max-width:768px) {
+  .playbar { bottom:12px; padding:10px 12px 9px; }
+  .pb-speeds { gap:2px; }
+  .pb-speed  { padding:3px 5px; font-size:9px; }
+  .vp-trail-btns { flex-direction:column; }
+}
+
 /* ── Panel de eventos de la flota ── */
 #events-panel {
   position: absolute;
@@ -413,6 +505,26 @@
           <button type="button" onclick="cancelAreaDraw()">Cancelar</button>
         </div>
 
+        <!-- ══ Reproductor del recorrido ══ -->
+        <div class="playbar" id="playbar" hidden>
+          <div class="pb-top">
+            <button class="pb-play" id="pb-play" onclick="togglePlay()" aria-label="Reproducir">▶</button>
+            <div class="pb-info">
+              <div class="pb-veh" id="pb-veh">—</div>
+              <div class="pb-clock" id="pb-clock">—</div>
+            </div>
+            <div class="pb-speeds" id="pb-speeds"></div>
+            <button class="pb-close" onclick="closePlayback()" aria-label="Cerrar reproductor">✕</button>
+          </div>
+          <input class="pb-scrub" id="pb-scrub" type="range" min="0" max="1000" value="0" step="1"
+                 aria-label="Posición en el recorrido"/>
+          <div class="pb-foot">
+            <span id="pb-start">—</span>
+            <span class="pb-stat" id="pb-stat">—</span>
+            <span id="pb-end">—</span>
+          </div>
+        </div>
+
       <div class="map-actions">
         <button class="btn-primary" id="btn-new-route">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
@@ -480,21 +592,26 @@
         </div>
         <div class="vp-section">
           <div class="vp-section-title">Estado en tiempo real</div>
-          <div class="vp-gauge-row">
-            <div class="vp-gauge">
-              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-fuel" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-fuel-txt">70%</text></svg>
-              <div class="vp-gauge-label">Combustible</div>
-            </div>
-            <div class="vp-gauge">
-              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-cap" stroke="#f59e0b" stroke-width="7" stroke-dasharray="69 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-cap-txt">50%</text></svg>
-              <div class="vp-gauge-label" id="gauge-cap-lbl">Cap. camión</div>
-            </div>
-            <div class="vp-gauge">
-              <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" id="gauge-ruta" stroke="#3b82f6" stroke-width="7" stroke-dasharray="110 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat" id="gauge-ruta-txt">80%</text></svg>
-              <div class="vp-gauge-label">% Ruta</div>
-            </div>
-          </div>
+          <div class="vp-gauge-row" id="vp-gauges"></div>
+          <div class="vp-signals" id="vp-signals"></div>
         </div>
+
+        <div class="vp-section">
+          <div class="vp-section-title">Recorrido</div>
+          <div class="vp-trail-stats" id="vp-trail-stats">
+            <div class="vp-trail-empty">Cargando recorrido…</div>
+          </div>
+          <div class="vp-trail-btns">
+            <button class="vp-btn outline" id="vp-trail-btn" onclick="toggleVehicleTrail()">🛰️ Ver recorrido</button>
+            <button class="vp-btn outline" id="vp-play-btn" onclick="openPlayback()">▶️ Reproducir</button>
+          </div>
+          <label class="vp-check" title="Ajusta el trazo a las calles reales usando la red vial de OpenStreetMap">
+            <input type="checkbox" id="vp-snap" onchange="onSnapToggle()"/>
+            <span>Ajustar el trazo a las calles</span>
+          </label>
+          <div class="vp-snap-note" id="vp-snap-note"></div>
+        </div>
+
         <div class="vp-actions">
           <button class="vp-btn outline" onclick="closeVehiclePanel()">Cerrar</button>
           <button class="vp-btn primary" onclick="openRouteModalForVehicle()">Nueva ruta con IA</button>
@@ -638,10 +755,16 @@
 <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
-  getVehicles, getTelemetry, getGpsLogs, capacityPct, capacityLabel,
+  getVehicles, getTelemetry, getGpsLogs, getTodayTrail, subscribeVehicleGps,
+  capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents, insertRoute,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { mapColorFor } from './vehicle-colors.js';
+import {
+  cleanTrail, segmentsToLines, snapSegmentsToRoads, buildPlayback, positionAt,
+  traveledLine, formatDuration, distanceMeters,
+} from './trail.js';
 import { mountNewTruckModal, escapeHtml } from './fleet-ui.js';
 import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js';
 import {
@@ -657,6 +780,7 @@ window.doLogout = async function() {
 };
 
 /* ── ESTADO ── */
+const EMPTY_FC = { type: 'FeatureCollection', features: [] };
 let vehicles = [];   // datos DB + telemetry combinados
 let selectedId = null;
 const markers  = {};
@@ -670,17 +794,9 @@ let incidentFilter   = 'all';
 const fuelColor = p => p < 20 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
 const statusLabelMap = { active:'Activo', maintenance:'Avería/Mant.', inactive:'Inactivo' };
 
-/* Cada vehículo activo recibe un color distinto (para diferenciarlos en el mapa);
-   avería/inactivo siempre se marcan en rojo/gris como señal de alerta. */
-const FLEET_COLORS = ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316'];
-function colorForVehicle(v) {
-  if (v.status === 'maintenance') return '#ef4444';
-  if (v.status === 'inactive')    return '#64748b';
-  const s = String(v.economic_number || v.id || '');
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-  return FLEET_COLORS[hash % FLEET_COLORS.length];
-}
+/* El color lo resuelve vehicle-colors.js: usa el elegido en la pestaña de
+   Camiones y respeta la prioridad del estado (avería en rojo, inactivo en gris). */
+const colorForVehicle = mapColorFor;
 
 /* ── MAPA — centrado en Sahuayo de Morelos ──
    Mismo estilo MapTiler (MapLibre GL) que se usa en la página de Reportes. */
@@ -752,6 +868,53 @@ function setupTrailLayers() {
     id: 'ai-route-line', type: 'line', source: 'ai-route',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': '#c4b5fd', 'line-width': 4, 'line-opacity': 0.95 },
+  });
+
+  /* ── Recorrido del camión seleccionado ──
+     Va en tres capas superpuestas: un halo ancho para que se despegue del mapa,
+     la línea en el color del camión, y los puntos de inicio/fin. */
+  map.addSource('live-trail', { type: 'geojson', data: EMPTY_FC });
+  map.addLayer({
+    id: 'live-trail-halo', type: 'line', source: 'live-trail',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#000000', 'line-width': 8, 'line-opacity': 0.35, 'line-blur': 2 },
+  });
+  map.addLayer({
+    id: 'live-trail-line', type: 'line', source: 'live-trail',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': ['get', 'color'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 12, 3, 16, 4.5, 19, 7],
+      'line-opacity': 0.95,
+    },
+  });
+
+  map.addSource('trail-ends', { type: 'geojson', data: EMPTY_FC });
+  map.addLayer({
+    id: 'trail-ends-dot', type: 'circle', source: 'trail-ends',
+    paint: {
+      'circle-radius': ['case', ['==', ['get', 'kind'], 'start'], 6, 5],
+      'circle-color': ['case', ['==', ['get', 'kind'], 'start'], '#ffffff', ['get', 'color']],
+      'circle-stroke-width': 2.5,
+      'circle-stroke-color': ['case', ['==', ['get', 'kind'], 'start'], ['get', 'color'], '#ffffff'],
+    },
+  });
+
+  /* ── Reproducción ── */
+  map.addSource('pb-traveled', { type: 'geojson', data: EMPTY_FC });
+  map.addLayer({
+    id: 'pb-traveled-line', type: 'line', source: 'pb-traveled',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#facc15', 'line-width': 5, 'line-opacity': 0.95 },
+  });
+  map.addSource('pb-head', { type: 'geojson', data: EMPTY_FC });
+  map.addLayer({
+    id: 'pb-head-halo', type: 'circle', source: 'pb-head',
+    paint: { 'circle-radius': 13, 'circle-color': '#facc15', 'circle-opacity': 0.22 },
+  });
+  map.addLayer({
+    id: 'pb-head-dot', type: 'circle', source: 'pb-head',
+    paint: { 'circle-radius': 7, 'circle-color': '#facc15', 'circle-stroke-width': 2.5, 'circle-stroke-color': '#0b1220' },
   });
 }
 
@@ -940,16 +1103,37 @@ function updateMarkerAppearance(id, selected) {
   if (!m || !v) return;
   m.el.className = ('veh-marker ' + markerAlertClass(v)).trim();
   m.el.style.cssText = markerElStyle(colorForVehicle(v), selected);
+  /* La insignia de pausa/bloqueo vive dentro del marcador: si el estado cambió
+     hay que rehacer el contenido, no solo el estilo. */
+  const nuevo = markerInner(v);
+  if (m.el.innerHTML !== nuevo) m.el.innerHTML = nuevo;
+  m.el.title = v._state?.blocked ? `${v.economic_number} — bloqueo de ruta ${timeAgo(v._state.blockedSince)}`
+             : v._state?.paused  ? `${v.economic_number} — en pausa ${timeAgo(v._state.pausedSince)}`
+             : v.economic_number;
 }
 
+/* Los marcadores se ACTUALIZAN, no se recrean.
+   Borrarlos y volverlos a crear cada 30 s hacía que parpadearan, se perdiera el
+   resaltado del seleccionado y se cortara cualquier animación en curso. */
 function placeMarkers() {
   if (!mapLoaded) return; // se reintenta cuando el mapa termine de cargar su estilo
 
-  Object.values(markers).forEach(m => m.marker.remove());
-  Object.keys(markers).forEach(k => delete markers[k]);
-
   const withGps = vehicles.filter(v => v._lat && v._lng && matchesFilter(v));
+  const shouldExist = new Set(withGps.map(v => v.id));
+
+  Object.keys(markers).forEach(id => {
+    if (shouldExist.has(id)) return;
+    markers[id].marker.remove();
+    delete markers[id];
+  });
+
   withGps.forEach(v => {
+    const existing = markers[v.id];
+    if (existing) {
+      existing.marker.setLngLat([v._lng, v._lat]);
+      updateMarkerAppearance(v.id, v.id === selectedId);
+      return;
+    }
     const el = buildMarkerElement(v, v.id === selectedId);
     el.addEventListener('click', () => openVehicleById(v.id));
     const marker = new maplibregl.Marker({ element: el }).setLngLat([v._lng, v._lat]).addTo(map);
@@ -1041,7 +1225,13 @@ window.closeEventsPanel = function() {
 map.on('load', () => {
   mapLoaded = true;
   setupTrailLayers();
-  placeMarkers(); // por si los vehículos ya habían llegado antes de que el mapa cargara
+  /* Los datos suelen llegar antes que el estilo del mapa (la red de Supabase es
+     más rápida que descargar las teselas). Todo lo que se calculó mientras el
+     mapa no estaba listo se vuelca aquí; si no, quedaba calculado pero invisible
+     y nada lo volvía a intentar. */
+  placeMarkers();
+  drawTrail();
+  if (pb.playback) renderPlaybackFrame();
 });
 
 /* ── RUTA DEL CAMIÓN SELECCIONADO ── */
@@ -1170,10 +1360,9 @@ window.openVehicleById = function(id) {
   st.textContent = '● ' + (statusLabelMap[v.status]||v.status);
   st.className   = 'vp-status ' + (v.status==='active'?'green':v.status==='maintenance'?'red':'gray');
 
-  setGauge('gauge-fuel','gauge-fuel-txt', v._bat||0, fuelColor(v._bat||0));
-  setGauge('gauge-cap', 'gauge-cap-txt',  v._capPct||0, '#f59e0b');
-  document.getElementById('gauge-cap-lbl').textContent = v._capLabel && v._capLabel !== '—' ? `Cap: ${v._capLabel}` : 'Cap. camión';
-  setGauge('gauge-ruta','gauge-ruta-txt', 0, '#3b82f6');
+  renderGauges(v);
+  renderSignals(v);
+  startVehicleTrail(v);
 
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
   const card = document.querySelector(`[data-id="${v.id}"]`);
@@ -1181,20 +1370,397 @@ window.openVehicleById = function(id) {
   document.getElementById('vehicle-panel').classList.add('open');
 };
 
+/* ══════════════════════════════════════
+   RECORRIDO DEL CAMIÓN SELECCIONADO
+
+   Antes el recorrido solo aparecía al pulsar "Mostrar recorridos" y se quedaba
+   congelado. Ahora, al abrir un camión, su trazo se dibuja de inmediato con el
+   histórico del día y se va extendiendo solo conforme llegan posiciones nuevas.
+══════════════════════════════════════ */
+let trailState = {
+  vehicleId: null,
+  raw: [],          // puntos crudos tal como vienen de la base
+  clean: null,      // resultado de cleanTrail (segmentos, descartados, km)
+  visible: true,
+  snap: false,
+  unsubscribe: null,
+  snapToken: 0,     // invalida ajustes en curso si cambia el camión
+};
+
+const setSource = (id, data) => { if (mapLoaded && map.getSource(id)) map.getSource(id).setData(data); };
+const clearTrailLayers = () => { setSource('live-trail', EMPTY_FC); setSource('trail-ends', EMPTY_FC); };
+
+function lineFeature(coords, color) {
+  return { type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: coords } };
+}
+
+async function drawTrail() {
+  const v = vehicles.find(x => x.id === trailState.vehicleId);
+  if (!v || !trailState.clean || !trailState.visible) { clearTrailLayers(); return; }
+
+  const color = colorForVehicle(v);
+  const { segments } = trailState.clean;
+  let lines = segmentsToLines(segments);
+  const note = document.getElementById('vp-snap-note');
+
+  if (trailState.snap && segments.length) {
+    const token = ++trailState.snapToken;
+    if (note) { note.className = 'vp-snap-note'; note.textContent = 'Ajustando el trazo a las calles…'; }
+    try {
+      const result = await snapSegmentsToRoads(segments);
+      if (token !== trailState.snapToken) return;   // el usuario cambió de camión
+      lines = result.lines;
+      if (note) {
+        note.className = 'vp-snap-note' + (result.error ? ' warn' : '');
+        note.textContent = result.error
+          ? `⚠️ ${result.error} Esos tramos se muestran sin ajustar.`
+          : '✅ Trazo ajustado a la red vial de OpenStreetMap.';
+      }
+    } catch (err) {
+      if (token !== trailState.snapToken) return;
+      console.error('[snap]', err);
+      if (note) { note.className = 'vp-snap-note warn'; note.textContent = `⚠️ ${err.message} Se muestra el trazo sin ajustar.`; }
+    }
+  } else if (note) {
+    note.className = 'vp-snap-note';
+    note.textContent = '';
+  }
+
+  setSource('live-trail', { type: 'FeatureCollection', features: lines.map(c => lineFeature(c, color)) });
+
+  const first = lines[0]?.[0];
+  const lastLine = lines[lines.length - 1];
+  const last = lastLine?.[lastLine.length - 1];
+  setSource('trail-ends', {
+    type: 'FeatureCollection',
+    features: [
+      first && { type: 'Feature', properties: { kind: 'start', color }, geometry: { type: 'Point', coordinates: first } },
+      last  && { type: 'Feature', properties: { kind: 'end',   color }, geometry: { type: 'Point', coordinates: last  } },
+    ].filter(Boolean),
+  });
+}
+
+function renderTrailStats() {
+  const el = document.getElementById('vp-trail-stats');
+  if (!el) return;
+  const c = trailState.clean;
+  if (!c || !c.points.length) {
+    el.innerHTML = '<div class="vp-trail-empty">Este camión no tiene recorrido registrado hoy.</div>';
+    return;
+  }
+  const first = c.points[0], last = c.points[c.points.length - 1];
+  const dur = new Date(last.timestamp) - new Date(first.timestamp);
+  const stat = (k, v) => `<div class="vp-trail-stat"><div class="vp-trail-k">${k}</div><div class="vp-trail-v">${v}</div></div>`;
+  el.innerHTML =
+    stat('Distancia', c.distanceKm.toFixed(1) + ' km') +
+    stat('Duración', formatDuration(dur)) +
+    stat('Puntos', c.points.length) +
+    (c.removed ? `<div class="vp-trail-empty">Se descartaron ${c.removed} lecturas (saltos imposibles o ruido estando parado).</div>` : '') +
+    (c.gaps ? `<div class="vp-trail-empty">El trazo se partió en ${c.gaps + 1} tramos por pausas largas.</div>` : '');
+}
+
+function applyTrailPoints(points, { fit = false } = {}) {
+  trailState.raw = points;
+  trailState.clean = cleanTrail(points);
+  renderTrailStats();
+  drawTrail();
+
+  /* device_telemetry no siempre guarda gps_quality ni accuracy, pero el último
+     ping de gps_logs sí: se usa para que los indicadores no queden vacíos. */
+  const last = points[points.length - 1];
+  const v = vehicles.find(x => x.id === trailState.vehicleId);
+  if (last && v) {
+    if (last.gps_quality != null)    v._gpsQuality = last.gps_quality;
+    if (last.accuracy != null)       v._accuracy   = last.accuracy;
+    if (last.gsm_signal_dbm != null) v._gsm        = last.gsm_signal_dbm;
+    if (last.battery_pct != null)    v._bat        = Math.round(last.battery_pct);
+    if (last.truck_capacity) {
+      v._capRaw   = last.truck_capacity;
+      v._capPct   = capacityPct(last.truck_capacity);
+      v._capLabel = capacityLabel(last.truck_capacity);
+    }
+    if (selectedId === v.id) { renderSignals(v); renderGauges(v); }
+  }
+  if (fit && trailState.clean.points.length > 1) fitToTrail();
+}
+
+function fitToTrail() {
+  const pts = trailState.clean?.points || [];
+  if (!mapLoaded || pts.length < 2) return;
+  const lats = pts.map(p => p.lat), lngs = pts.map(p => p.lng);
+  map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 70 });
+}
+
+async function startVehicleTrail(v) {
+  stopVehicleTrail();
+  trailState.vehicleId = v.id;
+  trailState.visible = true;
+  document.getElementById('vp-trail-btn').textContent = '🙈 Ocultar recorrido';
+  document.getElementById('vp-trail-stats').innerHTML = '<div class="vp-trail-empty">Cargando recorrido…</div>';
+
+  const points = await getTodayTrail(v.id);
+  if (trailState.vehicleId !== v.id) return;   // ya cambió de camión
+
+  /* Si hoy no reportó nada, se muestra el último recorrido que tenga. */
+  applyTrailPoints(points.length ? points : await getGpsLogs(v.id, { limit: 2000 }));
+
+  /* A partir de aquí la línea se extiende sola. */
+  const last = trailState.raw[trailState.raw.length - 1];
+  trailState.unsubscribe = subscribeVehicleGps(v.id, fresh => {
+    if (trailState.vehicleId !== v.id) return;
+    applyTrailPoints([...trailState.raw, ...fresh]);
+    /* El marcador también avanza sin esperar al refresco de 30 s. */
+    const p = fresh[fresh.length - 1];
+    const veh = vehicles.find(x => x.id === v.id);
+    if (veh) { veh._lat = p.lat; veh._lng = p.lng; }
+    if (markers[v.id]) markers[v.id].marker.setLngLat([p.lng, p.lat]);
+  }, { since: last?.timestamp });
+}
+
+function stopVehicleTrail() {
+  trailState.unsubscribe?.();
+  trailState.unsubscribe = null;
+  trailState.vehicleId = null;
+  trailState.raw = [];
+  trailState.clean = null;
+  trailState.snapToken++;
+  clearTrailLayers();
+}
+
+window.toggleVehicleTrail = function() {
+  trailState.visible = !trailState.visible;
+  document.getElementById('vp-trail-btn').textContent = trailState.visible ? '🙈 Ocultar recorrido' : '🛰️ Ver recorrido';
+  if (trailState.visible) { drawTrail(); fitToTrail(); } else clearTrailLayers();
+};
+
+window.onSnapToggle = function() {
+  trailState.snap = document.getElementById('vp-snap').checked;
+  drawTrail();
+};
+
+/* ══════════════════════════════════════
+   REPRODUCCIÓN ANIMADA DEL RECORRIDO
+
+   La animación avanza con requestAnimationFrame sobre el tiempo REAL del
+   recorrido, no punto por punto: entre dos pings se interpola la posición, así
+   que el movimiento es continuo aunque el dispositivo reporte cada 45 s.
+══════════════════════════════════════ */
+const PLAY_SPEEDS = [30, 60, 120, 300, 600];   // × tiempo real
+let pb = { playback: null, elapsed: 0, speed: 60, playing: false, raf: null, lastFrame: 0, following: true };
+
+window.openPlayback = function() {
+  const v = vehicles.find(x => x.id === trailState.vehicleId);
+  const points = trailState.clean?.points || [];
+  if (!v || points.length < 2) { showToast('ℹ️ Este camión no tiene recorrido para reproducir'); return; }
+
+  pb.playback = buildPlayback(points);
+  if (!pb.playback) { showToast('ℹ️ Recorrido demasiado corto para reproducir'); return; }
+
+  pb.elapsed = 0;
+  pb.following = true;
+  document.getElementById('playbar').hidden = false;
+  document.getElementById('pb-veh').textContent = v.economic_number;
+  document.getElementById('pb-start').textContent = shortTime(pb.playback.startedAt);
+  document.getElementById('pb-end').textContent   = shortTime(pb.playback.endedAt);
+  renderSpeedButtons();
+  fitToTrail();
+  renderPlaybackFrame();
+  startPlay();
+};
+
+window.closePlayback = function() {
+  pausePlay();
+  pb.playback = null;
+  document.getElementById('playbar').hidden = true;
+  setSource('pb-traveled', EMPTY_FC);
+  setSource('pb-head', EMPTY_FC);
+};
+
+function renderSpeedButtons() {
+  document.getElementById('pb-speeds').innerHTML = PLAY_SPEEDS.map(s =>
+    `<button class="pb-speed ${s === pb.speed ? 'active' : ''}" onclick="setPlaySpeed(${s})">${s}×</button>`).join('');
+}
+window.setPlaySpeed = function(s) { pb.speed = s; renderSpeedButtons(); };
+
+function renderPlaybackFrame() {
+  if (!pb.playback) return;
+  const pos = positionAt(pb.playback, pb.elapsed);
+
+  setSource('pb-head', {
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [pos.lng, pos.lat] } }],
+  });
+  const traveled = traveledLine(pb.playback, pb.elapsed);
+  setSource('pb-traveled', traveled
+    ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: traveled } }] }
+    : EMPTY_FC);
+
+  const f = pos.frame;
+  document.getElementById('pb-clock').textContent = new Date(f.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('pb-scrub').value = Math.round((pb.elapsed / pb.playback.duration) * 1000);
+
+  const partes = [
+    `${Math.round((pb.elapsed / pb.playback.duration) * 100)}%`,
+    f.battery_pct != null ? `🔋 ${Math.round(f.battery_pct)}%` : null,
+    f.truck_capacity ? `📦 ${capacityLabel(f.truck_capacity)}` : null,
+    f.event ? `${eventMeta(f.event).icon} ${eventMeta(f.event).short}` : null,
+  ].filter(Boolean);
+  document.getElementById('pb-stat').textContent = partes.join('  ·  ');
+
+  /* La cámara sigue al camión solo si no se está mirando otra zona a mano. */
+  if (pb.following && pb.playing && !map.getBounds().contains([pos.lng, pos.lat])) {
+    map.easeTo({ center: [pos.lng, pos.lat], duration: 600 });
+  }
+}
+
+function tick(now) {
+  if (!pb.playing || !pb.playback) return;
+  const dt = pb.lastFrame ? now - pb.lastFrame : 16;
+  pb.lastFrame = now;
+  pb.elapsed += dt * pb.speed;
+
+  if (pb.elapsed >= pb.playback.duration) {
+    pb.elapsed = pb.playback.duration;
+    renderPlaybackFrame();
+    pausePlay();
+    showToast('🏁 Fin del recorrido');
+    return;
+  }
+  renderPlaybackFrame();
+  pb.raf = requestAnimationFrame(tick);
+}
+
+function startPlay() {
+  if (!pb.playback) return;
+  if (pb.elapsed >= pb.playback.duration) pb.elapsed = 0;
+  pb.playing = true;
+  pb.lastFrame = 0;
+  document.getElementById('pb-play').textContent = '⏸';
+  pb.raf = requestAnimationFrame(tick);
+}
+function pausePlay() {
+  pb.playing = false;
+  if (pb.raf) cancelAnimationFrame(pb.raf);
+  pb.raf = null;
+  const btn = document.getElementById('pb-play');
+  if (btn) btn.textContent = '▶';
+}
+window.togglePlay = function() { pb.playing ? pausePlay() : startPlay(); };
+
 window.closeVehiclePanel = function() {
   document.getElementById('vehicle-panel').classList.remove('open');
+  closePlayback();
+  stopVehicleTrail();
   clearVehicleRoute();
   if (selectedId) updateMarkerAppearance(selectedId, false);
   selectedId = null;
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
 };
 
-function setGauge(cId, tId, pct, color) {
-  const filled = (pct/100)*138;
-  const el = document.getElementById(cId);
-  if (el) { el.setAttribute('stroke-dasharray', `${filled} 138`); el.setAttribute('stroke', color); }
-  const te = document.getElementById(tId);
-  if (te) te.textContent = Math.round(pct) + '%';
+/* ══════════════════════════════════════
+   INDICADORES DEL PANEL
+
+   El anillo anterior usaba 138 como circunferencia, pero un radio de 22 da
+   138.23. Al 100 % faltaba esa fracción y, con las puntas redondeadas, el
+   círculo quedaba con una muesca visible: "lleno" no se veía lleno. Ahora la
+   circunferencia se calcula y al llegar al 100 % se dibuja un aro completo sin
+   discontinuidad.
+══════════════════════════════════════ */
+const GAUGE_R = 22;
+const GAUGE_C = 2 * Math.PI * GAUGE_R;
+
+function gaugeSvg(pct, color, centerText) {
+  const value = Math.max(0, Math.min(100, Number(pct) || 0));
+  const full  = value >= 99.5;
+  const arc   = full
+    ? `<circle cx="30" cy="30" r="${GAUGE_R}" fill="none" stroke="${color}" stroke-width="7"/>`
+    : `<circle cx="30" cy="30" r="${GAUGE_R}" fill="none" stroke="${color}" stroke-width="7"
+         stroke-dasharray="${((value/100)*GAUGE_C).toFixed(2)} ${GAUGE_C.toFixed(2)}"
+         stroke-linecap="round" transform="rotate(-90 30 30)"/>`;
+  return `<svg viewBox="0 0 60 60" role="img">
+    <circle cx="30" cy="30" r="${GAUGE_R}" fill="none" stroke="#1a2540" stroke-width="7"/>
+    ${full ? `<circle cx="30" cy="30" r="${GAUGE_R}" fill="${color}" opacity=".16"/>` : ''}
+    ${arc}
+    <text x="30" y="34" text-anchor="middle" font-size="${centerText.length > 4 ? 9 : 11}"
+          font-weight="800" fill="#f1f5f9" font-family="Montserrat">${centerText}</text>
+  </svg>`;
+}
+
+const CAP_COLOR = { vacio: '#64748b', algo_lleno: '#22c55e', medio: '#f59e0b', lleno: '#ef4444' };
+
+function renderGauges(v) {
+  const el = document.getElementById('vp-gauges');
+  if (!el) return;
+  const bat = Math.round(v._bat || 0);
+  const cap = v._capPct ?? 0;
+  const capColor = CAP_COLOR[v._capRaw] || '#f59e0b';
+  el.innerHTML = `
+    <div class="vp-gauge">${gaugeSvg(bat, fuelColor(bat), bat + '%')}
+      <div class="vp-gauge-label">Batería</div></div>
+    <div class="vp-gauge">${gaugeSvg(cap, capColor, cap + '%')}
+      <div class="vp-gauge-label">${v._capLabel && v._capLabel !== '—' ? escapeHtml(v._capLabel) : 'Capacidad'}</div></div>
+    <div class="vp-gauge">${gaugeSvg(v._routePct || 0, '#3b82f6', (v._routePct || 0) + '%')}
+      <div class="vp-gauge-label">% Ruta</div></div>`;
+}
+
+/* ── Señal GSM y calidad de GPS ──
+   GSM llega en dBm (−110 pésimo … −50 excelente). GPS llega como texto desde el
+   firmware (no_fix / poor / fair / good / excellent); si falta, se estima con la
+   precisión reportada en metros. */
+const GPS_QUALITY = {
+  excellent: { bars: 4, label: 'Excelente', color: '#22c55e' },
+  good:      { bars: 3, label: 'Buena',     color: '#4ade80' },
+  fair:      { bars: 2, label: 'Regular',   color: '#f59e0b' },
+  poor:      { bars: 1, label: 'Pobre',     color: '#f97316' },
+  no_fix:    { bars: 0, label: 'Sin señal', color: '#ef4444' },
+};
+
+function gsmLevel(dbm) {
+  if (dbm == null) return { bars: 0, label: 'Sin dato', color: '#64748b', detail: '—' };
+  const d = Number(dbm);
+  const level = d >= -70 ? { bars: 4, label: 'Excelente', color: '#22c55e' }
+              : d >= -85 ? { bars: 3, label: 'Buena',     color: '#4ade80' }
+              : d >= -95 ? { bars: 2, label: 'Regular',   color: '#f59e0b' }
+              : d >= -105 ? { bars: 1, label: 'Pobre',    color: '#f97316' }
+              : { bars: 0, label: 'Muy pobre', color: '#ef4444' };
+  return { ...level, detail: `${Math.round(d)} dBm` };
+}
+
+function gpsLevel(quality, accuracy) {
+  if (quality && GPS_QUALITY[quality]) {
+    return { ...GPS_QUALITY[quality], detail: accuracy != null ? `±${Math.round(accuracy)} m` : 'sin precisión' };
+  }
+  if (accuracy != null) {
+    const a = Number(accuracy);
+    const level = a <= 5  ? GPS_QUALITY.excellent
+                : a <= 10 ? GPS_QUALITY.good
+                : a <= 25 ? GPS_QUALITY.fair
+                : a <= 60 ? GPS_QUALITY.poor
+                : GPS_QUALITY.no_fix;
+    return { ...level, detail: `±${Math.round(a)} m` };
+  }
+  return { bars: 0, label: 'Sin dato', color: '#64748b', detail: '—' };
+}
+
+const barsHtml = level =>
+  `<div class="vp-bars" title="${level.label}">${[1,2,3,4]
+    .map(i => `<div class="vp-bar" style="${i <= level.bars ? `background:${level.color}` : ''}"></div>`)
+    .join('')}</div>`;
+
+function renderSignals(v) {
+  const el = document.getElementById('vp-signals');
+  if (!el) return;
+  const gsm = gsmLevel(v._gsm);
+  const gps = gpsLevel(v._gpsQuality, v._accuracy);
+  const row = (icon, name, level) => `
+    <div class="vp-signal">
+      <span class="vp-signal-ico">${icon}</span>
+      <span class="vp-signal-name">${name}</span>
+      ${barsHtml(level)}
+      <span class="vp-signal-val" style="color:${level.color}">${escapeHtml(level.label)}<br/>
+        <span style="color:rgba(255,255,255,.4);font-weight:500">${escapeHtml(level.detail)}</span></span>
+    </div>`;
+  el.innerHTML = row('📶', 'GSM', gsm) + row('🛰️', 'GPS', gps);
 }
 
 /* ── SIDEBAR VEHÍCULOS ── */
@@ -1254,48 +1820,96 @@ document.getElementById('search-input').addEventListener('input', function() {
 let _routesByVehicle = {};
 let _crewByVehicle   = {};
 
-async function loadMapData() {
-  try {
-    const [vehs, telem, routesByVehicle, crew, events] = await Promise.all([
-      getVehicles(), getTelemetry(), getRoutesByVehicle(), getVehicleCrew(), getFleetEvents(),
-    ]);
-    _routesByVehicle = routesByVehicle;
-    _crewByVehicle = crew.reduce((acc, c) => {
-      (acc[c.vehicle_id] = acc[c.vehicle_id] || []).push(c);
-      return acc;
-    }, {});
-    fleetEvents     = events;
-    eventsByVehicle = groupByVehicle(events);
+/* Combina vehículo + telemetría conservando lo que el recorrido en vivo ya
+   haya actualizado (batería, capacidad, señales del último ping). */
+function mergeVehicle(v, t, previous) {
+  const prev = previous || {};
+  return {
+    ...v,
+    _bat:        t ? (t.battery_pct ?? 0) : (prev._bat ?? 0),
+    _gsm:        t ? (t.gsm_signal_dbm ?? null) : (prev._gsm ?? null),
+    _lat:        t ? t.lat : (prev._lat ?? null),
+    _lng:        t ? t.lng : (prev._lng ?? null),
+    _capPct:     t ? capacityPct(t.truck_capacity) : (prev._capPct ?? 0),
+    _capRaw:     t ? t.truck_capacity : (prev._capRaw ?? null),
+    _capLabel:   t ? capacityLabel(t.truck_capacity) : (prev._capLabel ?? '—'),
+    _gpsQuality: t ? (t.gps_quality ?? prev._gpsQuality ?? null) : (prev._gpsQuality ?? null),
+    _accuracy:   t ? (t.accuracy ?? prev._accuracy ?? null) : (prev._accuracy ?? null),
+    _routePct:   prev._routePct ?? 0,
+    _state:      prev._state,
+    _driverName: null,
+    _routeName:  null,
+  };
+}
 
-    vehicles = vehs.map(v => {
-      const t = telem.find(r=>r.vehicle_id===v.id);
-      return {
-        ...v,
-        _bat:      t ? (t.battery_pct??0) : 0,
-        _gsm:      t ? (t.gsm_signal_dbm ?? null) : null,
-        _lat:      t ? t.lat : null,
-        _lng:      t ? t.lng : null,
-        _capPct:   t ? capacityPct(t.truck_capacity) : 0,
-        _capLabel: t ? capacityLabel(t.truck_capacity) : '—',
-        _driverName: null,
-        _routeName:  null,
-      };
-    });
+/* ══════════════════════════════════════
+   CARGA PROGRESIVA
+
+   Antes se esperaba a que terminaran las CINCO consultas antes de pintar nada,
+   así que la más lenta (los eventos, que recorren gps_logs) marcaba el tiempo
+   de arranque de toda la página. Ahora la lista y los marcadores salen en
+   cuanto llegan vehículos y telemetría, y el resto se va rellenando solo.
+══════════════════════════════════════ */
+let _loadSeq = 0;
+
+async function loadMapData({ initial = false } = {}) {
+  const seq = ++_loadSeq;
+  const outdated = () => seq !== _loadSeq;   // una recarga más nueva manda
+
+  /* ── Primer bloque: lo imprescindible para ver el mapa ── */
+  try {
+    const [vehs, telem] = await Promise.all([getVehicles(), getTelemetry()]);
+    if (outdated()) return;
+
+    const before = new Map(vehicles.map(v => [v.id, v]));
+    vehicles = vehs.map(v => mergeVehicle(v, telem.find(r => r.vehicle_id === v.id), before.get(v.id)));
     applyIncidentState();
 
     renderIncidentFilters();
     renderAlertStrip();
     refreshVehicleList();
-    renderEventTypeOptions();
-    renderEventsList();
     fillAiVehicleSelect();
     placeMarkers();
   } catch (err) {
     console.error('[map]', err);
     showToast('❌ No se pudieron cargar los vehículos');
   } finally {
+    /* El velo de carga se quita aquí, no al final: el resto llega después y no
+       tiene por qué mantener la pantalla en blanco. */
     window.hidePageLoader?.();
   }
+
+  /* ── Segundo bloque: enriquecimiento, cada uno por su cuenta ── */
+  const tasks = [
+    getRoutesByVehicle().then(r => { if (!outdated()) _routesByVehicle = r; }),
+    getVehicleCrew().then(crew => {
+      if (outdated()) return;
+      _crewByVehicle = crew.reduce((acc, c) => { (acc[c.vehicle_id] = acc[c.vehicle_id] || []).push(c); return acc; }, {});
+    }),
+    getFleetEvents().then(events => {
+      if (outdated()) return;
+      fleetEvents = events;
+      eventsByVehicle = groupByVehicle(events);
+      applyIncidentState();
+      renderIncidentFilters();
+      renderAlertStrip();
+      refreshVehicleList();
+      renderEventTypeOptions();
+      renderEventsList();
+      refreshMarkerAlerts();
+    }),
+  ];
+  const results = await Promise.allSettled(tasks);
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length && initial) {
+    console.error('[map] datos secundarios', failed.map(f => f.reason));
+    showToast('⚠️ Algunos datos no se pudieron actualizar');
+  }
+}
+
+/* Refresca solo el aspecto de los marcadores (alertas), sin recrearlos. */
+function refreshMarkerAlerts() {
+  Object.keys(markers).forEach(id => updateMarkerAppearance(id, id === selectedId));
 }
 
 async function refreshNotifications() {
@@ -1679,6 +2293,25 @@ function resetRouteModal() {
 }
 
 /* ── Cableado del modal ── */
+/* Barra de desplazamiento del reproductor: arrastrar pausa y recoloca. */
+function initPlaybackControls() {
+  const scrub = document.getElementById('pb-scrub');
+  scrub.addEventListener('input', () => {
+    if (!pb.playback) return;
+    pausePlay();
+    pb.elapsed = (Number(scrub.value) / 1000) * pb.playback.duration;
+    renderPlaybackFrame();
+  });
+  /* Si el usuario mueve el mapa a mano, la cámara deja de perseguir al camión. */
+  map.on('dragstart', () => { pb.following = false; });
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('playbar').hidden) return;
+    if (e.target.matches('input, textarea, select')) return;
+    if (e.code === 'Space') { e.preventDefault(); window.togglePlay(); }
+    if (e.key === 'Escape') window.closePlayback();
+  });
+}
+
 function initRouteModal() {
   const overpassSel = $id('ai-overpass');
   overpassSel.innerHTML = `
@@ -1725,8 +2358,9 @@ async function main() {
   document.getElementById('btn-new-truck').addEventListener('click', openTruckModal);
 
   initRouteModal();
+  initPlaybackControls();
 
-  await loadMapData();
+  await loadMapData({ initial: true });
   updateScopeFields();
   focusFromUrl();
   refreshNotifications();

@@ -449,31 +449,95 @@ function normalizeEvent(row, col) {
 }
 
 /* ── Histórico GPS de un vehículo (recorrido real) ──
-   Se piden los registros MÁS RECIENTES y luego se ordenan cronológicamente:
-   la tabla tiene miles de filas y el recorrido útil es el último, no el primero. */
-export async function getGpsLogs(vehicleId, limit = 300) {
+   Antes se pedían solo los 300 registros más recientes, así que un turno
+   completo se veía cortado. Ahora se pagina: PostgREST devuelve como máximo
+   1000 filas por petición, de modo que un recorrido largo necesita varias.
+
+   @param {string} vehicleId
+   @param {number|{limit?:number, from?:Date|string, to?:Date|string,
+                   pageSize?:number, radiusKm?:number}} [options]
+          Se acepta un número por compatibilidad con las llamadas antiguas.
+*/
+export async function getGpsLogs(vehicleId, options = {}) {
+  const opt = typeof options === 'number' ? { limit: options } : (options || {});
+  const {
+    limit    = 6000,          // suficiente para un turno completo con pings de 10 s
+    pageSize = 1000,
+    from     = null,
+    to       = null,
+    radiusKm = GPS_MAX_RADIUS_KM,
+  } = opt;
+
   try {
-    const col = await getEventColumn();
-    const cols = ['location', 'timestamp', 'battery_pct', 'truck_capacity', col].filter(Boolean).join(', ');
-    const { data, error } = await withTimeout(
-      sb.from('gps_logs')
+    const col  = await getEventColumn();
+    const cols = ['location', 'timestamp', 'battery_pct', 'truck_capacity',
+                  'gps_quality', 'gsm_signal_dbm', 'accuracy', col].filter(Boolean).join(', ');
+
+    const rows = [];
+    for (let offset = 0; offset < limit; offset += pageSize) {
+      let query = sb.from('gps_logs')
         .select(cols)
         .eq('vehicle_id', vehicleId)
         .order('timestamp', { ascending: false })
-        .limit(limit)
-    );
-    if (error) throw error;
+        .range(offset, Math.min(offset + pageSize, limit) - 1);
 
-    const points = (data || [])
+      if (from) query = query.gte('timestamp', new Date(from).toISOString());
+      if (to)   query = query.lte('timestamp', new Date(to).toISOString());
+
+      const { data, error } = await withTimeout(query, 20000);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if (!data || data.length < pageSize) break;   // ya no hay más páginas
+    }
+
+    const points = rows
       .map(row => normalizeEvent(row, col))
       .filter(row => row.lat != null && row.lng != null);
     if (!points.length) return [];
 
-    const latest = points[0]; // el más reciente: ancla de la posición actual
+    /* Guarda grueso contra lecturas corruptas (se han visto puntos a 380 km).
+       El anclaje es la posición más reciente; el filtrado fino por velocidad
+       vive en trail.js, que además parte el trazo por huecos de tiempo. */
+    const latest = points[0];
     return points
-      .filter(p => distanceKm(p, latest) <= GPS_MAX_RADIUS_KM)
-      .reverse();
+      .filter(p => distanceKm(p, latest) <= radiusKm)
+      .reverse();                                    // orden cronológico
   } catch (err) { console.error('[gps_logs]', err); return []; }
+}
+
+/* Recorrido del turno de hoy: lo que normalmente se quiere ver en el mapa. */
+export function getTodayTrail(vehicleId, opts = {}) {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  return getGpsLogs(vehicleId, { from: start, ...opts });
+}
+
+/* ── Color del camión ──
+   La columna vehicles.color puede no existir todavía. Se intenta escribir y,
+   si la base no la conoce, se avisa para que la interfaz caiga al respaldo
+   local en lugar de tragarse el error. */
+export class MissingColumnError extends Error {
+  constructor(column) {
+    super(`La columna "${column}" no existe en la base de datos.`);
+    this.name = 'MissingColumnError';
+    this.column = column;
+  }
+}
+
+export async function updateVehicleColor(vehicleId, hex) {
+  const { data, error } = await withTimeout(
+    sb.from('vehicles').update({ color: hex }).eq('id', vehicleId).select()
+  );
+  if (error) {
+    if (/42703|column .* does not exist|Could not find the '?color'? column/i.test(
+          `${error.code || ''} ${error.message || ''} ${error.details || ''}`)) {
+      throw new MissingColumnError('vehicles.color');
+    }
+    throw error;
+  }
+  if (!data || data.length === 0) {
+    throw new Error('Supabase no actualizó ninguna fila (revisa la política de UPDATE).');
+  }
+  return data[0];
 }
 
 /* ── Eventos de TODA la flota ──
@@ -721,4 +785,66 @@ export function subscribeRealtime(table, callback) {
   return sb.channel(table + '-rl-live')
     .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
     .subscribe();
+}
+
+/**
+ * Sigue el recorrido de UN camión y avisa cuando llegan posiciones nuevas.
+ *
+ * Combina dos mecanismos a propósito:
+ *   · Realtime de Supabase → reacción inmediata al INSERT.
+ *   · Sondeo incremental   → red de seguridad. Si la tabla gps_logs no está en
+ *     la publicación `supabase_realtime`, el canal nunca dispara y sin esto la
+ *     línea del mapa se quedaría congelada sin ningún aviso.
+ *
+ * El sondeo pide solo lo posterior al último punto conocido, así que es barato
+ * aunque el intervalo sea corto.
+ *
+ * @param {string} vehicleId
+ * @param {(points:Array) => void} onNewPoints
+ * @param {{intervalMs?:number, since?:Date|string}} [options]
+ * @returns {() => void} función para dejar de seguirlo
+ */
+export function subscribeVehicleGps(vehicleId, onNewPoints, options = {}) {
+  const { intervalMs = 8000 } = options;
+  let lastTs = options.since ? new Date(options.since).toISOString() : null;
+  let stopped = false;
+  let polling = false;
+
+  async function poll() {
+    if (stopped || polling) return;
+    polling = true;
+    try {
+      const points = await getGpsLogs(vehicleId, { from: lastTs || undefined, limit: 1000 });
+      /* `from` es inclusivo: se descarta el punto que ya se conocía. */
+      const fresh = lastTs ? points.filter(p => p.timestamp > lastTs) : points;
+      if (fresh.length) {
+        lastTs = fresh[fresh.length - 1].timestamp;
+        if (!stopped) onNewPoints(fresh);
+      }
+    } catch (err) {
+      console.error('[gps_live]', err);
+    } finally {
+      polling = false;
+    }
+  }
+
+  const timer = setInterval(poll, intervalMs);
+  poll();
+
+  let channel = null;
+  try {
+    channel = sb.channel(`gps-live-${vehicleId}`)
+      .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'gps_logs', filter: `vehicle_id=eq.${vehicleId}` },
+          () => poll())
+      .subscribe();
+  } catch (err) {
+    console.warn('[gps_live] realtime no disponible, se usa solo sondeo:', err.message);
+  }
+
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    if (channel) { try { sb.removeChannel(channel); } catch {} }
+  };
 }

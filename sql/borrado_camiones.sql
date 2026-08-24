@@ -194,3 +194,24 @@ ALTER TABLE public.vehicle_crew
 -- (<tabla>_<columna>_fkey). Si la consulta 1.a te devuelve otros
 -- nombres, sustitúyelos en los DROP CONSTRAINT.
 -- ───────────────────────────────────────────────────────────────
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- OPCIONAL — Color de cada camión en el mapa
+--
+-- La pestaña de Camiones deja elegir un color por camión. Sin esta
+-- columna el color se guarda solo en el navegador de quien lo eligió;
+-- con ella queda compartido para todos los usuarios y dispositivos.
+-- ═══════════════════════════════════════════════════════════════
+
+ALTER TABLE public.vehicles
+  ADD COLUMN IF NOT EXISTS color text;
+
+-- Solo colores hexadecimales de 6 dígitos (#22c55e). Evita basura.
+ALTER TABLE public.vehicles
+  DROP CONSTRAINT IF EXISTS vehicles_color_hex_chk,
+  ADD  CONSTRAINT vehicles_color_hex_chk
+       CHECK (color IS NULL OR color ~* '^#[0-9a-f]{6}$');
+
+-- La app necesita poder escribirlo. Si ya tienes auth_write_vehicles
+-- con cmd = ALL, esto ya está cubierto y no hace falta nada más.
