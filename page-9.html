@@ -146,15 +146,60 @@
 }
 .tc-route-btn:hover { background: var(--blue); border-color: var(--blue); }
 
+.tc-actions { display: flex; gap: 8px; margin-top: auto; }
 .tc-toggle {
-  width: 100%; padding: 9px; border-radius: var(--radius-sm);
+  flex: 1; padding: 9px; border-radius: var(--radius-sm);
   font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
-  transition: all var(--transition); margin-top: auto;
+  transition: all var(--transition); min-width: 0;
 }
 .tc-toggle.break { background: transparent; border: 1px solid rgba(239,68,68,.35); color: #fca5a5; }
 .tc-toggle.break:hover { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.6); }
 .tc-toggle.fix { background: var(--green-dim); border: 1px solid rgba(74,222,128,.4); color: var(--green-light); }
 .tc-toggle.fix:hover { background: rgba(34,197,94,.25); }
+
+.tc-delete {
+  width: 40px; flex-shrink: 0; padding: 9px 0; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid rgba(239,68,68,.3); color: #fca5a5;
+  font-family: inherit; font-size: 13px; cursor: pointer; transition: all var(--transition);
+}
+.tc-delete:hover { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.65); color: #fff; }
+
+/* ── Modal de eliminación ── */
+.del-target {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+}
+.del-target-id   { font-size: 15px; font-weight: 800; }
+.del-target-sub  { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.del-warning {
+  border: 1px solid rgba(239,68,68,.35); border-left-width: 3px;
+  background: rgba(239,68,68,.08); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 11px; line-height: 1.7;
+}
+.del-warning strong { color: #fca5a5; }
+.del-usage { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.del-usage-row { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-1); }
+.del-usage-row .du-n { font-weight: 800; }
+.del-alt {
+  border: 1px solid rgba(245,158,11,.3); border-left: 3px solid var(--yellow);
+  background: rgba(245,158,11,.07); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 11px; line-height: 1.7; color: var(--text-1);
+}
+.btn-destructive {
+  padding: 10px 18px; background: var(--red); border: 1px solid var(--red);
+  border-radius: var(--radius-sm); color: #fff; font-family: inherit;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all var(--transition);
+}
+.btn-destructive:hover:not(:disabled) { background: #dc2626; }
+.btn-destructive:disabled { opacity: .4; cursor: not-allowed; }
+.btn-warn {
+  padding: 10px 18px; background: transparent; border: 1px solid rgba(245,158,11,.5);
+  border-radius: var(--radius-sm); color: var(--yellow); font-family: inherit;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all var(--transition);
+}
+.btn-warn:hover:not(:disabled) { background: rgba(245,158,11,.15); }
+.btn-warn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Vista previa de ruta en el modal */
 .route-preview:empty { display: none; }
@@ -405,11 +450,56 @@
   </div>
 </div>
 
+<!-- MODAL: eliminar camión -->
+<div class="modal-overlay" id="delete-modal" onclick="if(event.target===this) closeDeleteModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🗑 Eliminar camión</span>
+      <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="del-target">
+        <div class="tc-avatar" id="d-avatar" style="width:40px;height:40px">
+          <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+        </div>
+        <div>
+          <div class="del-target-id" id="d-economic">—</div>
+          <div class="del-target-sub" id="d-sub">—</div>
+        </div>
+      </div>
+
+      <div class="del-warning">
+        <strong>Esta acción no se puede deshacer.</strong>
+        Se eliminará el registro del camión y sus asignaciones de cuadrilla.
+        <div class="del-usage" id="d-usage">
+          <div class="del-usage-row">Revisando qué información tiene ligada…</div>
+        </div>
+      </div>
+
+      <div class="del-alt">
+        ⚠️ Si el camión solo salió de circulación, <strong>darlo de baja</strong> es mejor:
+        deja de aparecer como activo pero conserva su historial de recolecciones y GPS.
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="d-confirm">Escribe <span id="d-confirm-hint">—</span> para confirmar</label>
+        <input class="form-input" id="d-confirm" autocomplete="off" placeholder="Número económico del camión"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
+      <button class="btn-warn" id="d-deactivate" onclick="deactivateFromModal(this)">⏸ Dar de baja</button>
+      <button class="btn-destructive" id="d-confirm-btn" disabled onclick="confirmDelete(this)">Eliminar definitivamente</button>
+    </div>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script type="module">
 import {
   getVehicles, getVehicleCrew, getAllUsers, getRoutesByVehicle, getRoutes,
   insertVehicle, assignCrewMember, removeCrewMember, assignRouteToVehicle, updateVehicleStatus,
+  getVehicleUsage, deleteVehicle, VehicleInUseError,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
 
@@ -516,10 +606,14 @@ function renderTrucks() {
       ${routeBlock(v.id)}
       ${crewBlock(v)}
 
-      <button class="tc-toggle ${broken ? 'fix' : 'break'}"
-              onclick="cycleStatus('${v.id}', '${broken ? 'active' : 'maintenance'}')">
-        ${broken ? '✅ Marcar como reparado' : '🔧 Reportar avería'}
-      </button>
+      <div class="tc-actions">
+        <button class="tc-toggle ${broken ? 'fix' : 'break'}"
+                onclick="cycleStatus('${v.id}', '${broken ? 'active' : 'maintenance'}')">
+          ${broken ? '✅ Marcar como reparado' : '🔧 Reportar avería'}
+        </button>
+        <button class="tc-delete" title="Eliminar camión" aria-label="Eliminar ${escapeHtml(v.economic_number)}"
+                onclick="openDeleteModal('${v.id}')">🗑</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -673,6 +767,128 @@ window.submitCrew = async function(btn) {
     btn.disabled = false;
   }
 };
+
+/* ── Modal: eliminar camión ──
+   Borrar un camión es irreversible y además puede arrastrar su historial, así
+   que se pide confirmación escribiendo el número económico y se ofrece siempre
+   la alternativa no destructiva (darlo de baja). */
+let _deleteVehicleId = null;
+
+window.openDeleteModal = function(vehicleId) {
+  const v = _vehicles.find(x => x.id === vehicleId);
+  if (!v) return;
+  _deleteVehicleId = vehicleId;
+
+  $('d-economic').textContent  = v.economic_number;
+  $('d-sub').textContent       = [v.plates || 'sin placas', TYPE_LABEL[v.type] || v.type,
+                                  v.capacity_tons ? v.capacity_tons + ' t' : null]
+                                  .filter(Boolean).join(' · ');
+  $('d-avatar').className      = 'tc-avatar ' + v.status;
+  $('d-confirm-hint').textContent = v.economic_number;
+  $('d-confirm').value         = '';
+  $('d-confirm').placeholder   = v.economic_number;
+  $('d-confirm-btn').disabled  = true;
+  $('d-deactivate').disabled   = v.status === 'inactive';
+  $('d-deactivate').textContent = v.status === 'inactive' ? '⏸ Ya está de baja' : '⏸ Dar de baja';
+  $('d-usage').innerHTML       = '<div class="del-usage-row">Revisando qué información tiene ligada…</div>';
+
+  $('delete-modal').classList.add('open');
+  $('d-confirm').focus();
+
+  loadDeleteUsage(vehicleId);
+};
+
+async function loadDeleteUsage(vehicleId) {
+  const usage = await getVehicleUsage(vehicleId);
+  if (_deleteVehicleId !== vehicleId) return;   // el usuario ya cerró o cambió de camión
+
+  const rows = [];
+  rows.push(usage.crew > 0
+    ? `<div class="del-usage-row">👷 <span class="du-n">${usage.crew}</span> ${usage.crew === 1 ? 'asignación' : 'asignaciones'} de cuadrilla — <span style="color:#fca5a5">se ${usage.crew === 1 ? 'eliminará' : 'eliminarán'}</span></div>`
+    : '<div class="del-usage-row">👷 Sin personal asignado</div>');
+
+  rows.push(usage.collections > 0
+    ? `<div class="del-usage-row">📋 <span class="du-n">${usage.collections}</span> ${usage.collections === 1 ? 'recolección' : 'recolecciones'} en su historial</div>`
+    : '<div class="del-usage-row">📋 Sin recolecciones registradas</div>');
+
+  if (usage.hasGpsHistory) rows.push('<div class="del-usage-row">🛰️ Tiene historial GPS guardado</div>');
+  if (usage.hasTelemetry)  rows.push('<div class="del-usage-row">📡 Tiene un dispositivo con telemetría activa</div>');
+
+  if (usage.collections > 0 || usage.hasGpsHistory || usage.hasTelemetry) {
+    rows.push('<div class="del-usage-row" style="color:var(--yellow);margin-top:4px">⚠️ Si la base protege ese historial, el borrado se rechazará y te lo diremos.</div>');
+  }
+  if (usage.unknown.length) {
+    rows.push('<div class="del-usage-row" style="color:var(--text-2);margin-top:4px">No se pudo revisar: ' + usage.unknown.join(', ') + '</div>');
+  }
+
+  $('d-usage').innerHTML = rows.join('');
+}
+
+window.closeDeleteModal = function() {
+  _deleteVehicleId = null;
+  $('delete-modal').classList.remove('open');
+};
+
+/* El botón destructivo solo se habilita cuando el texto coincide exactamente. */
+$('d-confirm').addEventListener('input', function() {
+  const v = _vehicles.find(x => x.id === _deleteVehicleId);
+  $('d-confirm-btn').disabled = !v || this.value.trim() !== v.economic_number;
+});
+$('d-confirm').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !$('d-confirm-btn').disabled) confirmDelete($('d-confirm-btn'));
+});
+
+window.confirmDelete = async function(btn) {
+  const v = _vehicles.find(x => x.id === _deleteVehicleId);
+  if (!v || $('d-confirm').value.trim() !== v.economic_number) return;
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Eliminando…';
+  try {
+    await deleteVehicle(v.id);
+    window.closeDeleteModal();
+    showToast(`✅ ${v.economic_number} eliminado`);
+    await loadData();
+  } catch (err) {
+    console.error('[deleteVehicle]', err);
+    if (err instanceof VehicleInUseError) {
+      /* No se puede borrar por el historial: se explica y se deja la baja a un clic. */
+      $('d-usage').innerHTML = `<div class="del-usage-row" style="color:#fca5a5">❌ ${escapeHtml(err.message)}</div>`;
+      showToast('❌ No se puede eliminar: tiene historial ligado');
+    } else {
+      showToast('❌ ' + (err.message || 'No se pudo eliminar el camión'));
+    }
+  } finally {
+    btn.textContent = original;
+    btn.disabled = !_deleteVehicleId || $('d-confirm').value.trim() !== (v?.economic_number ?? '');
+  }
+};
+
+window.deactivateFromModal = async function(btn) {
+  const v = _vehicles.find(x => x.id === _deleteVehicleId);
+  if (!v) return;
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Dando de baja…';
+  try {
+    await updateVehicleStatus(v.id, 'inactive');
+    window.closeDeleteModal();
+    showToast(`⏸ ${v.economic_number} dado de baja`);
+    await loadData();
+  } catch (err) {
+    console.error('[deactivateVehicle]', err);
+    showToast('❌ ' + (err.message || 'No se pudo dar de baja'));
+    btn.disabled = false;
+  } finally {
+    btn.textContent = original;
+  }
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('delete-modal').classList.contains('open')) window.closeDeleteModal();
+});
 
 window.unassign = async function(crewId) {
   try {

@@ -215,6 +215,69 @@ export async function updateVehicleStatus(vehicleId, status, notes) {
   if (error) throw error;
 }
 
+/* ── Qué quedaría huérfano al borrar un camión ──
+   Se consulta ANTES de eliminar para poder advertir con datos reales, no con
+   suposiciones. En las tablas chicas se cuenta exacto; en gps_logs (miles de
+   filas) basta con saber si hay historial o no, contar sería caro. */
+export async function getVehicleUsage(vehicleId) {
+  const usage = { crew: 0, collections: 0, hasGpsHistory: false, hasTelemetry: false, unknown: [] };
+
+  const exactCount = async (table) => {
+    const { count, error } = await withTimeout(
+      sb.from(table).select('*', { count: 'exact', head: true }).eq('vehicle_id', vehicleId)
+    );
+    if (error) throw error;
+    return count ?? 0;
+  };
+  const exists = async (table) => {
+    const { data, error } = await withTimeout(
+      sb.from(table).select('vehicle_id').eq('vehicle_id', vehicleId).limit(1)
+    );
+    if (error) throw error;
+    return (data || []).length > 0;
+  };
+
+  const tasks = [
+    ['crew',          () => exactCount('vehicle_crew')],
+    ['collections',   () => exactCount('collections')],
+    ['hasGpsHistory', () => exists('gps_logs')],
+    ['hasTelemetry',  () => exists('device_telemetry')],
+  ];
+  await Promise.all(tasks.map(async ([key, fn]) => {
+    try { usage[key] = await fn(); }
+    catch (err) { console.warn('[vehicle_usage]', key, err.message); usage.unknown.push(key); }
+  }));
+  return usage;
+}
+
+export class VehicleInUseError extends Error {
+  constructor(message) { super(message); this.name = 'VehicleInUseError'; }
+}
+
+/* ── Baja definitiva de un camión ──
+   Las filas de vehicle_crew son asignaciones propias del camión, así que se
+   retiran primero. El historial (collections, gps_logs, device_telemetry) NO se
+   toca: si la base lo protege con llaves foráneas, el borrado falla a propósito
+   y se avisa para que se decida entre conservar el historial (dar de baja) o
+   depurarlo en la base. */
+export async function deleteVehicle(vehicleId) {
+  const crewDelete = await withTimeout(sb.from('vehicle_crew').delete().eq('vehicle_id', vehicleId));
+  if (crewDelete.error) throw crewDelete.error;
+
+  const { error } = await withTimeout(sb.from('vehicles').delete().eq('id', vehicleId));
+  if (!error) return;
+
+  const text = `${error.code || ''} ${error.message || ''} ${error.details || ''}`;
+  if (/23503|foreign key|violates|still referenced/i.test(text)) {
+    throw new VehicleInUseError(
+      'La base de datos no permite borrarlo porque todavía tiene historial ligado ' +
+      '(recolecciones o registros GPS). Puedes darlo de baja para sacarlo de operación ' +
+      'sin perder ese historial.'
+    );
+  }
+  throw error;
+}
+
 export async function removeCrewMember(id) {
   const { error } = await withTimeout(sb.from('vehicle_crew').delete().eq('id', id));
   if (error) throw error;
