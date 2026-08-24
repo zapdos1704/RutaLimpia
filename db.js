@@ -1,4 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { deriveDeviceIncidents, timeAgo } from './events.js';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -505,10 +506,36 @@ export async function getGpsLogs(vehicleId, options = {}) {
   } catch (err) { console.error('[gps_logs]', err); return []; }
 }
 
-/* Recorrido del turno de hoy: lo que normalmente se quiere ver en el mapa. */
+/* ── Ventanas de tiempo del recorrido ──
+   En el mapa en vivo interesa lo reciente: un turno completo satura la vista y
+   pesa más de lo necesario. El recorrido largo se consulta a propósito desde el
+   selector de historial. */
+export const TRAIL_WINDOWS = [
+  { id: '90m',   label: 'Última 1.5 h', minutes: 90 },
+  { id: '4h',    label: 'Últimas 4 h',  minutes: 240 },
+  { id: 'today', label: 'Hoy',          minutes: null },   // desde las 00:00
+  { id: '24h',   label: 'Últimas 24 h', minutes: 1440 },
+  { id: 'all',   label: 'Todo el historial', minutes: null, all: true },
+];
+export const DEFAULT_TRAIL_WINDOW = '90m';
+
+export function trailWindowStart(windowId = DEFAULT_TRAIL_WINDOW) {
+  const w = TRAIL_WINDOWS.find(x => x.id === windowId) || TRAIL_WINDOWS[0];
+  if (w.all) return null;                       // sin límite inferior
+  if (w.minutes != null) return new Date(Date.now() - w.minutes * 60000);
+  const start = new Date(); start.setHours(0, 0, 0, 0);   // "Hoy"
+  return start;
+}
+
+/* Recorrido reciente del camión. Por omisión, la última hora y media. */
+export function getTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW, opts = {}) {
+  const from = trailWindowStart(windowId);
+  return getGpsLogs(vehicleId, { ...(from ? { from } : {}), ...opts });
+}
+
+/* Compatibilidad: el recorrido del día completo. */
 export function getTodayTrail(vehicleId, opts = {}) {
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  return getGpsLogs(vehicleId, { from: start, ...opts });
+  return getTrailWindow(vehicleId, 'today', opts);
 }
 
 /* ── Color del camión ──
@@ -760,6 +787,25 @@ export async function getNotifications() {
         });
       }
     });
+
+    /* Incidencias del dispositivo (bloqueos, pausas largas, GPS, batería).
+       Solo las RECIENTES: una notificación que lleva horas ahí deja de leerse.
+       Las que caducan desaparecen solas del panel en el siguiente refresco. */
+    const NOTIF_MAX_AGE_MS = 30 * 60 * 1000;
+    const TIPO_NOTIF = { alta: 'red', media: 'yellow', baja: 'blue' };
+    deriveDeviceIncidents({ vehicles: vehs, events: await getFleetEvents(200), telemetry: telem })
+      .filter(i => Date.now() - new Date(i.at).getTime() <= NOTIF_MAX_AGE_MS)
+      .slice(0, 8)
+      .forEach(i => {
+        notifs.push({
+          id: i.id,
+          type: TIPO_NOTIF[i.priority] || 'blue',
+          title: `${i.icon} ${i.title}`,
+          desc: i.desc,
+          meta: timeAgo(i.at),
+          action: { label: 'Ver incidencia', href: 'page-6.html' },
+        });
+      });
 
     /* Quejas ciudadanas pendientes */
     const pendingReports = reports.filter(r => r.status !== 'resolved');

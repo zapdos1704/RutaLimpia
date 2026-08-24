@@ -63,9 +63,19 @@ export const EVENT_ORDER = [
 const PAUSE_START = new Set(['inicio_pausa']);
 const PAUSE_END   = new Set(['fin_pausa', 'fin_pausa_auto_movimiento', 'reinicio_movimiento']);
 
-/* Un bloqueo de ruta no tiene evento de cierre propio. Se considera vigente
-   hasta que el camión reporta movimiento, o hasta que caduca por tiempo. */
-export const BLOCK_TTL_MS = 3 * 60 * 60 * 1000; // 3 h
+/* ── Vigencia de un bloqueo de ruta ──
+   El dispositivo avisa del bloqueo pero NUNCA manda un "ya se liberó": el botón
+   solo tiene una posición. Si se dejara vigente hasta el siguiente movimiento,
+   la alerta se quedaba pegada horas y acababa ignorándose.
+
+   Se trata como un AVISO, no como un estado: dura poco y se apaga solo. Si el
+   bloqueo sigue, el operador vuelve a pulsar y la alerta reaparece. */
+export const BLOCK_TTL_MS = 15 * 60 * 1000; // 15 min
+
+/* Una pausa sí es un estado real (el equipo entra en reposo), así que se
+   mantiene mientras dure. Pero pasado este tiempo deja de gritar en la franja
+   de alertas: a esas alturas es "el camión terminó su turno", no una urgencia. */
+export const PAUSE_ALERT_TTL_MS = 60 * 60 * 1000; // 1 h
 
 /**
  * Estado actual derivado de la lista de eventos de UN camión.
@@ -90,15 +100,155 @@ export function derivePauseState(events) {
   const now = Date.now();
   if (blockEvent && now - new Date(blockEvent.timestamp).getTime() > BLOCK_TTL_MS) blockEvent = null;
 
+  const pausedSince = pauseEvent ? new Date(pauseEvent.timestamp) : null;
+
   return {
     paused:       !!pauseEvent,
-    pausedSince:  pauseEvent ? new Date(pauseEvent.timestamp) : null,
+    pausedSince,
     blocked:      !!blockEvent,
     blockedSince: blockEvent ? new Date(blockEvent.timestamp) : null,
+    /* Sigue pausado, pero ya no como alerta urgente en la franja superior. */
+    pauseIsFresh: !!pauseEvent && (now - pausedSince.getTime()) <= PAUSE_ALERT_TTL_MS,
     lastEvent:    asc.length ? asc[asc.length - 1] : null,
     pauseEvent,
     blockEvent,
   };
+}
+
+/* ══════════════════════════════════════
+   INCIDENCIAS DEL DISPOSITIVO
+
+   Hasta ahora "Incidencias" solo mostraba recolecciones marcadas como
+   incompletas a mano. Pero el equipo del camión reporta problemas que afectan
+   su desempeño y que nadie estaba viendo: bloqueos de calle, pausas largas,
+   batería agotándose, GPS sin fix, o el dispositivo callado.
+
+   Esta función las deriva a partir de datos reales. No inventa nada ni escribe
+   en la base: son observaciones calculadas sobre gps_logs y device_telemetry.
+══════════════════════════════════════ */
+
+export const DEVICE_INCIDENT_RULES = {
+  longPauseMinutes:  30,    // pausa que ya afecta la ruta
+  lowBatteryPct:     20,
+  criticalBatteryPct: 10,
+  weakGsmDbm:       -100,
+  silentMinutes:     45,    // sin reportar posición estando activo
+};
+
+const minutesSince = ts => (Date.now() - new Date(ts).getTime()) / 60000;
+
+/**
+ * @param {{vehicles:Array, events:Array, telemetry:Array}} data
+ * @returns {Array} incidencias ordenadas: primero lo más grave y reciente
+ */
+export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = [] } = {}) {
+  const byVehicle = groupByVehicle(events);
+  const out = [];
+  const add = i => out.push(i);
+
+  vehicles.forEach(v => {
+    const state = derivePauseState(byVehicle[v.id] || []);
+    const t = telemetry.find(x => x.vehicle_id === v.id);
+    const nombre = v.economic_number || 'Camión';
+
+    /* Bloqueo de calle reportado por el operador */
+    if (state.blocked) {
+      add({
+        id: `dev-block-${v.id}-${state.blockedSince.getTime()}`,
+        kind: 'bloqueo_ruta', priority: 'alta', vehicleId: v.id, vehicle: nombre,
+        icon: '🚧', color: '#ef4444',
+        title: `${nombre} — Bloqueo de ruta`,
+        desc: 'El operador reportó la calle bloqueada desde el dispositivo.',
+        at: state.blockedSince,
+        lat: state.blockEvent?.lat ?? null, lng: state.blockEvent?.lng ?? null,
+      });
+    }
+
+    /* Pausa que ya se alargó lo suficiente para afectar el turno */
+    if (state.paused) {
+      const mins = minutesSince(state.pausedSince);
+      if (mins >= DEVICE_INCIDENT_RULES.longPauseMinutes) {
+        add({
+          id: `dev-pause-${v.id}-${state.pausedSince.getTime()}`,
+          kind: 'pausa_larga', priority: mins >= 120 ? 'alta' : 'media',
+          vehicleId: v.id, vehicle: nombre,
+          icon: '⏸️', color: '#f59e0b',
+          title: `${nombre} — Pausa prolongada`,
+          desc: `Lleva ${timeAgo(state.pausedSince).replace('hace ', '')} en pausa. La ruta no avanza.`,
+          at: state.pausedSince,
+          lat: state.pauseEvent?.lat ?? null, lng: state.pauseEvent?.lng ?? null,
+        });
+      }
+    }
+
+    if (!t) return;   // sin telemetría no hay nada más que evaluar
+
+    /* Batería del dispositivo */
+    if (t.battery_pct != null && t.battery_pct < DEVICE_INCIDENT_RULES.lowBatteryPct) {
+      const critica = t.battery_pct < DEVICE_INCIDENT_RULES.criticalBatteryPct;
+      add({
+        id: `dev-bat-${v.id}`,
+        kind: 'bateria_baja', priority: critica ? 'alta' : 'media',
+        vehicleId: v.id, vehicle: nombre,
+        icon: '🔋', color: critica ? '#ef4444' : '#f97316',
+        title: `${nombre} — Batería ${critica ? 'crítica' : 'baja'}`,
+        desc: `El dispositivo está al ${Math.round(t.battery_pct)}%. ${critica ? 'Puede apagarse y dejar de rastrear.' : 'Requiere recarga antes del siguiente turno.'}`,
+        at: t.updated_at ? new Date(t.updated_at) : new Date(),
+        lat: t.lat ?? null, lng: t.lng ?? null,
+      });
+    }
+
+    /* Calidad de GPS: sin fix no hay rastreo */
+    if (t.gps_quality === 'no_fix' || t.gps_quality === 'poor') {
+      const sinFix = t.gps_quality === 'no_fix';
+      add({
+        id: `dev-gps-${v.id}`,
+        kind: 'gps_deficiente', priority: sinFix ? 'alta' : 'media',
+        vehicleId: v.id, vehicle: nombre,
+        icon: '🛰️', color: sinFix ? '#ef4444' : '#f59e0b',
+        title: `${nombre} — ${sinFix ? 'GPS sin señal' : 'GPS con señal pobre'}`,
+        desc: sinFix
+          ? 'El dispositivo no logra fijar posición: su recorrido no se está registrando.'
+          : 'La posición reportada puede desviarse varios metros.',
+        at: new Date(),
+        lat: t.lat ?? null, lng: t.lng ?? null,
+      });
+    }
+
+    /* Señal de datos: sin GSM el equipo no puede enviar lo que registra */
+    if (t.gsm_signal_dbm != null && t.gsm_signal_dbm < DEVICE_INCIDENT_RULES.weakGsmDbm) {
+      add({
+        id: `dev-gsm-${v.id}`,
+        kind: 'gsm_debil', priority: 'baja',
+        vehicleId: v.id, vehicle: nombre,
+        icon: '📶', color: '#06b6d4',
+        title: `${nombre} — Señal de datos débil`,
+        desc: `Cobertura en ${Math.round(t.gsm_signal_dbm)} dBm. Los envíos pueden retrasarse o perderse.`,
+        at: new Date(),
+        lat: t.lat ?? null, lng: t.lng ?? null,
+      });
+    }
+
+    /* Dispositivo callado: activo pero sin reportar */
+    const ultimo = (byVehicle[v.id] || [])[0]?.timestamp || t.timestamp || t.updated_at;
+    if (v.status === 'active' && ultimo && !state.paused) {
+      const mins = minutesSince(ultimo);
+      if (mins >= DEVICE_INCIDENT_RULES.silentMinutes) {
+        add({
+          id: `dev-silent-${v.id}`,
+          kind: 'sin_reportar', priority: 'alta', vehicleId: v.id, vehicle: nombre,
+          icon: '📡', color: '#a855f7',
+          title: `${nombre} — Sin reportar`,
+          desc: `El dispositivo no envía datos desde hace ${Math.round(mins)} min y el camión figura como activo.`,
+          at: new Date(ultimo),
+          lat: t.lat ?? null, lng: t.lng ?? null,
+        });
+      }
+    }
+  });
+
+  const orden = { alta: 0, media: 1, baja: 2 };
+  return out.sort((a, b) => (orden[a.priority] - orden[b.priority]) || (new Date(b.at) - new Date(a.at)));
 }
 
 /** Agrupa una lista plana de eventos por vehicle_id. */

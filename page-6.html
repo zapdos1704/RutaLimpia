@@ -68,6 +68,17 @@
   border-color: rgba(255,255,255,.25);
 }
 .fbar-btn.active { border-color: var(--green); color: var(--green-light); }
+.fbar-count {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border-radius: 10px; background: var(--red); color: #fff;
+  font-size: 9px; line-height: 15px; font-weight: 800;
+}
+.fbar-count[hidden] { display: none; }
+
+/* Incidencia reportada por el dispositivo: se distingue de las registradas
+   a mano con un borde en el color de su tipo. */
+.inc-card.device { border-left: 3px solid var(--dev-color, #a855f7); }
+.inc-card.device .inc-id { color: var(--dev-color, #a855f7); font-weight: 800; }
 
 /* Search */
 .search-input {
@@ -352,6 +363,7 @@
             <button class="fbar-btn" onclick="filterInc('alta',this)">Alta prioridad</button>
             <button class="fbar-btn" onclick="filterInc('atencion',this)">En atención</button>
             <button class="fbar-btn" onclick="filterInc('resuelta',this)">Resueltas</button>
+            <button class="fbar-btn" onclick="filterInc('dispositivo',this)">📟 Dispositivo<span class="fbar-count" id="count-dev" hidden>0</span></button>
           </div>
           <input class="search-input" id="search-inc" placeholder="🔍 Buscar incidencia…"/>
         </div>
@@ -445,9 +457,10 @@
 <script type="module">
 import {
   getCollections, getVehicles, getTelemetry, resolveCollection, insertIncident,
-  getRoutes, getDrivers, getAllUsers, getShifts,
+  getRoutes, getDrivers, getAllUsers, getShifts, getFleetEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { deriveDeviceIncidents, timeAgo, shortTime } from './events.js';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -458,6 +471,7 @@ window.doLogout = async function() {
 /* ── ESTADO ── */
 let _incidents = [];
 let _vehicles  = [];
+let _deviceIncidents = [];   // derivadas del dispositivo (no viven en la base)
 let _activeFilter = 'all';
 const fuelColor = p => p < 25 ? '#ef4444' : p < 50 ? '#f59e0b' : '#22c55e';
 
@@ -483,14 +497,54 @@ function renderStats(list) {
   if($('stat-total'))    $('stat-total').textContent     = tot;
 }
 
+const escapeHtml = str => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+/* Tarjeta de una incidencia reportada por el dispositivo del camión.
+   Se distingue de las registradas a mano: no tiene "Marcar resuelta" porque no
+   es una fila de la base, es una condición que desaparece sola cuando el equipo
+   deja de reportarla. */
+const PRIO_BADGE = {
+  alta:  '<span class="badge badge-red">Alta prioridad</span>',
+  media: '<span class="badge badge-yellow">Requiere atención</span>',
+  baja:  '<span class="badge badge-gray">Informativa</span>',
+};
+
+function deviceCard(i) {
+  const estado = i.priority === 'alta' ? 'alta' : i.priority === 'media' ? 'atencion' : 'resuelta';
+  return `
+  <div class="inc-card ${estado} device" style="--dev-color:${i.color}">
+    <div class="inc-left">
+      <div class="inc-top">
+        <span class="inc-id">📟 Dispositivo</span>
+        <span class="inc-name">${i.icon} ${escapeHtml(i.title.split('—').pop().trim())}</span>
+      </div>
+      <div class="inc-route">
+        <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
+        ${escapeHtml(i.vehicle)}
+      </div>
+      <div class="inc-section-label">Detalle</div>
+      <div class="inc-motivo">${escapeHtml(i.desc)}</div>
+    </div>
+    <div class="inc-right">
+      <div class="inc-date">${timeAgo(i.at)}</div>
+      ${PRIO_BADGE[i.priority] || ''}
+      <div class="inc-actions">
+        <button class="btn-inc outline" onclick="verEnMapa('${i.vehicleId}','')">Ver en mapa</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ── RENDER INCIDENCIAS ── */
-function renderIncidents(list) {
+function renderIncidents(list, deviceList = []) {
   const el = document.getElementById('inc-list');
-  if (!list.length) {
+  if (!list.length && !deviceList.length) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>Sin incidencias en esta categoría.</div>`;
     return;
   }
-  el.innerHTML = list.map(i => {
+  /* Lo del dispositivo va primero: está pasando ahora mismo. */
+  el.innerHTML = deviceList.map(deviceCard).join('') + list.map(i => {
     const isHigh = i.priority === 'high';
     const isInc  = i.status === 'incomplete';
     const veh    = i.vehicle?.economic_number || '—';
@@ -557,18 +611,39 @@ window.filterInc = function(type, btn) {
 
 function applySearch() {
   const q = (document.getElementById('search-inc')?.value || '').toLowerCase();
+
   let list = _activeFilter === 'all' ? _incidents : _incidents.filter(i => {
-    if (_activeFilter === 'alta')    return i.priority === 'high';
+    if (_activeFilter === 'alta')     return i.priority === 'high';
     if (_activeFilter === 'atencion') return i.status === 'incomplete';
     if (_activeFilter === 'resuelta') return i.status === 'completed';
-    return true;
+    return false;   // el filtro "dispositivo" no aplica a las de la base
   });
-  if (q) list = list.filter(i =>
-    (i.vehicle?.economic_number||'').toLowerCase().includes(q) ||
-    (i.route?.name||'').toLowerCase().includes(q) ||
-    (i.incomplete_reason||'').toLowerCase().includes(q)
-  );
-  renderIncidents(list);
+
+  let devices = _deviceIncidents.filter(d => {
+    if (_activeFilter === 'all')         return true;
+    if (_activeFilter === 'dispositivo') return true;
+    if (_activeFilter === 'alta')        return d.priority === 'alta';
+    if (_activeFilter === 'atencion')    return d.priority === 'media';
+    return false;   // "resueltas" no aplica: estas desaparecen solas
+  });
+
+  if (q) {
+    list = list.filter(i =>
+      (i.vehicle?.economic_number||'').toLowerCase().includes(q) ||
+      (i.route?.name||'').toLowerCase().includes(q) ||
+      (i.incomplete_reason||'').toLowerCase().includes(q)
+    );
+    devices = devices.filter(d =>
+      d.vehicle.toLowerCase().includes(q) ||
+      d.title.toLowerCase().includes(q) ||
+      d.desc.toLowerCase().includes(q)
+    );
+  }
+
+  const badge = document.getElementById('count-dev');
+  if (badge) { badge.textContent = _deviceIncidents.length; badge.hidden = _deviceIncidents.length === 0; }
+
+  renderIncidents(list, devices);
 }
 
 document.getElementById('search-inc')?.addEventListener('input', applySearch);
@@ -684,12 +759,18 @@ document.getElementById('search-vehicles')?.addEventListener('input', function()
 /* ── CARGA DESDE SUPABASE ── */
 async function loadData() {
   try {
-    const [colls, vehs, telem] = await Promise.all([
-      getCollections('mensual'), getVehicles(), getTelemetry()
+    const [colls, vehs, telem, events] = await Promise.all([
+      getCollections('mensual'), getVehicles(), getTelemetry(), getFleetEvents()
     ]);
-    // Incidencias = colecciones incompletas o canceladas
+    // Incidencias registradas a mano = colecciones incompletas o canceladas
     _incidents = colls.filter(c => c.status === 'incomplete' || c.status === 'cancelled');
     _vehicles  = vehs.map(v => { const t = telem.find(r=>r.vehicle_id===v.id); return { ...v, _bat: t?(t.battery_pct??0):0 }; });
+
+    /* Incidencias que reporta el equipo del camión: bloqueos de calle, pausas
+       largas, batería, GPS y cobertura. Se derivan de datos reales, no se
+       escriben en la base. */
+    _deviceIncidents = deriveDeviceIncidents({ vehicles: vehs, events, telemetry: telem });
+
     renderStats(colls);
     applySearch();
     renderVehicles(_vehicles);

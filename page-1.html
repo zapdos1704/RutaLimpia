@@ -140,17 +140,18 @@
 #vehicle-panel {
   position: absolute;
   top: 0; right: 0; bottom: 0;
-  width: 280px;
+  width: 300px;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border);
   z-index: 20;
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 11px;
   transform: translateX(100%);
   transition: transform .3s cubic-bezier(.4,0,.2,1);
-  overflow-y: auto;
+  /* Sin scroll: el contenido se reparte en pestañas y cada una cabe entera. */
+  overflow: hidden;
 }
 #vehicle-panel.open { transform: translateX(0); }
 .vp-header { display: flex; align-items: center; justify-content: space-between; }
@@ -190,6 +191,78 @@
 .vehicles-list { display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1; }
 .vehicles-list::-webkit-scrollbar { width:3px; }
 .vehicles-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+
+/* ══ Pestañas del panel del vehículo ══ */
+.vp-head-txt { min-width:0; }
+.vp-tabs {
+  display:flex; gap:2px; padding:3px;
+  background:rgba(0,0,0,.28); border-radius:9px; flex-shrink:0;
+}
+.vp-tab {
+  flex:1; min-width:0; padding:7px 4px; border:none; border-radius:6px;
+  background:transparent; color:rgba(255,255,255,.5);
+  font-family:inherit; font-size:10px; font-weight:700; cursor:pointer;
+  transition:all var(--transition); position:relative;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.vp-tab:hover  { color:#fff; }
+.vp-tab.active { background:rgba(255,255,255,.14); color:#fff; }
+.vp-tab-badge {
+  display:inline-block; margin-left:4px; padding:0 4px; border-radius:8px;
+  background:var(--red); color:#fff; font-size:8px; line-height:13px; font-weight:800;
+}
+.vp-tab-badge[hidden] { display:none; }
+
+/* Las hojas se apilan en el MISMO espacio: solo cambia cuál está encima. */
+.vp-panes { position:relative; flex:1; min-height:0; }
+.vp-pane {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; gap:9px;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transform:translateY(5px);
+  transition:opacity .18s ease, transform .18s ease, visibility .18s;
+  overflow-y:auto;
+}
+.vp-pane.active { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+.vp-pane::-webkit-scrollbar { width:3px; }
+.vp-pane::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:3px; }
+
+.vp-field { display:flex; flex-direction:column; gap:4px; }
+.vp-field-lbl { font-size:9px; font-weight:700; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.4px; }
+.vp-select {
+  padding:7px 10px; border-radius:6px; font-family:inherit; font-size:11px;
+  background:rgba(255,255,255,.07); border:1px solid var(--border-md);
+  color:var(--text-1); outline:none; cursor:pointer; width:100%;
+}
+.vp-select:focus { border-color:var(--green); }
+.vp-select option { background:var(--bg-surface); }
+
+/* En las pestañas el historial ya no se limita en altura */
+.vp-events { max-height:none; flex:1; }
+
+/* ══ Camiones fuera de cuadro ══ */
+.offscreen-pins { position:absolute; inset:0; z-index:12; pointer-events:none; }
+.off-pin {
+  position:absolute; top:0; left:0;
+  display:flex; align-items:center; gap:5px;
+  padding:4px 9px 4px 6px; border-radius:20px;
+  background:rgba(8,15,30,.92); border:1.5px solid var(--pin-color, #22c55e);
+  color:#fff; font-family:inherit; font-size:10px; font-weight:800;
+  cursor:pointer; pointer-events:auto; white-space:nowrap;
+  box-shadow:0 3px 12px rgba(0,0,0,.55);
+  transition:background var(--transition);
+}
+.off-pin:hover { background:rgba(20,32,58,.98); }
+.off-pin-arrow { display:inline-block; font-size:11px; line-height:1; color:var(--pin-color, #22c55e); }
+.off-pin-id    { letter-spacing:.2px; }
+.off-pin.paused  { border-color:#f59e0b; }
+.off-pin.paused .off-pin-arrow  { color:#f59e0b; }
+.off-pin.blocked { border-color:#ef4444; animation:markerPulseRed 1.5s ease-out infinite; }
+.off-pin.blocked .off-pin-arrow { color:#ef4444; }
+
+@media (max-width:768px) {
+  .off-pin { font-size:9px; padding:3px 7px 3px 5px; }
+}
 
 /* ══ Panel del vehículo: indicadores ══ */
 .vp-gauge-row { display:flex; gap:8px; }
@@ -560,56 +633,77 @@
           <span class="vp-title">Detalle del vehículo</span>
           <button class="vp-close" onclick="closeVehiclePanel()">✕</button>
         </div>
+
         <div class="vp-avatar-row">
           <div class="vp-avatar">
             <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
           </div>
-          <div>
+          <div class="vp-head-txt">
             <div class="vp-id" id="vp-id">VH-001</div>
-            <div class="vp-ruta" id="vp-ruta">Ruta Norte</div>
+            <div class="vp-ruta" id="vp-ruta">—</div>
             <div class="vp-status green" id="vp-status">● Activo</div>
           </div>
         </div>
-        <div class="vp-section">
-          <div class="vp-section-title">Datos del vehículo</div>
-          <div class="vp-row"><span class="vp-row-label">Placa</span><span class="vp-row-val" id="vp-placa">—</span></div>
-          <div class="vp-row"><span class="vp-row-label">Capacidad</span><span class="vp-row-val" id="vp-cap">—</span></div>
-          <div class="vp-row"><span class="vp-row-label">Conductor</span><span class="vp-row-val" id="vp-enc">—</span></div>
-          <div class="vp-row"><span class="vp-row-label">Ayudantes</span><span class="vp-row-val" id="vp-trab">—</span></div>
-        </div>
-        <!-- Alerta de pausa / bloqueo del dispositivo -->
+
+        <!-- Alerta de pausa / bloqueo: fuera de las pestañas, siempre visible -->
         <div id="vp-alert-slot"></div>
-        <div class="vp-section">
-          <div class="vp-section-title">Ruta asignada</div>
-          <div class="vp-row"><span class="vp-row-label" id="vp-route-name">Sin ruta hoy</span><span class="vp-row-val" id="vp-route-km"></span></div>
-          <button class="vp-btn primary" id="vp-route-btn" onclick="toggleVehicleRoute()" style="width:100%">Mostrar ruta en el mapa</button>
-        </div>
-        <div class="vp-section">
-          <div class="vp-section-title">Eventos del dispositivo</div>
-          <div class="vp-events" id="vp-events">
-            <div style="font-size:10px;color:rgba(255,255,255,.45);padding:6px 2px">Cargando…</div>
-          </div>
-        </div>
-        <div class="vp-section">
-          <div class="vp-section-title">Estado en tiempo real</div>
-          <div class="vp-gauge-row" id="vp-gauges"></div>
-          <div class="vp-signals" id="vp-signals"></div>
+
+        <!-- Pestañas: cada una cabe entera, sin desplazamiento vertical -->
+        <div class="vp-tabs" role="tablist">
+          <button class="vp-tab active" role="tab" data-vtab="estado"    onclick="showVehicleTab('estado')">Estado</button>
+          <button class="vp-tab"        role="tab" data-vtab="datos"     onclick="showVehicleTab('datos')">Datos</button>
+          <button class="vp-tab"        role="tab" data-vtab="recorrido" onclick="showVehicleTab('recorrido')">Ruta</button>
+          <button class="vp-tab"        role="tab" data-vtab="eventos"   onclick="showVehicleTab('eventos')">Eventos<span class="vp-tab-badge" id="vp-tab-ev-badge" hidden>0</span></button>
         </div>
 
-        <div class="vp-section">
-          <div class="vp-section-title">Recorrido</div>
-          <div class="vp-trail-stats" id="vp-trail-stats">
-            <div class="vp-trail-empty">Cargando recorrido…</div>
+        <div class="vp-panes">
+          <!-- ── Estado ── -->
+          <div class="vp-pane active" id="vpane-estado">
+            <div class="vp-gauge-row" id="vp-gauges"></div>
+            <div class="vp-signals" id="vp-signals"></div>
           </div>
-          <div class="vp-trail-btns">
-            <button class="vp-btn outline" id="vp-trail-btn" onclick="toggleVehicleTrail()">🛰️ Ver recorrido</button>
-            <button class="vp-btn outline" id="vp-play-btn" onclick="openPlayback()">▶️ Reproducir</button>
+
+          <!-- ── Datos ── -->
+          <div class="vp-pane" id="vpane-datos">
+            <div class="vp-row"><span class="vp-row-label">Placa</span><span class="vp-row-val" id="vp-placa">—</span></div>
+            <div class="vp-row"><span class="vp-row-label">Capacidad</span><span class="vp-row-val" id="vp-cap">—</span></div>
+            <div class="vp-row"><span class="vp-row-label">Conductor</span><span class="vp-row-val" id="vp-enc">—</span></div>
+            <div class="vp-row"><span class="vp-row-label">Ayudantes</span><span class="vp-row-val" id="vp-trab">—</span></div>
           </div>
-          <label class="vp-check" title="Ajusta el trazo a las calles reales usando la red vial de OpenStreetMap">
-            <input type="checkbox" id="vp-snap" onchange="onSnapToggle()"/>
-            <span>Ajustar el trazo a las calles</span>
-          </label>
-          <div class="vp-snap-note" id="vp-snap-note"></div>
+
+          <!-- ── Ruta y recorrido ── -->
+          <div class="vp-pane" id="vpane-recorrido">
+            <div class="vp-row">
+              <span class="vp-row-label" id="vp-route-name">Sin ruta hoy</span>
+              <span class="vp-row-val" id="vp-route-km"></span>
+            </div>
+            <button class="vp-btn primary" id="vp-route-btn" onclick="toggleVehicleRoute()" style="width:100%">Mostrar ruta asignada</button>
+
+            <div class="vp-field">
+              <label class="vp-field-lbl" for="vp-window">Periodo del recorrido</label>
+              <select class="vp-select" id="vp-window" onchange="onTrailWindowChange()"></select>
+            </div>
+
+            <div class="vp-trail-stats" id="vp-trail-stats">
+              <div class="vp-trail-empty">Cargando recorrido…</div>
+            </div>
+            <div class="vp-trail-btns">
+              <button class="vp-btn outline" id="vp-trail-btn" onclick="toggleVehicleTrail()">🛰️ Ocultar</button>
+              <button class="vp-btn outline" id="vp-play-btn" onclick="openPlayback()">▶️ Reproducir</button>
+            </div>
+            <label class="vp-check" title="Ajusta el trazo a las calles reales usando la red vial de OpenStreetMap">
+              <input type="checkbox" id="vp-snap" onchange="onSnapToggle()"/>
+              <span>Ajustar el trazo a las calles</span>
+            </label>
+            <div class="vp-snap-note" id="vp-snap-note"></div>
+          </div>
+
+          <!-- ── Eventos ── -->
+          <div class="vp-pane" id="vpane-eventos">
+            <div class="vp-events" id="vp-events">
+              <div class="vp-trail-empty">Cargando…</div>
+            </div>
+          </div>
         </div>
 
         <div class="vp-actions">
@@ -755,8 +849,8 @@
 <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
-  getVehicles, getTelemetry, getGpsLogs, getTodayTrail, subscribeVehicleGps,
-  capacityPct, capacityLabel,
+  getVehicles, getTelemetry, getGpsLogs, getTrailWindow, subscribeVehicleGps,
+  TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents, insertRoute,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
@@ -1044,8 +1138,11 @@ function renderAlertStrip() {
   const strip = document.getElementById('alert-strip');
   if (!strip) return;
 
+  /* La franja es para lo que pasa AHORA. Un bloqueo caduca a los 15 min y una
+     pausa deja de considerarse urgente al cabo de una hora: el estado sigue
+     visible en la tarjeta y en el marcador, pero deja de ocupar la alerta. */
   const blocked = vehicles.filter(v => v._state?.blocked);
-  const paused  = vehicles.filter(v => v._state?.paused && !v._state?.blocked);
+  const paused  = vehicles.filter(v => v._state?.pauseIsFresh && !v._state?.blocked);
 
   if (!blocked.length && !paused.length) { strip.hidden = true; strip.innerHTML = ''; return; }
 
@@ -1066,9 +1163,25 @@ function renderAlertStrip() {
 }
 
 /* ── MARCADORES ── */
-function markerElStyle(color, selected) {
-  const ring = selected ? `box-shadow:0 0 0 3px ${color},0 0 0 5px rgba(0,0,0,.3);` : `box-shadow:0 0 8px rgba(0,0,0,.5);`;
-  return `width:26px;height:26px;border-radius:50%;background:${color};border:2.5px solid #fff;${ring}display:flex;align-items:center;justify-content:center;cursor:pointer;`;
+/* ⚠️ El estilo NUNCA se aplica al elemento que recibe maplibregl.Marker.
+   MapLibre coloca el marcador escribiendo `position` y `transform` en ese mismo
+   elemento; sobrescribir su cssText los borraba y todos los camiones se
+   amontonaban en la esquina superior izquierda hasta el siguiente redibujado.
+   Por eso el marcador es un envoltorio vacío (de MapLibre) con un hijo interno
+   que es el que pintamos nosotros. */
+function paintMarker(inner, v, selected) {
+  const color = colorForVehicle(v);
+  const ring = selected
+    ? `0 0 0 3px ${color}, 0 0 0 5px rgba(0,0,0,.3)`
+    : '0 0 8px rgba(0,0,0,.5)';
+  inner.style.background = color;
+  inner.style.boxShadow  = ring;
+  inner.className = ('veh-marker ' + markerAlertClass(v)).trim();
+  const html = markerInner(v);
+  if (inner.innerHTML !== html) inner.innerHTML = html;
+  inner.title = v._state?.blocked ? `${v.economic_number} — bloqueo de ruta ${timeAgo(v._state.blockedSince)}`
+              : v._state?.paused  ? `${v.economic_number} — en pausa ${timeAgo(v._state.pausedSince)}`
+              : v.economic_number;
 }
 
 /* La alerta va como clase (anillo que late + insignia), no como estilo en línea,
@@ -1087,29 +1200,18 @@ function markerInner(v) {
 }
 
 function buildMarkerElement(v, selected = false) {
-  const div = document.createElement('div');
-  div.className = ('veh-marker ' + markerAlertClass(v)).trim();
-  div.style.cssText = markerElStyle(colorForVehicle(v), selected);
-  div.title = v._state?.blocked ? `${v.economic_number} — bloqueo de ruta ${timeAgo(v._state.blockedSince)}`
-            : v._state?.paused  ? `${v.economic_number} — en pausa ${timeAgo(v._state.pausedSince)}`
-            : v.economic_number;
-  div.innerHTML = markerInner(v);
-  return div;
+  const root  = document.createElement('div');   // lo posiciona MapLibre
+  const inner = document.createElement('div');   // lo pintamos nosotros
+  root.appendChild(inner);
+  paintMarker(inner, v, selected);
+  return { root, inner };
 }
 
 function updateMarkerAppearance(id, selected) {
   const m = markers[id];
   const v = vehicles.find(x => x.id === id);
   if (!m || !v) return;
-  m.el.className = ('veh-marker ' + markerAlertClass(v)).trim();
-  m.el.style.cssText = markerElStyle(colorForVehicle(v), selected);
-  /* La insignia de pausa/bloqueo vive dentro del marcador: si el estado cambió
-     hay que rehacer el contenido, no solo el estilo. */
-  const nuevo = markerInner(v);
-  if (m.el.innerHTML !== nuevo) m.el.innerHTML = nuevo;
-  m.el.title = v._state?.blocked ? `${v.economic_number} — bloqueo de ruta ${timeAgo(v._state.blockedSince)}`
-             : v._state?.paused  ? `${v.economic_number} — en pausa ${timeAgo(v._state.pausedSince)}`
-             : v.economic_number;
+  paintMarker(m.el, v, selected);
 }
 
 /* Los marcadores se ACTUALIZAN, no se recrean.
@@ -1118,7 +1220,9 @@ function updateMarkerAppearance(id, selected) {
 function placeMarkers() {
   if (!mapLoaded) return; // se reintenta cuando el mapa termine de cargar su estilo
 
-  const withGps = vehicles.filter(v => v._lat && v._lng && matchesFilter(v));
+  /* Coordenadas válidas de verdad: un 0 o un NaN colocaba el marcador en la
+     esquina del contenedor en lugar de dejarlo fuera. */
+  const withGps = vehicles.filter(v => hasPosition(v) && matchesFilter(v));
   const shouldExist = new Set(withGps.map(v => v.id));
 
   Object.keys(markers).forEach(id => {
@@ -1134,11 +1238,13 @@ function placeMarkers() {
       updateMarkerAppearance(v.id, v.id === selectedId);
       return;
     }
-    const el = buildMarkerElement(v, v.id === selectedId);
-    el.addEventListener('click', () => openVehicleById(v.id));
-    const marker = new maplibregl.Marker({ element: el }).setLngLat([v._lng, v._lat]).addTo(map);
-    markers[v.id] = { marker, el };
+    const { root, inner } = buildMarkerElement(v, v.id === selectedId);
+    root.addEventListener('click', () => openVehicleById(v.id));
+    const marker = new maplibregl.Marker({ element: root }).setLngLat([v._lng, v._lat]).addTo(map);
+    markers[v.id] = { marker, el: inner, root };
   });
+
+  updateOffscreenPins();
 
   // Solo se encuadra la primera vez: los refrescos cada 30s no deben mover la cámara.
   if (withGps.length > 0 && !hasFittedBounds) {
@@ -1146,6 +1252,96 @@ function placeMarkers() {
     map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 60, duration: 0 });
     hasFittedBounds = true;
   }
+}
+
+/* ══════════════════════════════════════
+   CAMIONES FUERA DE CUADRO
+
+   Al alejar o desplazar el mapa, los camiones que quedan fuera desaparecían sin
+   dejar rastro. Ahora se marca su dirección con una chincheta pegada al borde
+   por el que se salieron: si el camión está debajo del mapa, aparece abajo.
+   Al pulsarla, la cámara vuela hasta él.
+══════════════════════════════════════ */
+const hasPosition = v =>
+  Number.isFinite(v?._lat) && Number.isFinite(v?._lng) && !(v._lat === 0 && v._lng === 0);
+
+const PIN_MARGIN = 26;   // separación del borde, en píxeles
+let _pinFrame = null;
+let _pinEls = {};
+
+function offscreenLayer() {
+  let layer = document.getElementById('offscreen-pins');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'offscreen-pins';
+    layer.className = 'offscreen-pins';
+    document.getElementById('map-stage')?.appendChild(layer);
+  }
+  return layer;
+}
+
+function updateOffscreenPins() {
+  if (!mapLoaded) return;
+  /* Se agrupa en un cuadro de animación: el mapa dispara "move" decenas de
+     veces por segundo y recalcular en cada uno se nota. */
+  if (_pinFrame) return;
+  _pinFrame = requestAnimationFrame(() => { _pinFrame = null; renderOffscreenPins(); });
+}
+
+function renderOffscreenPins() {
+  const layer = offscreenLayer();
+  const canvas = map.getCanvas();
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+
+  const candidatos = vehicles.filter(v => hasPosition(v) && matchesFilter(v));
+  const vivos = new Set();
+
+  candidatos.forEach(v => {
+    const p = map.project([v._lng, v._lat]);
+    const dentro = p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= H;
+    if (dentro) return;
+
+    vivos.add(v.id);
+    let el = _pinEls[v.id];
+    if (!el) {
+      el = document.createElement('button');
+      el.className = 'off-pin';
+      el.type = 'button';
+      el.addEventListener('click', () => {
+        map.flyTo({ center: [v._lng, v._lat], zoom: Math.max(map.getZoom(), 15) });
+        openVehicleById(v.id);
+      });
+      layer.appendChild(el);
+      _pinEls[v.id] = el;
+    }
+
+    /* Se pega al borde más cercano y la flecha apunta hacia el camión. */
+    const x = Math.max(PIN_MARGIN, Math.min(W - PIN_MARGIN, p.x));
+    const y = Math.max(PIN_MARGIN, Math.min(H - PIN_MARGIN, p.y));
+    const ang = Math.atan2(p.y - y, p.x - x) * 180 / Math.PI;
+
+    const color = colorForVehicle(v);
+    const alerta = v._state?.blocked ? 'blocked' : v._state?.paused ? 'paused' : '';
+    el.className = ('off-pin ' + alerta).trim();
+    el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+    el.style.setProperty('--pin-color', color);
+    el.title = `${v.economic_number} — fuera de la vista. Pulsa para ir.`;
+    el.innerHTML =
+      `<span class="off-pin-arrow" style="transform:rotate(${ang}deg)">➤</span>` +
+      `<span class="off-pin-id">${escapeHtml(v.economic_number)}</span>`;
+  });
+
+  Object.keys(_pinEls).forEach(id => {
+    if (vivos.has(id)) return;
+    _pinEls[id].remove();
+    delete _pinEls[id];
+  });
+}
+
+function clearOffscreenPins() {
+  Object.values(_pinEls).forEach(el => el.remove());
+  _pinEls = {};
 }
 
 /* ══════════════════════════════════════
@@ -1232,6 +1428,11 @@ map.on('load', () => {
   placeMarkers();
   drawTrail();
   if (pb.playback) renderPlaybackFrame();
+
+  /* Las chinchetas de "fuera de cuadro" se recalculan al mover o hacer zoom. */
+  map.on('move', updateOffscreenPins);
+  map.on('resize', updateOffscreenPins);
+  updateOffscreenPins();
 });
 
 /* ── RUTA DEL CAMIÓN SELECCIONADO ── */
@@ -1311,6 +1512,9 @@ async function renderVehicleEvents(vehicleId) {
       <span class="vp-ev-when">${shortTime(e.timestamp)}</span></div>`;
   }).join('');
 
+  const badge = document.getElementById('vp-tab-ev-badge');
+  if (badge) { badge.textContent = list.length; badge.hidden = list.length === 0; }
+
   /* El estado del camión se recalcula con el historial completo. */
   const v = vehicles.find(x => x.id === vehicleId);
   if (v) {
@@ -1333,6 +1537,7 @@ window.openVehicleById = function(id) {
   }
   selectedId = v.id;
 
+  showVehicleTab('estado');
   renderVehicleAlert(v);
   renderVehicleEvents(v.id);
 
@@ -1379,6 +1584,7 @@ window.openVehicleById = function(id) {
 ══════════════════════════════════════ */
 let trailState = {
   vehicleId: null,
+  window: DEFAULT_TRAIL_WINDOW,
   raw: [],          // puntos crudos tal como vienen de la base
   clean: null,      // resultado de cleanTrail (segmentos, descartados, km)
   visible: true,
@@ -1491,18 +1697,52 @@ function fitToTrail() {
   map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 70 });
 }
 
+/* ── Pestañas del panel ── */
+window.showVehicleTab = function(name) {
+  document.querySelectorAll('.vp-tab').forEach(b => b.classList.toggle('active', b.dataset.vtab === name));
+  document.querySelectorAll('.vp-pane').forEach(p => p.classList.toggle('active', p.id === 'vpane-' + name));
+};
+
+/* ── Periodo del recorrido ──
+   Por omisión, la última hora y media: es lo que interesa en el mapa en vivo.
+   Los periodos largos se piden a propósito desde este selector. */
+function fillTrailWindowSelect() {
+  const sel = document.getElementById('vp-window');
+  if (!sel || sel.options.length) return;
+  sel.innerHTML = TRAIL_WINDOWS.map(w =>
+    `<option value="${w.id}" ${w.id === trailState.window ? 'selected' : ''}>${w.label}</option>`).join('');
+}
+
+window.onTrailWindowChange = function() {
+  const v = vehicles.find(x => x.id === trailState.vehicleId);
+  if (!v) return;
+  trailState.window = document.getElementById('vp-window').value;
+  loadTrailForWindow(v, { fit: true });
+};
+
+async function loadTrailForWindow(v, { fit = false } = {}) {
+  document.getElementById('vp-trail-stats').innerHTML = '<div class="vp-trail-empty">Cargando recorrido…</div>';
+  const points = await getTrailWindow(v.id, trailState.window);
+  if (trailState.vehicleId !== v.id) return;   // ya cambió de camión
+
+  applyTrailPoints(points, { fit });
+  if (!points.length) {
+    document.getElementById('vp-trail-stats').innerHTML =
+      `<div class="vp-trail-empty">Sin posiciones en este periodo. Prueba con un rango más amplio en el selector de arriba.</div>`;
+  }
+}
+
 async function startVehicleTrail(v) {
   stopVehicleTrail();
   trailState.vehicleId = v.id;
   trailState.visible = true;
-  document.getElementById('vp-trail-btn').textContent = '🙈 Ocultar recorrido';
-  document.getElementById('vp-trail-stats').innerHTML = '<div class="vp-trail-empty">Cargando recorrido…</div>';
+  trailState.window = trailState.window || DEFAULT_TRAIL_WINDOW;
+  fillTrailWindowSelect();
+  document.getElementById('vp-window').value = trailState.window;
+  document.getElementById('vp-trail-btn').textContent = '🙈 Ocultar';
 
-  const points = await getTodayTrail(v.id);
-  if (trailState.vehicleId !== v.id) return;   // ya cambió de camión
-
-  /* Si hoy no reportó nada, se muestra el último recorrido que tenga. */
-  applyTrailPoints(points.length ? points : await getGpsLogs(v.id, { limit: 2000 }));
+  await loadTrailForWindow(v);
+  if (trailState.vehicleId !== v.id) return;
 
   /* A partir de aquí la línea se extiende sola. */
   const last = trailState.raw[trailState.raw.length - 1];
@@ -1529,7 +1769,7 @@ function stopVehicleTrail() {
 
 window.toggleVehicleTrail = function() {
   trailState.visible = !trailState.visible;
-  document.getElementById('vp-trail-btn').textContent = trailState.visible ? '🙈 Ocultar recorrido' : '🛰️ Ver recorrido';
+  document.getElementById('vp-trail-btn').textContent = trailState.visible ? '🙈 Ocultar' : '🛰️ Ver recorrido';
   if (trailState.visible) { drawTrail(); fitToTrail(); } else clearTrailLayers();
 };
 
@@ -1652,6 +1892,7 @@ window.closeVehiclePanel = function() {
   closePlayback();
   stopVehicleTrail();
   clearVehicleRoute();
+  updateOffscreenPins();
   if (selectedId) updateMarkerAppearance(selectedId, false);
   selectedId = null;
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
