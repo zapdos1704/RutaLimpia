@@ -15,15 +15,39 @@ Sistema web de gestión de recolección de residuos en tiempo real para el munic
 ### 📊 Dashboard
 - 5 KPIs en tiempo real: recolecciones completadas, vehículos activos, toneladas, rutas incompletas y campañas activas
 - Gráficas: línea de tendencia, donas de estado de flota y tipos de ruta, barras por turno, barras de rendimiento por conductor, gauges de telemetría y mapa de calor semanal
+- Las tarjetas crecen con su contenido (ninguna gráfica queda recortada) y la gráfica de
+  línea se redibuja a escala 1:1 con el ancho real disponible
 - Filtros de período: Diario / Semanal / Mensual
 - Sidebar con búsqueda y filtrado de vehículos en tiempo real
 
 ### 🗺️ Mapa en vivo
-- Mapa interactivo con **Leaflet + OpenStreetMap** centrado en Sahuayo de Morelos
+- Mapa interactivo con **MapLibre GL + MapTiler** centrado en Sahuayo de Morelos
 - Marcadores de vehículos con color por estado (activo, avería, inactivo)
 - Visualización de rutas reales sobre calles del municipio (Ruta Centro, Ruta Norte, Ruta Sur-Oriente)
 - Panel de detalle por vehículo con gauges de combustible, capacidad y % de ruta completada
-- Botón de reasignación de ruta
+- Recorridos históricos reales trazados desde `gps_logs`
+
+#### ⏸️ Incidencias del dispositivo
+El ESP32 reporta cinco eventos (`inicio_pausa`, `fin_pausa`, `fin_pausa_auto_movimiento`,
+`bloqueo_ruta`, `reinicio_movimiento`). La base solo guarda eventos sueltos, así que el
+estado actual se **deriva** recorriéndolos en orden (`events.js`):
+
+- **Alerta de camión pausado**: franja superior con los camiones en pausa o con bloqueo
+  de ruta vigente, y marcador con anillo intermitente e insignia sobre el mapa
+- **Filtros por tipo de incidencia**: pausa, bloqueo de ruta, reinicio de movimiento,
+  fin de pausa, batería baja, señal GPS débil y avería — con conteo por tipo
+- **Panel de eventos**: bitácora completa de todo lo que reportan los camiones, con
+  filtro por tipo; al hacer clic el mapa vuela a la ubicación del evento
+- **Eventos por camión** dentro del panel de detalle
+
+#### 🤖 Nueva ruta (manual y automática)
+- Alta de rutas reales en la tabla `routes`
+- Trazo automático a partir de las **calles reales de OpenStreetMap** (Overpass),
+  delimitando **por camión** (su zona habitual según el histórico GPS) o **por área
+  dibujada sobre el mapa**
+- Preparado para conectar el modelo de IA cuando exista: se captura la URL del servicio
+  desde la misma pantalla, sin tocar código. Mientras tanto el trazo lo genera una
+  heurística local, siempre etiquetada como tal — ver **[AI_RUTAS.md](AI_RUTAS.md)**
 
 ### 📣 Campañas
 - Listado de campañas con filtros por estado (activa, planificada, completada)
@@ -53,7 +77,8 @@ Sistema web de gestión de recolección de residuos en tiempo real para el munic
 | Estructura | HTML5 semántico |
 | Estilos | CSS3 con variables (design tokens), sin frameworks |
 | Lógica | JavaScript vanilla (ES6+) |
-| Mapas | [Leaflet.js 1.9.4](https://leafletjs.com/) + OpenStreetMap |
+| Mapas | [MapLibre GL JS 4](https://maplibre.org/) + MapTiler |
+| Calles / grafo vial | [OpenStreetMap](https://www.openstreetmap.org/) vía Overpass API |
 | Tipografía | [Montserrat](https://fonts.google.com/specimen/Montserrat) (Google Fonts) |
 | Diseño base | Figma (paleta y bocetos originales del cliente) |
 
@@ -71,14 +96,17 @@ rutalimpia/
 ├── page-5.html        # Campañas
 ├── page-6.html        # Incidencias
 │
-├── css/
-│   └── shared.css     # Design tokens, topbar, sidebar, bottom nav, paneles globales
+├── page-8.html        # Quejas ciudadanas
+├── page-9.html        # Camiones (flota, cuadrillas, rutas asignadas)
 │
-├── js/
-│   ├── shared.js      # Topbar, bottom nav, paneles (notif / ajustes / perfil), toast
-│   └── nav.js         # Utilidades de navegación (legacy)
+├── shared.css         # Design tokens, topbar, sidebar, bottom nav, modales, paneles
+├── shared.js          # Topbar, bottom nav, paneles (notif / ajustes / perfil), toast
+├── db.js              # Acceso a Supabase (consultas, altas, sesión, notificaciones)
+├── fleet-ui.js        # Formulario compartido de alta de camión
+├── events.js          # Vocabulario de eventos del dispositivo y estado derivado
+├── ai-routing.js      # Calles de OpenStreetMap + cliente del servicio de IA de rutas
 │
-└── docs/              # Capturas de pantalla para el README
+└── AI_RUTAS.md        # Contrato del servicio de IA de rutas (aún por desplegar)
 ```
 
 ---

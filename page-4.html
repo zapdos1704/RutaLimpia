@@ -90,16 +90,32 @@
 .chart-card:hover { border-color: var(--border-md); }
 .chart-card.span2 { grid-column: span 2; }
 
-.chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.chart-title { font-size: 12px; font-weight: 700; }
-.chart-sub   { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; }
+.chart-head > div:first-child { min-width: 0; }
+.chart-title { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.chart-sub   { font-size: 10px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
 .chart-badge { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
 
+/* El cuerpo de cada gráfica crece con su contenido: --cb-min es solo un piso,
+   nunca un techo, para que ninguna gráfica quede recortada. Cuando el contenido
+   puede ser muy largo (tablas, rankings) se añade la clase .scroll y el
+   desplazamiento ocurre dentro de la tarjeta, en lugar de cortarse. */
 .chart-body {
   background: var(--bg-base); border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
+  flex: 1 1 auto;
+  min-height: var(--cb-min, 120px);
+  min-width: 0;
 }
+.chart-body > * { min-width: 0; }
+.chart-body.scroll {
+  align-items: flex-start;
+  overflow-y: auto;
+  max-height: var(--cb-max, 260px);
+}
+.chart-body.scroll::-webkit-scrollbar { width: 4px; }
+.chart-body.scroll::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
 
 /* Animaciones de gráficas */
 .chart-card { animation: cardIn .4s ease-out both; }
@@ -144,6 +160,11 @@
 .prog-val   { font-weight: 700; }
 .prog-track { height: 5px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
 .prog-fill  { height: 100%; border-radius: 3px; }
+
+/* Gráfica de línea: el SVG se dibuja a escala 1:1 sobre su caja real,
+   por eso su viewBox se recalcula con el ancho medido (ver renderLineChart). */
+.line-wrap { width: 100%; padding: 10px 14px; }
+.line-svg  { display: block; width: 100%; height: 104px; overflow: visible; }
 
 /* Bar chart */
 .bars-wrap  { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 8px 12px 0; width: 100%; }
@@ -224,7 +245,7 @@
       </div>
       <div class="vehicles-list" id="vehicles-list"></div>
       <div class="sidebar-footer">
-        <button class="btn-sidebar">+ Nuevo camión</button>
+        <button class="btn-sidebar" id="btn-new-truck">+ Nuevo camión</button>
       </div>
     </div>
 
@@ -288,32 +309,8 @@
               <div><div class="chart-title">Toneladas recolectadas</div><div class="chart-sub">Tendencia semanal</div></div>
               <span class="chart-badge">Línea</span>
             </div>
-            <div class="chart-body" style="height:120px;">
-              <div style="padding:12px 16px 8px;width:100%;">
-                <svg id="chart-line-svg" width="100%" height="88" style="overflow:visible">
-                  <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".18"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs>
-                  <line x1="0" y1="18" x2="400" y2="18" stroke="#1a2540" stroke-width="1"/>
-                  <line x1="0" y1="38" x2="400" y2="38" stroke="#1a2540" stroke-width="1"/>
-                  <line x1="0" y1="58" x2="400" y2="58" stroke="#1a2540" stroke-width="1"/>
-                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10 L400,78 L0,78Z" fill="url(#lg)"/>
-                  <path d="M0,60 L57,46 L114,50 L171,30 L228,35 L285,16 L342,21 L400,10" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="0"   cy="60" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="57"  cy="46" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="114" cy="50" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="171" cy="30" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="228" cy="35" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="285" cy="16" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="342" cy="21" r="3" fill="#080f1e" stroke="#22c55e" stroke-width="1.5"/>
-                  <circle cx="400" cy="10" r="4" fill="#22c55e" stroke="#080f1e" stroke-width="2"/>
-                  <text x="0"   y="76" font-size="8" fill="#64748b" font-family="Montserrat">Lun</text>
-                  <text x="51"  y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mar</text>
-                  <text x="108" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Mié</text>
-                  <text x="165" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Jue</text>
-                  <text x="222" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Vie</text>
-                  <text x="279" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Sáb</text>
-                  <text x="336" y="76" font-size="8" fill="#64748b" font-family="Montserrat">Dom</text>
-                </svg>
-              </div>
+            <div class="chart-body" style="--cb-min:136px;">
+              <div class="line-wrap"><svg id="chart-line-svg" class="line-svg" role="img" aria-label="Toneladas recolectadas por día"></svg></div>
             </div>
           </div>
 
@@ -323,7 +320,7 @@
               <div><div class="chart-title">Estado de flota</div><div class="chart-sub">Distribución actual</div></div>
               <span class="chart-badge">Dona</span>
             </div>
-            <div class="chart-body" style="height:120px;">
+            <div class="chart-body" style="--cb-min:120px;">
               <div class="donut-wrap" id="chart-fleet-donut">
                 <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
                   <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
@@ -347,7 +344,7 @@
               <div><div class="chart-title">Por turno</div><div class="chart-sub">Completadas vs pendientes</div></div>
               <span class="chart-badge">Barras</span>
             </div>
-            <div class="chart-body" style="height:120px;flex-direction:column;justify-content:flex-end;padding-bottom:8px;">
+            <div class="chart-body" style="--cb-min:120px;flex-direction:column;justify-content:flex-end;padding-bottom:8px;">
               <div class="bars-wrap" id="chart-shift-bars">
                 <div class="bar-col"><div class="bar-rect" style="height:68px;background:#22c55e"></div><div class="bar-lbl">Mañ.</div></div>
                 <div class="bar-col"><div class="bar-rect" style="height:22px;background:rgba(34,197,94,.15)"></div><div class="bar-lbl"></div></div>
@@ -371,7 +368,7 @@
               <div><div class="chart-title">Rendimiento conductores</div><div class="chart-sub">Rutas completadas hoy</div></div>
               <span class="chart-badge">Barras horiz.</span>
             </div>
-            <div class="chart-body" style="height:130px;">
+            <div class="chart-body scroll" style="--cb-min:130px;--cb-max:230px;">
               <div class="prog-list" id="chart-drivers"></div>
             </div>
           </div>
@@ -382,7 +379,7 @@
               <div><div class="chart-title">Tipos de ruta</div><div class="chart-sub">Por zona</div></div>
               <span class="chart-badge">Dona</span>
             </div>
-            <div class="chart-body" style="height:130px;">
+            <div class="chart-body" style="--cb-min:130px;">
               <div class="donut-wrap" id="chart-routetype-donut">
                 <svg width="80" height="80" viewBox="0 0 90 90" style="flex-shrink:0">
                   <circle cx="45" cy="45" r="30" fill="none" stroke="#1a2540" stroke-width="13"/>
@@ -407,7 +404,7 @@
               <div><div class="chart-title">Telemetría flota</div><div class="chart-sub">Promedio en tiempo real</div></div>
               <span class="chart-badge">Circular</span>
             </div>
-            <div class="chart-body" style="height:130px;">
+            <div class="chart-body" style="--cb-min:130px;">
               <div class="gauges-wrap" id="chart-gauges">
                 <div class="gauge-item">
                   <svg width="58" height="58" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="#1a2540" stroke-width="7"/><circle cx="30" cy="30" r="22" fill="none" stroke="#22c55e" stroke-width="7" stroke-dasharray="97 138" stroke-dashoffset="34" stroke-linecap="round"/><text x="30" y="34" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9" font-family="Montserrat">71%</text></svg>
@@ -431,7 +428,7 @@
               <div><div class="chart-title">Actividad semanal</div><div class="chart-sub">Intensidad de rutas por día</div></div>
               <span class="chart-badge">Heatmap</span>
             </div>
-            <div class="chart-body" style="height:88px;">
+            <div class="chart-body" style="--cb-min:112px;">
               <div class="hmap-wrap">
                 <div class="hmap-grid" id="chart-heatmap-grid">
                   <div class="hcell" style="opacity:.1"></div><div class="hcell" style="opacity:.35"></div><div class="hcell" style="opacity:.9"></div><div class="hcell" style="opacity:.6"></div><div class="hcell" style="opacity:.25"></div><div class="hcell" style="opacity:.75"></div><div class="hcell" style="opacity:.1"></div>
@@ -458,7 +455,7 @@
               <div><div class="chart-title">Rutas activas</div><div class="chart-sub">Estado del turno</div></div>
               <span class="chart-badge">Tabla</span>
             </div>
-            <div class="chart-body" style="height:88px;align-items:flex-start;">
+            <div class="chart-body scroll" style="--cb-min:112px;--cb-max:250px;">
               <table class="mini-table">
                 <thead><tr><th>Ruta</th><th>Conductor</th><th>Estado</th></tr></thead>
                 <tbody id="routes-table-body">
@@ -482,6 +479,7 @@ import {
   getVehicles, getTelemetry, getCollections, getCampaigns, getWasteStats, capacityPct,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { mountNewTruckModal } from './fleet-ui.js';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -552,22 +550,47 @@ function smoothPath(pts) {
   return d;
 }
 
-/* ══ GRÁFICA LINEAL (toneladas por día) ══ */
+/* ══ GRÁFICA LINEAL (toneladas por día) ══
+   El viewBox se calcula con el ANCHO REAL DEL PROPIO SVG (no el del contenedor,
+   que incluye padding). Así la escala es 1:1 y nada queda recortado. Además se
+   reserva margen a los lados para el radio de los puntos y para las etiquetas
+   de los días, y arriba para la etiqueta del valor máximo. */
+const LINE_PAD = { top: 16, right: 12, bottom: 20, left: 12 };
+let _lastWaste = [];
+
 function renderLineChart(waste) {
   const svg = $('chart-line-svg');
   if (!svg) return;
-  const rect = svg.parentElement.getBoundingClientRect();
-  const W = rect.width > 0 ? rect.width : 400;
-  const H = 68;
-  svg.setAttribute('viewBox', `0 0 ${W} 78`);
+  if (waste) _lastWaste = waste;
+  const data = _lastWaste;
+
+  const W = Math.round(svg.getBoundingClientRect().width) || 400;
+  const H = Math.round(svg.getBoundingClientRect().height) || 104;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  const x0 = LINE_PAD.left, x1 = Math.max(x0 + 1, W - LINE_PAD.right);
+  const y0 = LINE_PAD.top,  y1 = Math.max(y0 + 1, H - LINE_PAD.bottom);
+  const plotW = x1 - x0, plotH = y1 - y0;
+
   const byDay = Array(7).fill(0);
-  waste.forEach(w => { byDay[wkday(w.date)] += w.tons_collected || 0; });
+  data.forEach(w => { byDay[wkday(w.date)] += w.tons_collected || 0; });
   const maxV = Math.max(...byDay, 1);
-  const pts = byDay.map((v, i) => [Math.round((i / 6) * W), Math.round(H - (v / maxV) * H)]);
-  const path = smoothPath(pts);
   const best = byDay.indexOf(Math.max(...byDay));
-  const gridLines = [18, 38, 58]
-    .map(y => `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#1a2540" stroke-width="1" stroke-dasharray="3 4"/>`).join('');
+
+  const px  = i => Math.round(x0 + (i / 6) * plotW);
+  const py  = v => Math.round(y1 - (v / maxV) * plotH);
+  const pts = byDay.map((v, i) => [px(i), py(v)]);
+  const path = smoothPath(pts);
+
+  const gridLines = [0, .5, 1]
+    .map(f => { const y = Math.round(y1 - f * plotH);
+      return `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#1a2540" stroke-width="1" stroke-dasharray="3 4"/>`; })
+    .join('');
+
+  /* Las etiquetas se anclan al inicio / centro / final para que la primera y la
+     última no se salgan del área visible. */
+  const anchorFor = i => i === 0 ? 'start' : i === 6 ? 'end' : 'middle';
 
   svg.innerHTML = `
     <defs>
@@ -580,7 +603,7 @@ function renderLineChart(waste) {
       </linearGradient>
     </defs>
     ${gridLines}
-    <path d="${path} L${W},${H} L0,${H}Z" fill="url(#lg2)">
+    <path d="${path} L${x1},${y1} L${x0},${y1}Z" fill="url(#lg2)">
       <animate attributeName="opacity" from="0" to="1" dur=".6s" fill="freeze"/>
     </path>
     <path d="${path}" fill="none" stroke="url(#lineStroke)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
@@ -598,7 +621,21 @@ function renderLineChart(waste) {
         <animate attributeName="r" from="0" to="${r}" dur=".4s" begin="${0.45 + i * 0.06}s" fill="freeze"/>
       </circle></g>`;
     }).join('')}
-    ${DAYS_SHORT.map((d, i) => `<text x="${Math.max(0, Math.min(W-15, Math.round((i/6)*W - 8)))}" y="76" font-size="9" fill="${i === best ? '#94a3b8' : '#64748b'}" font-weight="${i === best ? '700' : '400'}" font-family="Montserrat">${d}</text>`).join('')}`;
+    ${byDay[best] > 0 ? `<text x="${Math.min(x1, Math.max(x0, pts[best][0]))}" y="${Math.max(10, pts[best][1] - 8)}"
+        text-anchor="${anchorFor(best)}" font-size="9" font-weight="700" fill="#facc15" font-family="Montserrat">${byDay[best].toFixed(1)} t</text>` : ''}
+    ${DAYS_SHORT.map((d, i) => `<text x="${px(i)}" y="${H - 5}" text-anchor="${anchorFor(i)}" font-size="9" fill="${i === best ? '#94a3b8' : '#64748b'}" font-weight="${i === best ? '700' : '400'}" font-family="Montserrat">${d}</text>`).join('')}`;
+}
+
+/* Al cambiar el ancho (resize, abrir/cerrar paneles) el SVG se vuelve a dibujar
+   con las medidas nuevas; si no, quedaría con la escala del tamaño anterior. */
+function watchLineChartResize() {
+  const svg = $('chart-line-svg');
+  if (!svg || typeof ResizeObserver === 'undefined') return;
+  let last = 0;
+  new ResizeObserver(entries => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (w > 0 && Math.abs(w - last) > 1) { last = w; renderLineChart(null); }
+  }).observe(svg);
 }
 
 /* ══ DONA FLOTA ══ */
@@ -854,7 +891,12 @@ async function main() {
   initShared('Dashboard');
   getCurrentUserProfile().then(p => window.renderProfile?.(p));
 
+  /* El botón "+ Nuevo camión" de la barra lateral no tenía ninguna acción. */
+  const openTruckModal = mountNewTruckModal({ onCreated: loadAll });
+  document.getElementById('btn-new-truck').addEventListener('click', openTruckModal);
+
   await loadAll();
+  watchLineChartResize();
   refreshNotifications();
 
   setInterval(loadAll, 30_000);

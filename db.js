@@ -119,6 +119,39 @@ export async function getRoutes() {
   } catch (err) { console.error('[routes]', err); return []; }
 }
 
+/* ── Alta de ruta ──
+   `coordinates` es un arreglo [[lng,lat], …] (orden GeoJSON). La columna
+   routes.geometry es PostGIS; PostgREST no acepta GeoJSON directo, así que el
+   trazo se manda como EWKT, que Postgres sí sabe convertir.
+
+   Si el despliegue tiene la escritura de geometría restringida (por ejemplo,
+   envuelta en un RPC), el insert con trazo falla. En ese caso NO se pierde el
+   trabajo: la ruta se guarda sin trazo y se avisa a quien la creó. */
+function toEwktLineString(coordinates) {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+  const pts = coordinates
+    .filter(c => Array.isArray(c) && c.length >= 2 && isValidLatLng(c[1], c[0]))
+    .map(c => `${Number(c[0]).toFixed(6)} ${Number(c[1]).toFixed(6)}`);
+  return pts.length >= 2 ? `SRID=4326;LINESTRING(${pts.join(',')})` : null;
+}
+
+export async function insertRoute(form, coordinates) {
+  const geometry = toEwktLineString(coordinates);
+  const payload = geometry ? { ...form, geometry } : { ...form };
+
+  const { data, error } = await withTimeout(sb.from('routes').insert([payload]).select());
+  if (!error) return { route: data?.[0], geometrySaved: !!geometry };
+
+  /* Reintento sin trazo solo si el fallo viene de la geometría. */
+  const geometryIssue = geometry && /geometry|geom|wkt|srid|parse/i.test(error.message || '');
+  if (!geometryIssue) throw error;
+
+  console.warn('[insertRoute] no se pudo guardar la geometría, se guarda la ruta sin trazo:', error.message);
+  const retry = await withTimeout(sb.from('routes').insert([{ ...form }]).select());
+  if (retry.error) throw retry.error;
+  return { route: retry.data?.[0], geometrySaved: false, geometryError: error.message };
+}
+
 /* ── Cuadrilla de los vehículos (conductor + ayudantes) ── */
 export async function getVehicleCrew() {
   try {
@@ -225,14 +258,46 @@ function distanceKm(a, b) {
    380 km, en otra ciudad) y sin este filtro el mapa se aleja para encuadrarlas. */
 const GPS_MAX_RADIUS_KM = 25;
 
+/* ── Columna de evento en gps_logs ──
+   El firmware publica el campo como "event" y así lo manda el backend al RPC
+   flush_gps_logs, pero hay despliegues donde la columna quedó como "event_type".
+   En vez de adivinar, se detecta una sola vez y se recuerda. Si ninguna existe,
+   la app sigue funcionando: simplemente no habrá eventos que mostrar. */
+const EVENT_COLUMN_CANDIDATES = ['event', 'event_type'];
+let _eventColumnPromise = null;
+
+export function getEventColumn() {
+  if (!_eventColumnPromise) {
+    _eventColumnPromise = (async () => {
+      for (const col of EVENT_COLUMN_CANDIDATES) {
+        try {
+          const { error } = await withTimeout(sb.from('gps_logs').select(col).limit(1), 8000);
+          if (!error) return col;
+        } catch { /* se prueba la siguiente */ }
+      }
+      console.warn('[gps_logs] no se encontró columna de evento (event / event_type)');
+      return null;
+    })();
+  }
+  return _eventColumnPromise;
+}
+
+/* Deja siempre la propiedad `event`, venga de la columna que venga. */
+function normalizeEvent(row, col) {
+  const value = col ? row[col] : null;
+  return { ...row, ...pointFromGeometry(row.location), event: value ?? null };
+}
+
 /* ── Histórico GPS de un vehículo (recorrido real) ──
    Se piden los registros MÁS RECIENTES y luego se ordenan cronológicamente:
    la tabla tiene miles de filas y el recorrido útil es el último, no el primero. */
 export async function getGpsLogs(vehicleId, limit = 300) {
   try {
+    const col = await getEventColumn();
+    const cols = ['location', 'timestamp', 'battery_pct', 'truck_capacity', col].filter(Boolean).join(', ');
     const { data, error } = await withTimeout(
       sb.from('gps_logs')
-        .select('location, timestamp, battery_pct, truck_capacity, event_type')
+        .select(cols)
         .eq('vehicle_id', vehicleId)
         .order('timestamp', { ascending: false })
         .limit(limit)
@@ -240,7 +305,7 @@ export async function getGpsLogs(vehicleId, limit = 300) {
     if (error) throw error;
 
     const points = (data || [])
-      .map(row => ({ ...row, ...pointFromGeometry(row.location) }))
+      .map(row => normalizeEvent(row, col))
       .filter(row => row.lat != null && row.lng != null);
     if (!points.length) return [];
 
@@ -249,6 +314,48 @@ export async function getGpsLogs(vehicleId, limit = 300) {
       .filter(p => distanceKm(p, latest) <= GPS_MAX_RADIUS_KM)
       .reverse();
   } catch (err) { console.error('[gps_logs]', err); return []; }
+}
+
+/* ── Eventos de TODA la flota ──
+   Solo las filas de gps_logs que traen un evento del dispositivo (pausa,
+   bloqueo de ruta, reinicio…). Es la fuente del panel "Eventos" y de las
+   alertas de camión pausado en el mapa en vivo. */
+export async function getFleetEvents(limit = 400) {
+  try {
+    const col = await getEventColumn();
+    if (!col) return [];
+    const cols = ['vehicle_id', 'location', 'timestamp', 'battery_pct', 'truck_capacity', col].join(', ');
+    const { data, error } = await withTimeout(
+      sb.from('gps_logs')
+        .select(cols)
+        .not(col, 'is', null)
+        .order('timestamp', { ascending: false })
+        .limit(limit)
+    );
+    if (error) throw error;
+    return (data || [])
+      .map(row => normalizeEvent(row, col))
+      .filter(row => row.event);
+  } catch (err) { console.error('[fleet_events]', err); return []; }
+}
+
+/* Eventos de un solo camión (para el panel de detalle). */
+export async function getVehicleEvents(vehicleId, limit = 60) {
+  try {
+    const col = await getEventColumn();
+    if (!col) return [];
+    const cols = ['vehicle_id', 'location', 'timestamp', 'battery_pct', 'truck_capacity', col].join(', ');
+    const { data, error } = await withTimeout(
+      sb.from('gps_logs')
+        .select(cols)
+        .eq('vehicle_id', vehicleId)
+        .not(col, 'is', null)
+        .order('timestamp', { ascending: false })
+        .limit(limit)
+    );
+    if (error) throw error;
+    return (data || []).map(row => normalizeEvent(row, col)).filter(row => row.event);
+  } catch (err) { console.error('[vehicle_events]', err); return []; }
 }
 
 /* ── Empleados / conductores ── */
