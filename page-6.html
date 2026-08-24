@@ -10,8 +10,6 @@
 .main {
   flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
-.main::-webkit-scrollbar { width: 4px; }
-.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
 
 .page-inner {
   padding: 24px;
@@ -195,8 +193,6 @@
 
 /* Sidebar vehicles */
 .vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
-.vehicles-list::-webkit-scrollbar { width: 3px; }
-.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
 
 /* ── MODAL Nueva Incidencia ── */
 .modal-overlay {
@@ -363,9 +359,9 @@
             <button class="fbar-btn" onclick="filterInc('alta',this)">Alta prioridad</button>
             <button class="fbar-btn" onclick="filterInc('atencion',this)">En atención</button>
             <button class="fbar-btn" onclick="filterInc('resuelta',this)">Resueltas</button>
-            <button class="fbar-btn" onclick="filterInc('dispositivo',this)">📟 Dispositivo<span class="fbar-count" id="count-dev" hidden>0</span></button>
+            <button class="fbar-btn" onclick="filterInc('dispositivo',this)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 5.9l.8-.8C19.6 3.7 17.8 3 16 3s-3.6.7-5 2.1l.8.8C13 4.8 14.5 4.2 16 4.2s3 .6 4.2 1.7zm-.9.8C18.4 5.8 17.2 5.3 16 5.3s-2.4.5-3.3 1.4l.8.8c.7-.7 1.6-1 2.5-1s1.8.3 2.5 1l.8-.8zM19 13h-2V9h-2v4H5c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2zM8 18H6v-2h2v2zm3.5 0h-2v-2h2v2zm3.5 0h-2v-2h2v2z"/></svg> Dispositivo<span class="fbar-count" id="count-dev" hidden>0</span></button>
           </div>
-          <input class="search-input" id="search-inc" placeholder="🔍 Buscar incidencia…"/>
+          <input class="search-input" id="search-inc" placeholder="<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.49 4.49 0 0 1 9.5 14z"/></svg> Buscar incidencia…"/>
         </div>
 
         <!-- Lista -->
@@ -382,8 +378,8 @@
 <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">⚠️ Nueva incidencia</span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <span class="modal-title"><svg class="ic ic-yellow" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg> Nueva incidencia</span>
+      <button class="modal-close" onclick="closeModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -453,6 +449,10 @@
   </div>
 </div>
 
+<script type="module" id="rl-icons-bridge">
+  /* Publica window.rlIcon antes de que shared.js pinte nada. */
+  import './icons.js';
+</script>
 <script src="shared.js"></script>
 <script type="module">
 import {
@@ -460,6 +460,7 @@ import {
   getRoutes, getDrivers, getAllUsers, getShifts, getFleetEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { icon } from './icons.js';
 import { deriveDeviceIncidents, timeAgo, shortTime } from './events.js';
 
 /* ── SESIÓN / LOGOUT ── */
@@ -516,8 +517,8 @@ function deviceCard(i) {
   <div class="inc-card ${estado} device" style="--dev-color:${i.color}">
     <div class="inc-left">
       <div class="inc-top">
-        <span class="inc-id">📟 Dispositivo</span>
-        <span class="inc-name">${i.icon} ${escapeHtml(i.title.split('—').pop().trim())}</span>
+        <span class="inc-id">${icon('device')} Dispositivo</span>
+        <span class="inc-name">${icon(i.icon)} ${escapeHtml(i.title.split('—').pop().trim())}</span>
       </div>
       <div class="inc-route">
         <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>
@@ -540,7 +541,7 @@ function deviceCard(i) {
 function renderIncidents(list, deviceList = []) {
   const el = document.getElementById('inc-list');
   if (!list.length && !deviceList.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>Sin incidencias en esta categoría.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('check_circle', { cls: 'ic-green' })}</div>Sin incidencias en esta categoría.</div>`;
     return;
   }
   /* Lo del dispositivo va primero: está pasando ahora mismo. */
@@ -580,7 +581,7 @@ function renderIncidents(list, deviceList = []) {
 
 /* Abre el mapa centrado en el vehículo de la incidencia y con su ruta visible */
 window.verEnMapa = function(vehicleId, routeId) {
-  if (!vehicleId && !routeId) { showToast('⚠️ Esta incidencia no tiene vehículo ni ruta'); return; }
+  if (!vehicleId && !routeId) { showToast('Esta incidencia no tiene vehículo ni ruta', 'warn');; return; }
   const params = new URLSearchParams();
   if (vehicleId) params.set('vehiculo', vehicleId);
   if (routeId)   params.set('ruta', routeId);
@@ -592,10 +593,10 @@ window.markResolved = async function(id, btn) {
   btn.textContent = 'Guardando…';
   try {
     await resolveCollection(id);
-    showToast('✅ Marcada como resuelta');
+    showToast('Marcada como resuelta', 'success');;
     await loadData();
   } catch(err) {
-    showToast('❌ Error: ' + (err.message||'No se pudo guardar'));
+    showToast('Error: ' + (err.message||'No se pudo guardar', 'error'));;
     btn.disabled = false;
     btn.textContent = 'Marcar resuelta';
   }
@@ -692,7 +693,7 @@ window.submitIncident = async function(btn) {
   const shiftId   = $('inc-shift').value;
 
   if (!vehicleId || !routeId || !driverId || !shiftId) {
-    showToast('⚠️ Vehículo, ruta, conductor y turno son obligatorios');
+    showToast('Vehículo, ruta, conductor y turno son obligatorios', 'warn');;
     return;
   }
 
@@ -717,11 +718,11 @@ window.submitIncident = async function(btn) {
       notes,
     });
     window.closeModal();
-    showToast('✅ Incidencia registrada');
+    showToast('Incidencia registrada', 'success');;
     await loadData();
   } catch (err) {
     console.error('[insertIncident]', err);
-    showToast('❌ ' + (err.message || 'No se pudo registrar la incidencia'));
+    showToast('' + (err.message || 'No se pudo registrar la incidencia', 'error'));;
   } finally {
     btn.disabled = false;
   }
@@ -776,7 +777,7 @@ async function loadData() {
     renderVehicles(_vehicles);
   } catch (err) {
     console.error('[incidents]', err);
-    showToast('❌ No se pudieron cargar las incidencias');
+    showToast('No se pudieron cargar las incidencias', 'error');;
   } finally {
     window.hidePageLoader?.();
   }

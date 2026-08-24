@@ -336,6 +336,13 @@ html, body {
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+/* El toast lleva icono + texto (ver showToast) */
+.toast { display: flex; align-items: center; gap: 9px; }
+.toast .ic { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+.toast .ic-green  { fill: #4ade80; }
+.toast .ic-red    { fill: #ef4444; }
+.toast .ic-yellow { fill: #f59e0b; }
+.toast .ic-blue   { fill: #93c5fd; }
 .toast.toast-error  { border-color: rgba(239,68,68,.4); }
 .toast.toast-success{ border-color: rgba(34,197,94,.4); }
 
@@ -405,7 +412,7 @@ html, body {
         <label>Contraseña</label>
         <div class="pw-wrap">
           <input type="password" id="login-pw" placeholder="••••••••"/>
-          <button class="pw-toggle" onclick="togglePw('login-pw', this)" tabindex="-1">👁</button>
+          <button class="pw-toggle" onclick="togglePw('login-pw', this)" tabindex="-1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
         </div>
         <span class="field-error" id="login-pw-err">Ingresa tu contraseña.</span>
       </div>
@@ -433,7 +440,7 @@ html, body {
       <div class="screen-sub">Te enviaremos un enlace a tu correo para restablecer tu contraseña.</div>
 
       <div class="success-box" id="forgot-success">
-        ✅ Enlace enviado. Revisa tu bandeja de entrada (y la carpeta de spam).
+        <svg class="ic ic-green" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> Enlace enviado. Revisa tu bandeja de entrada (y la carpeta de spam).
       </div>
 
       <div class="field" id="forgot-field">
@@ -458,6 +465,7 @@ html, body {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
 import { signIn, resetPassword, getSession } from './db.js';
+import { icon } from './icons.js';
 
 /* ── Si ya hay una sesión activa, saltar directo al dashboard ── */
 getSession().then(session => {
@@ -499,16 +507,27 @@ function togglePw(inputId, btn) {
   const inp = document.getElementById(inputId);
   const isText = inp.type === 'text';
   inp.type = isText ? 'password' : 'text';
-  btn.textContent = isText ? '👁' : '🙈';
+  btn.innerHTML = icon(isText ? 'visibility' : 'visibility_off');
 }
 
 /* ══════════════════════════════════════
    TOAST
 ══════════════════════════════════════ */
+/* Mismo criterio que shared.js: el icono va aparte y el texto se escapa. */
+const TOAST_ICON = {
+  success: { name: 'check_circle', cls: 'ic-green'  },
+  error:   { name: 'error',        cls: 'ic-red'    },
+  warn:    { name: 'warning',      cls: 'ic-yellow' },
+  info:    { name: 'info',         cls: 'ic-blue'   },
+};
+const escapeToast = str => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
 let toastTimer;
 function showToast(msg, type = '') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  const cfg = TOAST_ICON[type];
+  t.innerHTML = (cfg ? icon(cfg.name, { cls: cfg.cls }) : '') + `<span>${escapeToast(msg)}</span>`;
   t.className = `toast toast-${type} show`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
@@ -557,10 +576,10 @@ window.doLogin = async function() {
   setLoading(btn, true);
   try {
     await signIn(email, pw);
-    showToast('✅ Sesión iniciada', 'success');
+    showToast('Sesión iniciada', 'success');
     setTimeout(() => window.location.href = 'page-4.html', 700);
   } catch (err) {
-    showToast('❌ ' + (err.message || 'Credenciales incorrectas'), 'error');
+    showToast(err.message || 'Credenciales incorrectas', 'error');
   } finally {
     setLoading(btn, false);
   }
@@ -585,9 +604,9 @@ window.doForgot = async function() {
     document.getElementById('forgot-success').classList.add('show');
     document.getElementById('forgot-field').style.display = 'none';
     btn.style.display = 'none';
-    showToast('📧 Enlace enviado', 'success');
+    showToast('Enlace enviado', 'success');
   } catch (err) {
-    showToast('❌ ' + (err.message || 'Error al enviar el enlace'), 'error');
+    showToast(err.message || 'Error al enviar el enlace', 'error');
     setLoading(btn, false);
   }
 };

@@ -800,7 +800,8 @@ export async function getNotifications() {
         notifs.push({
           id: i.id,
           type: TIPO_NOTIF[i.priority] || 'blue',
-          title: `${i.icon} ${i.title}`,
+          title: i.title,
+          icon: i.icon,
           desc: i.desc,
           meta: timeAgo(i.at),
           action: { label: 'Ver incidencia', href: 'page-6.html' },
@@ -831,6 +832,67 @@ export function subscribeRealtime(table, callback) {
   return sb.channel(table + '-rl-live')
     .on('postgres_changes', { event: '*', schema: 'public', table }, callback)
     .subscribe();
+}
+
+/**
+ * Sigue la POSICIÓN de toda la flota y avisa en cuanto alguna cambia.
+ *
+ * El refresco general va cada 30 s porque arrastra recolecciones, cuadrillas y
+ * eventos. Mover un marcador no necesita nada de eso: basta con la telemetría,
+ * que es una fila por camión. Por eso este canal va aparte y mucho más seguido.
+ *
+ * Solo se notifican los camiones cuya coordenada cambió de verdad, así el mapa
+ * no se redibuja cuando no hay movimiento.
+ *
+ * @param {(cambios:Array<{vehicle_id:string, lat:number, lng:number, row:object}>) => void} onMoved
+ * @param {{intervalMs?:number}} [options]
+ * @returns {() => void}
+ */
+export function subscribeFleetPositions(onMoved, options = {}) {
+  const { intervalMs = 6000 } = options;
+  const ultimas = new Map();      // vehicle_id -> "lat,lng"
+  let stopped = false, cargando = false;
+
+  async function revisar() {
+    if (stopped || cargando) return;
+    cargando = true;
+    try {
+      const filas = await getTelemetry();
+      const cambios = [];
+      filas.forEach(r => {
+        if (!isValidLatLng(r.lat, r.lng)) return;
+        const clave = `${r.lat.toFixed(6)},${r.lng.toFixed(6)}`;
+        if (ultimas.get(r.vehicle_id) === clave) return;
+        ultimas.set(r.vehicle_id, clave);
+        cambios.push({ vehicle_id: r.vehicle_id, lat: r.lat, lng: r.lng, row: r });
+      });
+      if (cambios.length && !stopped) onMoved(cambios);
+    } catch (err) {
+      console.error('[fleet_positions]', err);
+    } finally {
+      cargando = false;
+    }
+  }
+
+  const timer = setInterval(revisar, intervalMs);
+  revisar();
+
+  /* Realtime encima del sondeo: si device_telemetry está publicada, la
+     reacción es inmediata; si no, el sondeo sigue cubriendo. */
+  let channel = null;
+  try {
+    channel = sb.channel('fleet-positions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_telemetry' }, () => revisar())
+      .subscribe();
+  } catch (err) {
+    console.warn('[fleet_positions] realtime no disponible:', err.message);
+  }
+
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    if (channel) { try { sb.removeChannel(channel); } catch {} }
+  };
 }
 
 /**

@@ -36,6 +36,73 @@
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
+/* ══════════════════════════════════════
+   ICONOGRAFÍA
+   SVG en línea (icons.js) en lugar de emoji: mismo trazo en todos los
+   sistemas, hereda el color del texto y escala con la tipografía.
+══════════════════════════════════════ */
+.ic {
+  width: 1em; height: 1em;
+  fill: currentColor;
+  flex-shrink: 0;
+  vertical-align: -0.14em;
+  display: inline-block;
+}
+.ic-sm { width: .85em; height: .85em; }
+.ic-lg { width: 1.35em; height: 1.35em; }
+.ic-xl { width: 2em;   height: 2em;   }
+
+/* Colores semánticos, para no repetir estilos en línea */
+.ic-green  { fill: var(--green-light); }
+.ic-red    { fill: var(--red); }
+.ic-yellow { fill: var(--yellow); }
+.ic-blue   { fill: #93c5fd; }
+.ic-muted  { fill: var(--text-2); }
+
+/* ══════════════════════════════════════
+   BARRAS DE DESPLAZAMIENTO
+   Antes cada componente definía la suya (anchos y colores distintos) y en
+   Firefox no se tocaban, así que salía la gris del sistema. Esto unifica
+   todo con la paleta de la app.
+══════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.22) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.18);
+  border-radius: 10px;
+  /* El borde transparente adelgaza visualmente el pulgar sin reducir el área
+     donde se puede agarrar con el ratón. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color var(--transition);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(74,222,128,.55);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:active {
+  background: var(--green);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Sobre fondos claros (paneles azules del sidebar) el pulgar necesita más
+   contraste para no desaparecer. */
+.sidebar *::-webkit-scrollbar-thumb,
+.side-panel *::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.28);
+  background-clip: content-box;
+}
+
 html, body {
   height: 100%;
   font-family: 'Montserrat', sans-serif;
@@ -501,6 +568,21 @@ html, body {
   box-shadow: 0 6px 24px rgba(0,0,0,.45);
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+/* El toast ahora lleva icono + texto en lugar de un emoji dentro del texto */
+.toast { display: flex; align-items: center; gap: 9px; }
+.toast .ic { width: 16px; height: 16px; }
+
+/* Punto de estado: antes era el carácter "●", que cada sistema dibuja de un
+   tamaño distinto. Ahora es un círculo con medidas fijas. */
+.dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 
 /* ══════════════════════════════════════
    BUTTONS (comunes)

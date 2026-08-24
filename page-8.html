@@ -8,8 +8,6 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
-.main::-webkit-scrollbar { width: 4px; }
-.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
 
 .page-inner { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
 
@@ -294,7 +292,7 @@
             <button class="fbar-btn" onclick="setStatusFilter('resolved', this)">Resueltas</button>
             <button class="fbar-btn" onclick="setStatusFilter('all', this)">Todas</button>
           </div>
-          <input class="search-input" id="search-input" placeholder="🔍 Buscar por descripción o categoría…"/>
+          <input class="search-input" id="search-input" placeholder="<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.49 4.49 0 0 1 9.5 14z"/></svg> Buscar por descripción o categoría…"/>
         </div>
 
         <div class="cat-filters" id="cat-filters"></div>
@@ -349,6 +347,10 @@
   <img id="lightbox-img" src="" alt="Foto de la queja"/>
 </div>
 
+<script type="module" id="rl-icons-bridge">
+  /* Publica window.rlIcon antes de que shared.js pinte nada. */
+  import './icons.js';
+</script>
 <script src="shared.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script type="module">
@@ -356,6 +358,7 @@ import {
   getReports, resolveReport, getRoutes, getCollections,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { icon } from './icons.js';
 
 window.doLogout = async function() {
   await signOut();
@@ -369,10 +372,10 @@ const RANK_COLORS = ['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ef4444','#06b6d4'
 
 /* Un color por categoría de queja (las 4 que acepta la base) */
 const CATEGORY_META = {
-  camion_no_paso:   { color: '#f59e0b', label: 'Camión no pasó',  icon: '🚛' },
-  basura_acumulada: { color: '#ef4444', label: 'Basura acumulada', icon: '🗑️' },
-  queja_servicio:   { color: '#3b82f6', label: 'Queja de servicio', icon: '📋' },
-  otra:             { color: '#a855f7', label: 'Otra',             icon: '❓' },
+  camion_no_paso:   { color: '#f59e0b', label: 'Camión no pasó',  icon: 'truck' },
+  basura_acumulada: { color: '#ef4444', label: 'Basura acumulada', icon: 'delete' },
+  queja_servicio:   { color: '#3b82f6', label: 'Queja de servicio', icon: 'assignment' },
+  otra:             { color: '#a855f7', label: 'Otra',             icon: 'help' },
 };
 const categoryMeta = cat => CATEGORY_META[cat] || { color: '#94a3b8', label: prettify(cat), icon: '•' };
 
@@ -627,7 +630,7 @@ function initMap() {
         .setLngLat(e.lngLat)
         .setHTML(`<div class="pop-title">${p.category}</div>
                   <div class="pop-meta">${p.description}</div>
-                  <div class="pop-meta" style="margin-top:5px">📍 ${p.route}<br/>${p.date}</div>`)
+                  <div class="pop-meta" style="margin-top:5px">${icon('place')} ${p.route}<br/>${p.date}</div>`)
         .addTo(map);
     });
 
@@ -782,7 +785,7 @@ function quejaCard(report) {
   const isResolved = report.status === 'resolved';
   const photo = report.photo_url
     ? `<img src="${report.photo_url}" alt="Evidencia" onclick="openLightbox('${report.photo_url}')"/>`
-    : '📷';
+    : rlIcon('camera');
   const distance = Number.isFinite(report._distance)
     ? `<span class="queja-dist">a ${Math.round(report._distance)} m de la ruta</span>` : '';
   return `
@@ -808,7 +811,7 @@ function renderList(list) {
   const groups = groupByRoute(list);
 
   if (!groups.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>${
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('check_circle', { cls: 'ic-green' })}</div>${
       _statusFilter === 'pending' ? 'No hay quejas pendientes.' : 'Sin quejas que coincidan con este filtro.'}</div>`;
     return;
   }
@@ -860,11 +863,11 @@ window.markResolved = async function(id, btn) {
   btn.textContent = 'Guardando…';
   try {
     await resolveReport(id);
-    showToast('✅ Queja marcada como resuelta');
+    showToast('Queja marcada como resuelta', 'success');;
     await loadData();
   } catch (err) {
     console.error('[resolveReport]', err);
-    showToast('❌ ' + (err.message || 'No se pudo guardar'));
+    showToast('' + (err.message || 'No se pudo guardar', 'error'));;
     btn.disabled = false;
     btn.textContent = 'Marcar resuelta';
   }
@@ -882,7 +885,7 @@ async function loadData() {
     render();
   } catch (err) {
     console.error('[quejas]', err);
-    showToast('❌ No se pudieron cargar las quejas');
+    showToast('No se pudieron cargar las quejas', 'error');;
   } finally {
     window.hidePageLoader?.();
   }

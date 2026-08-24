@@ -17,34 +17,34 @@
 
 export const EVENT_META = {
   inicio_pausa: {
-    label: 'Pausa del dispositivo', short: 'Pausa', icon: '⏸️',
+    label: 'Pausa del dispositivo', short: 'Pausa', icon: 'pause',
     color: '#f59e0b', kind: 'pause_start', severity: 'warn',
     desc: 'El operador puso el camión en pausa desde el botón del dispositivo.',
   },
   fin_pausa: {
-    label: 'Fin de pausa', short: 'Fin de pausa', icon: '▶️',
+    label: 'Fin de pausa', short: 'Fin de pausa', icon: 'play',
     color: '#22c55e', kind: 'pause_end', severity: 'ok',
     desc: 'El operador reanudó la operación manualmente.',
   },
   fin_pausa_auto_movimiento: {
-    label: 'Fin de pausa por movimiento', short: 'Fin pausa auto', icon: '🚀',
+    label: 'Fin de pausa por movimiento', short: 'Fin pausa auto', icon: 'navigation',
     color: '#4ade80', kind: 'pause_end', severity: 'ok',
     desc: 'Estaba en pausa manual y el dispositivo detectó movimiento real.',
   },
   bloqueo_ruta: {
-    label: 'Bloqueo de ruta', short: 'Bloqueo', icon: '🚧',
+    label: 'Bloqueo de ruta', short: 'Bloqueo', icon: 'construction',
     color: '#ef4444', kind: 'blocked', severity: 'alert',
     desc: 'El operador reportó que la calle está bloqueada.',
   },
   reinicio_movimiento: {
-    label: 'Reinicio de movimiento', short: 'Reinicio', icon: '🔄',
+    label: 'Reinicio de movimiento', short: 'Reinicio', icon: 'refresh',
     color: '#3b82f6', kind: 'resume', severity: 'info',
     desc: 'El camión salió de reposo automático al detectar movimiento.',
   },
 };
 
 const UNKNOWN_META = {
-  label: 'Evento del dispositivo', short: 'Evento', icon: '📡',
+  label: 'Evento del dispositivo', short: 'Evento', icon: 'sensors',
   color: '#94a3b8', kind: 'other', severity: 'info',
   desc: 'Evento reportado por el dispositivo.',
 };
@@ -156,7 +156,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
       add({
         id: `dev-block-${v.id}-${state.blockedSince.getTime()}`,
         kind: 'bloqueo_ruta', priority: 'alta', vehicleId: v.id, vehicle: nombre,
-        icon: '🚧', color: '#ef4444',
+        icon: 'construction', color: '#ef4444',
         title: `${nombre} — Bloqueo de ruta`,
         desc: 'El operador reportó la calle bloqueada desde el dispositivo.',
         at: state.blockedSince,
@@ -172,7 +172,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
           id: `dev-pause-${v.id}-${state.pausedSince.getTime()}`,
           kind: 'pausa_larga', priority: mins >= 120 ? 'alta' : 'media',
           vehicleId: v.id, vehicle: nombre,
-          icon: '⏸️', color: '#f59e0b',
+          icon: 'pause', color: '#f59e0b',
           title: `${nombre} — Pausa prolongada`,
           desc: `Lleva ${timeAgo(state.pausedSince).replace('hace ', '')} en pausa. La ruta no avanza.`,
           at: state.pausedSince,
@@ -190,7 +190,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
         id: `dev-bat-${v.id}`,
         kind: 'bateria_baja', priority: critica ? 'alta' : 'media',
         vehicleId: v.id, vehicle: nombre,
-        icon: '🔋', color: critica ? '#ef4444' : '#f97316',
+        icon: 'battery_alert', color: critica ? '#ef4444' : '#f97316',
         title: `${nombre} — Batería ${critica ? 'crítica' : 'baja'}`,
         desc: `El dispositivo está al ${Math.round(t.battery_pct)}%. ${critica ? 'Puede apagarse y dejar de rastrear.' : 'Requiere recarga antes del siguiente turno.'}`,
         at: t.updated_at ? new Date(t.updated_at) : new Date(),
@@ -205,7 +205,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
         id: `dev-gps-${v.id}`,
         kind: 'gps_deficiente', priority: sinFix ? 'alta' : 'media',
         vehicleId: v.id, vehicle: nombre,
-        icon: '🛰️', color: sinFix ? '#ef4444' : '#f59e0b',
+        icon: 'satellite', color: sinFix ? '#ef4444' : '#f59e0b',
         title: `${nombre} — ${sinFix ? 'GPS sin señal' : 'GPS con señal pobre'}`,
         desc: sinFix
           ? 'El dispositivo no logra fijar posición: su recorrido no se está registrando.'
@@ -221,7 +221,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
         id: `dev-gsm-${v.id}`,
         kind: 'gsm_debil', priority: 'baja',
         vehicleId: v.id, vehicle: nombre,
-        icon: '📶', color: '#06b6d4',
+        icon: 'signal_cellular', color: '#06b6d4',
         title: `${nombre} — Señal de datos débil`,
         desc: `Cobertura en ${Math.round(t.gsm_signal_dbm)} dBm. Los envíos pueden retrasarse o perderse.`,
         at: new Date(),
@@ -237,7 +237,7 @@ export function deriveDeviceIncidents({ vehicles = [], events = [], telemetry = 
         add({
           id: `dev-silent-${v.id}`,
           kind: 'sin_reportar', priority: 'alta', vehicleId: v.id, vehicle: nombre,
-          icon: '📡', color: '#a855f7',
+          icon: 'sensors', color: '#a855f7',
           title: `${nombre} — Sin reportar`,
           desc: `El dispositivo no envía datos desde hace ${Math.round(mins)} min y el camión figura como activo.`,
           at: new Date(ultimo),

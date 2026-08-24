@@ -3,9 +3,26 @@
    Topbar, sidebar, paneles globales, toast
 ══════════════════════════════════════════════════════ */
 
-/* ── TOAST ── */
+/* ── TOAST ──
+   Antes recibía el mensaje con un emoji al principio y lo pintaba con
+   textContent. Ahora el icono es un SVG y el tipo se pasa aparte, así el
+   símbolo se ve igual en cualquier sistema y el texto sigue escapado. */
+const TOAST_ICON = {
+  success: { name: 'check_circle', cls: 'ic-green'  },
+  error:   { name: 'error',        cls: 'ic-red'    },
+  warn:    { name: 'warning',      cls: 'ic-yellow' },
+  info:    { name: 'info',         cls: 'ic-blue'   },
+};
+
+const escapeToast = str => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
 let _toastTimer;
-function showToast(msg) {
+/**
+ * @param {string} msg   texto (se escapa siempre)
+ * @param {'success'|'error'|'warn'|'info'|null} [type]
+ */
+function showToast(msg, type = 'info') {
   let t = document.getElementById('rl-toast');
   if (!t) {
     t = document.createElement('div');
@@ -13,7 +30,12 @@ function showToast(msg) {
     t.className = 'toast';
     document.body.appendChild(t);
   }
-  t.textContent = msg;
+
+  const cfg = TOAST_ICON[type];
+  /* window.rlIcon lo define icons.js; si la página no lo cargó, se muestra
+     solo el texto en lugar de romperse. */
+  const svg = cfg && window.rlIcon ? window.rlIcon(cfg.name, { cls: cfg.cls }) : '';
+  t.innerHTML = `${svg}<span>${escapeToast(msg)}</span>`;
   t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
@@ -151,7 +173,7 @@ function renderNotifications(list) {
         <button class="ac-btn" onclick="dismissNotif('${n.id}', this.closest('.alert-card'))">Descartar</button>
         ${n.action ? `<button class="ac-btn ac-primary" onclick="closeAllPanels();window.location.href='${n.action.href}'">${n.action.label}</button>` : ''}
       </div>
-    </div>`).join('') : `<div style="text-align:center;color:var(--text-2);font-size:12px;padding:28px 10px;">✅ Sin notificaciones pendientes</div>`;
+    </div>`).join('') : `<div style="text-align:center;color:var(--text-2);font-size:12px;padding:28px 10px;">${rlIcon('check_circle', { cls: 'ic-green' })} Sin notificaciones pendientes</div>`;
   updateNotifBadge(visible.length);
 }
 
@@ -179,8 +201,8 @@ function injectPanels() {
   <!-- NOTIFICACIONES -->
   <div class="side-panel" id="panel-notif">
     <div class="sp-header">
-      <span class="sp-title">🔔 Notificaciones</span>
-      <button class="sp-close" onclick="closeAllPanels()">✕</button>
+      <span class="sp-title">${rlIcon('notifications')} Notificaciones</span>
+      <button class="sp-close" onclick="closeAllPanels()">${rlIcon('close')}</button>
     </div>
     <div class="sp-body">
       <div style="text-align:center;color:var(--text-2);font-size:12px;padding:28px 10px;">Cargando…</div>
@@ -190,13 +212,13 @@ function injectPanels() {
   <!-- AJUSTES -->
   <div class="side-panel" id="panel-settings">
     <div class="sp-header">
-      <span class="sp-title">⚙️ Ajustes</span>
-      <button class="sp-close" onclick="closeAllPanels()">✕</button>
+      <span class="sp-title">${rlIcon('settings')} Ajustes</span>
+      <button class="sp-close" onclick="closeAllPanels()">${rlIcon('close')}</button>
     </div>
     <div class="sp-body">
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🌙</span>
+          <span class="setting-icon">${rlIcon('dark_mode')}</span>
           <span class="setting-label">Modo oscuro</span>
         </div>
         <label class="toggle">
@@ -206,7 +228,7 @@ function injectPanels() {
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🔔</span>
+          <span class="setting-icon">${rlIcon('notifications')}</span>
           <span class="setting-label">Notificaciones</span>
         </div>
         <label class="toggle">
@@ -216,7 +238,7 @@ function injectPanels() {
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">📍</span>
+          <span class="setting-icon">${rlIcon('place')}</span>
           <span class="setting-label">Actualización GPS</span>
         </div>
         <span class="setting-value">Cada 30 seg</span>
@@ -224,7 +246,7 @@ function injectPanels() {
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🗺️</span>
+          <span class="setting-icon">${rlIcon('map')}</span>
           <span class="setting-label">Mapa predeterminado</span>
         </div>
         <span class="setting-value">MapTiler Dark</span>
@@ -232,7 +254,7 @@ function injectPanels() {
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🌐</span>
+          <span class="setting-icon">${rlIcon('language')}</span>
           <span class="setting-label">Idioma</span>
         </div>
         <span class="setting-value">Español</span>
@@ -240,7 +262,7 @@ function injectPanels() {
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">📱</span>
+          <span class="setting-icon">${rlIcon('smartphone')}</span>
           <span class="setting-label">Versión</span>
         </div>
         <span class="setting-value">1.0.0</span>
@@ -251,8 +273,8 @@ function injectPanels() {
   <!-- PERFIL -->
   <div class="side-panel" id="panel-profile">
     <div class="sp-header">
-      <span class="sp-title">👤 Mi perfil</span>
-      <button class="sp-close" onclick="closeAllPanels()">✕</button>
+      <span class="sp-title">${rlIcon('person')} Mi perfil</span>
+      <button class="sp-close" onclick="closeAllPanels()">${rlIcon('close')}</button>
     </div>
     <div class="sp-body">
       <div class="profile-hero">
@@ -266,21 +288,21 @@ function injectPanels() {
       <div class="sp-divider"></div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">✏️</span>
+          <span class="setting-icon">${rlIcon('edit')}</span>
           <span class="setting-label">Editar perfil</span>
         </div>
         <span class="setting-arrow">›</span>
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🔑</span>
+          <span class="setting-icon">${rlIcon('key')}</span>
           <span class="setting-label">Cambiar contraseña</span>
         </div>
         <span class="setting-arrow">›</span>
       </div>
       <div class="setting-row">
         <div class="setting-left">
-          <span class="setting-icon">🛡️</span>
+          <span class="setting-icon">${rlIcon('shield')}</span>
           <span class="setting-label">Seguridad</span>
         </div>
         <span class="setting-arrow">›</span>

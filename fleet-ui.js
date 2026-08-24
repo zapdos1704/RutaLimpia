@@ -9,6 +9,7 @@
 ══════════════════════════════════════════════════════ */
 
 import { insertVehicle } from './db.js';
+import { icon } from './icons.js';
 
 const MODAL_ID = 'shared-truck-modal';
 
@@ -21,8 +22,8 @@ function buildModal() {
   wrap.innerHTML = `
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">🚛 Nuevo camión</span>
-      <button class="modal-close" data-close="1">✕</button>
+      <span class="modal-title">${icon('truck')} Nuevo camión</span>
+      <button class="modal-close" data-close="1">${icon('close')}</button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -120,9 +121,9 @@ export function mountNewTruckModal(options = {}) {
     const plates   = $('t-plates').value.trim();
     const capacity = $('t-capacity').value;
 
-    if (!economic) { showToast('⚠️ El número económico es obligatorio'); $('t-economic').focus(); return; }
-    if (!plates)   { showToast('⚠️ Las placas son obligatorias');        $('t-plates').focus();   return; }
-    if (!capacity) { showToast('⚠️ La capacidad es obligatoria');        $('t-capacity').focus(); return; }
+    if (!economic) { showToast('El número económico es obligatorio', 'warn');; $('t-economic').focus(); return; }
+    if (!plates)   { showToast('Las placas son obligatorias', 'warn');;        $('t-plates').focus();   return; }
+    if (!capacity) { showToast('La capacidad es obligatoria', 'warn');;        $('t-capacity').focus(); return; }
 
     btn.disabled = true;
     const original = btn.textContent;
@@ -140,14 +141,14 @@ export function mountNewTruckModal(options = {}) {
         notes:         $('t-notes').value.trim() || null,
       });
       close();
-      showToast('✅ Camión registrado');
+      showToast('Camión registrado', 'success');;
       options.onCreated?.(vehicle);
     } catch (err) {
       console.error('[insertVehicle]', err);
       const msg = /duplicate|unique/i.test(err.message || '')
         ? 'Ya existe un camión con ese número económico o placas'
         : (err.message || 'No se pudo guardar');
-      showToast('❌ ' + msg);
+      showToast('' + msg);
     } finally {
       btn.disabled = false;
       btn.textContent = original;

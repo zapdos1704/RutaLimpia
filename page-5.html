@@ -10,8 +10,6 @@
 .main {
   flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
-.main::-webkit-scrollbar { width: 4px; }
-.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
 
 .page-inner {
   padding: 24px;
@@ -131,8 +129,6 @@
 
 /* Vehículos sidebar */
 .vehicles-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
-.vehicles-list::-webkit-scrollbar { width: 3px; }
-.vehicles-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
 
 /* ── MODAL Nueva Campaña ── */
 .modal-overlay {
@@ -303,7 +299,7 @@
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="d-title">Detalle</span>
-      <button class="modal-close" onclick="closeDetail()">✕</button>
+      <button class="modal-close" onclick="closeDetail()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body" id="d-body"></div>
     <div class="modal-footer">
@@ -317,7 +313,7 @@
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title">Nueva campaña</span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" onclick="closeModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-field">
@@ -366,6 +362,10 @@
   </div>
 </div>
 
+<script type="module" id="rl-icons-bridge">
+  /* Publica window.rlIcon antes de que shared.js pinte nada. */
+  import './icons.js';
+</script>
 <script src="shared.js"></script>
 <script type="module">
 import { getCampaigns, getVehicles, getTelemetry, insertCampaign, getSession, getCurrentUserProfile, getNotifications, signOut } from './db.js';
@@ -439,7 +439,7 @@ const detailRow = (label, value) =>
 
 window.showCampaignDetail = function(id) {
   const c = _campaigns.find(x => String(x.id) === String(id));
-  if (!c) { showToast('⚠️ No se encontró la campaña'); return; }
+  if (!c) { showToast('No se encontró la campaña', 'warn');; return; }
 
   const days = c.end_date
     ? Math.ceil((new Date(c.end_date + 'T00:00:00') - new Date(c.start_date + 'T00:00:00')) / 86400000) + 1
@@ -495,8 +495,8 @@ window.submitCampaign = async function(btn) {
   const name  = $('camp-name').value.trim();
   const start = $('camp-start').value;
 
-  if (!name)  { showToast('⚠️ El nombre es obligatorio'); $('camp-name').focus(); return; }
-  if (!start) { showToast('⚠️ La fecha de inicio es obligatoria'); $('camp-start').focus(); return; }
+  if (!name)  { showToast('El nombre es obligatorio', 'warn');; $('camp-name').focus(); return; }
+  if (!start) { showToast('La fecha de inicio es obligatoria', 'warn');; $('camp-start').focus(); return; }
 
   btn.disabled = true;
   const originalText = btn.textContent;
@@ -512,11 +512,11 @@ window.submitCampaign = async function(btn) {
       status:        $('camp-status').value,
     });
     window.closeModal();
-    showToast('✅ Campaña creada correctamente');
+    showToast('Campaña creada correctamente', 'success');;
     await loadData();
   } catch(err) {
     console.error('[insertCampaign]', err);
-    showToast('❌ ' + (err.message || 'No se pudo guardar la campaña'));
+    showToast('' + (err.message || 'No se pudo guardar la campaña', 'error'));;
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -565,7 +565,7 @@ async function loadData() {
     renderVehicles(_vehicles);
   } catch (err) {
     console.error('[campaigns]', err);
-    showToast('❌ No se pudieron cargar las campañas');
+    showToast('No se pudieron cargar las campañas', 'error');;
   } finally {
     window.hidePageLoader?.();
   }

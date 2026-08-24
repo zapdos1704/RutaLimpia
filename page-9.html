@@ -7,8 +7,6 @@
 <link rel="stylesheet" href="shared.css"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
-.main::-webkit-scrollbar { width: 4px; }
-.main::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 4px; }
 
 .page-inner { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -383,8 +381,8 @@
 <div class="modal-overlay" id="truck-modal" onclick="if(event.target===this) closeTruckModal()">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">🚛 Nuevo camión</span>
-      <button class="modal-close" onclick="closeTruckModal()">✕</button>
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9 1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg> Nuevo camión</span>
+      <button class="modal-close" onclick="closeTruckModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -450,8 +448,8 @@
 <div class="modal-overlay" id="route-modal" onclick="if(event.target===this) closeRouteModal()">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">🗺️ Asignar ruta</span>
-      <button class="modal-close" onclick="closeRouteModal()">✕</button>
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3 20.34 3.03 15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg> Asignar ruta</span>
+      <button class="modal-close" onclick="closeRouteModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-field">
@@ -475,8 +473,8 @@
 <div class="modal-overlay" id="crew-modal" onclick="if(event.target===this) closeCrewModal()">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">👷 Asignar personal</span>
-      <button class="modal-close" onclick="closeCrewModal()">✕</button>
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm0 8c-3.31 0-9 1.67-9 5v3h18v-3c0-3.33-5.69-5-9-5zm-7 6v-.99c.2-.72 3.3-2.01 7-2.01s6.8 1.29 7 2v1H5z"/></svg> Asignar personal</span>
+      <button class="modal-close" onclick="closeCrewModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-field">
@@ -506,8 +504,8 @@
 <div class="modal-overlay" id="delete-modal" onclick="if(event.target===this) closeDeleteModal()">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">🗑 Eliminar camión</span>
-      <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Eliminar camión</span>
+      <button class="modal-close" onclick="closeDeleteModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="del-target">
@@ -529,7 +527,7 @@
       </div>
 
       <div class="del-alt">
-        ⚠️ Si el camión solo salió de circulación, <strong>darlo de baja</strong> es mejor:
+        <svg class="ic ic-yellow" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg> Si el camión solo salió de circulación, <strong>darlo de baja</strong> es mejor:
         deja de aparecer como activo pero conserva su historial de recolecciones y GPS.
       </div>
 
@@ -550,13 +548,17 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
-      <button class="btn-warn" id="d-deactivate" onclick="deactivateFromModal(this)">⏸ Dar de baja</button>
+      <button class="btn-warn" id="d-deactivate" onclick="deactivateFromModal(this)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> Dar de baja</button>
       <button class="btn-destructive" id="d-confirm-btn" disabled onclick="confirmDelete(this)">Eliminar definitivamente</button>
-      <button class="btn-destructive" id="d-force-btn" hidden onclick="confirmDelete(this, true)">🔥 Eliminar con todo su historial</button>
+      <button class="btn-destructive" id="d-force-btn" hidden onclick="confirmDelete(this, true)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 23a7 7 0 0 0 7-7c0-2-1-3.9-2.5-5.4l-.9 2.2a1 1 0 0 1-1.9-.2C13.4 9.9 12.6 7 10 4.5c-.4 3.1-1.6 4.6-2.8 6.1C5.9 12.2 5 13.9 5 16a7 7 0 0 0 7 7zm0-2a5 5 0 0 1-5-5c0-1.4.6-2.6 1.7-3.9.6-.8 1.3-1.6 1.8-2.7 1.1 1.6 1.7 3.2 2.1 4.4a3 3 0 0 0 5 1.1c.3.7.4 1.4.4 2.1a5 5 0 0 1-5 5z"/></svg> Eliminar con todo su historial</button>
     </div>
   </div>
 </div>
 
+<script type="module" id="rl-icons-bridge">
+  /* Publica window.rlIcon antes de que shared.js pinte nada. */
+  import './icons.js';
+</script>
 <script src="shared.js"></script>
 <script type="module">
 import {
@@ -565,6 +567,7 @@ import {
   getVehicleUsage, deleteVehicle, updateVehicleColor, MissingColumnError,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
+import { icon } from './icons.js';
 import { COLOR_PALETTE, chosenColorFor, mapColorFor, setLocalColor, isValidHex } from './vehicle-colors.js';
 
 window.doLogout = async function() { await signOut(); window.location.href = 'index.html'; };
@@ -632,20 +635,20 @@ window.setVehicleColor = async function(vehicleId, hex, btn) {
   try {
     await updateVehicleColor(vehicleId, hex);
     _colorIsLocalOnly = false;
-    showToast(`🎨 ${vehicle.economic_number} en ${COLOR_PALETTE.find(c => c.hex === hex)?.name || hex}`);
+    showToast(`${vehicle.economic_number} en ${COLOR_PALETTE.find(c => c.hex === hex)?.name || hex}`, 'info');;
   } catch (err) {
     if (err instanceof MissingColumnError) {
       setLocalColor(vehicleId, hex);
       if (!_colorIsLocalOnly) {
         _colorIsLocalOnly = true;
-        showToast('🎨 Color guardado solo en este navegador (falta la columna vehicles.color)');
+        showToast('Color guardado solo en este navegador (falta la columna vehicles.color)', 'info');;
       } else {
-        showToast(`🎨 ${vehicle.economic_number} en ${COLOR_PALETTE.find(c => c.hex === hex)?.name || hex}`);
+        showToast(`${vehicle.economic_number} en ${COLOR_PALETTE.find(c => c.hex === hex)?.name || hex}`, 'info');;
       }
     } else {
       console.error('[updateVehicleColor]', err);
       setLocalColor(vehicleId, hex);
-      showToast('⚠️ No se pudo guardar en la base; queda en este navegador');
+      showToast('No se pudo guardar en la base; queda en este navegador', 'warn');
     }
   }
   renderTrucks();
@@ -668,12 +671,12 @@ function crewBlock(vehicle) {
   const crew = crewOf(vehicle.id);
   const rows = crew.length ? crew.map(c => `
     <div class="crew-row">
-      <div class="crew-badge ${c.crew_role === 'driver' ? 'driver' : 'collector'}">${c.crew_role === 'driver' ? '🧑‍✈️' : '🧤'}</div>
+      <div class="crew-badge ${c.crew_role === 'driver' ? 'driver' : 'collector'}">${icon(c.crew_role === 'driver' ? 'person' : 'group')}</div>
       <div>
         <div class="crew-name">${escapeHtml(c.user?.name || 'Sin nombre')}</div>
         <div class="crew-role">${CREW_LABEL[c.crew_role] || c.crew_role}${c.user?.phone ? ' · ' + escapeHtml(c.user.phone) : ''}</div>
       </div>
-      <button class="crew-del" title="Quitar de la cuadrilla" onclick="unassign('${c.id}')">✕</button>
+      <button class="crew-del" title="Quitar de la cuadrilla" onclick="unassign('${c.id}')">${icon('close')}</button>
     </div>`).join('')
     : '<div class="crew-empty">Sin personal asignado.</div>';
 
@@ -689,7 +692,7 @@ function crewBlock(vehicle) {
 function renderTrucks() {
   const el = $('truck-grid');
   if (!_vehicles.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🚛</div>No hay camiones registrados.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('truck')}</div>No hay camiones registrados.</div>`;
     return;
   }
   el.innerHTML = _vehicles.map(v => {
@@ -698,7 +701,7 @@ function renderTrucks() {
     return `
     <div class="truck-card ${v.status}">
       ${broken ? `<div class="tc-alert">
-        <span class="tc-alert-icon">🔧</span>
+        <span class="tc-alert-icon">${icon('build')}</span>
         <div>
           <div class="tc-alert-title">Camión con avería</div>
           <div class="tc-alert-desc">${escapeHtml(v.notes || 'Fuera de servicio por mantenimiento.')}</div>
@@ -713,7 +716,7 @@ function renderTrucks() {
           <div class="tc-id">${escapeHtml(v.economic_number)}</div>
           <div class="tc-plate">${escapeHtml(v.plates || 'sin placas')}</div>
         </div>
-        <span class="tc-status ${v.status}">${broken ? '🔧 ' : off ? '⏸ ' : '● '}${STATUS_LABEL[v.status] || v.status}</span>
+        <span class="tc-status ${v.status}">${broken ? `${icon('build')} ` : off ? `${icon('pause')} ` : ' '}${STATUS_LABEL[v.status] || v.status}</span>
       </div>
 
       <div class="tc-specs">
@@ -731,10 +734,10 @@ function renderTrucks() {
       <div class="tc-actions">
         <button class="tc-toggle ${broken ? 'fix' : 'break'}"
                 onclick="cycleStatus('${v.id}', '${broken ? 'active' : 'maintenance'}')">
-          ${broken ? '✅ Marcar como reparado' : '🔧 Reportar avería'}
+          ${broken ? `${icon('check_circle', { cls: 'ic-green' })} Marcar como reparado` : `${icon('build')} Reportar avería`}
         </button>
         <button class="tc-delete" title="Eliminar camión" aria-label="Eliminar ${escapeHtml(v.economic_number)}"
-                onclick="openDeleteModal('${v.id}')">🗑</button>
+                onclick="openDeleteModal('${v.id}')">${icon('delete')}</button>
       </div>
     </div>`;
   }).join('');
@@ -755,9 +758,9 @@ window.submitTruck = async function(btn) {
   const plates   = $('v-plates').value.trim();
   const capacity = $('v-capacity').value;
 
-  if (!economic) { showToast('⚠️ El número económico es obligatorio'); $('v-economic').focus(); return; }
-  if (!plates)   { showToast('⚠️ Las placas son obligatorias'); $('v-plates').focus(); return; }
-  if (!capacity) { showToast('⚠️ La capacidad es obligatoria'); $('v-capacity').focus(); return; }
+  if (!economic) { showToast('El número económico es obligatorio', 'warn');; $('v-economic').focus(); return; }
+  if (!plates)   { showToast('Las placas son obligatorias', 'warn');; $('v-plates').focus(); return; }
+  if (!capacity) { showToast('La capacidad es obligatoria', 'warn');; $('v-capacity').focus(); return; }
 
   btn.disabled = true;
   const original = btn.textContent;
@@ -775,14 +778,14 @@ window.submitTruck = async function(btn) {
       notes:         $('v-notes').value.trim() || null,
     });
     window.closeTruckModal();
-    showToast('✅ Camión registrado');
+    showToast('Camión registrado', 'success');;
     await loadData();
   } catch (err) {
     console.error('[insertVehicle]', err);
     const msg = /duplicate|unique/i.test(err.message || '')
       ? 'Ya existe un camión con ese número económico o placas'
       : (err.message || 'No se pudo guardar');
-    showToast('❌ ' + msg);
+    showToast('' + msg);
   } finally {
     btn.disabled = false;
     btn.textContent = original;
@@ -796,8 +799,8 @@ function routePreview() {
   const route = _allRoutes.find(r => r.id === $('r-route').value);
   if (!route) { $('r-preview').innerHTML = ''; return; }
   const flags = [
-    route.has_steep_terrain ? '⛰️ Pendiente pronunciada' : null,
-    route.has_narrow_alleys ? '↔️ Calles angostas' : null,
+    route.has_steep_terrain ? `${icon('terrain')} Pendiente pronunciada` : null,
+    route.has_narrow_alleys ? `${icon('road')} Calles angostas` : null,
   ].filter(Boolean);
   $('r-preview').innerHTML = `
     <div class="rp-head">${escapeHtml(route.name)}
@@ -825,7 +828,7 @@ $('r-route').addEventListener('change', routePreview);
 
 window.submitRoute = async function(btn) {
   const routeId = $('r-route').value;
-  if (!routeId) { showToast('⚠️ No hay rutas para asignar'); return; }
+  if (!routeId) { showToast('No hay rutas para asignar', 'warn');; return; }
 
   btn.disabled = true;
   const original = btn.textContent;
@@ -833,11 +836,11 @@ window.submitRoute = async function(btn) {
   try {
     await assignRouteToVehicle(_routeVehicleId, routeId);
     window.closeRouteModal();
-    showToast('✅ Ruta asignada');
+    showToast('Ruta asignada', 'success');;
     await loadData();
   } catch (err) {
     console.error('[assignRoute]', err);
-    showToast('❌ ' + (err.message || 'No se pudo asignar la ruta'));
+    showToast('' + (err.message || 'No se pudo asignar la ruta', 'error'));;
   } finally {
     btn.disabled = false;
     btn.textContent = original;
@@ -848,11 +851,11 @@ window.submitRoute = async function(btn) {
 window.cycleStatus = async function(vehicleId, next) {
   try {
     await updateVehicleStatus(vehicleId, next);
-    showToast(next === 'maintenance' ? '🔧 Camión marcado con avería' : '✅ Camión de vuelta en servicio');
+    showToast(next === 'maintenance'? ' Camión marcado con avería' : ' Camión de vuelta en servicio');
     await loadData();
   } catch (err) {
     console.error('[updateVehicleStatus]', err);
-    showToast('❌ ' + (err.message || 'No se pudo actualizar'));
+    showToast('' + (err.message || 'No se pudo actualizar', 'error'));;
   }
 };
 
@@ -874,17 +877,17 @@ window.closeCrewModal = () => $('crew-modal').classList.remove('open');
 
 window.submitCrew = async function(btn) {
   const userId = $('c-user').value;
-  if (!userId) { showToast('⚠️ Selecciona una persona'); return; }
+  if (!userId) { showToast('Selecciona una persona', 'warn');; return; }
 
   btn.disabled = true;
   try {
     await assignCrewMember(_crewVehicleId, userId, $('c-role').value);
     window.closeCrewModal();
-    showToast('✅ Personal asignado');
+    showToast('Personal asignado', 'success');;
     await loadData();
   } catch (err) {
     console.error('[assignCrew]', err);
-    showToast('❌ ' + (err.message || 'No se pudo asignar'));
+    showToast('' + (err.message || 'No se pudo asignar', 'error'));;
   } finally {
     btn.disabled = false;
   }
@@ -912,7 +915,7 @@ window.openDeleteModal = function(vehicleId) {
   $('d-confirm').placeholder   = v.economic_number;
   $('d-confirm-btn').disabled  = true;
   $('d-deactivate').disabled   = v.status === 'inactive';
-  $('d-deactivate').textContent = v.status === 'inactive' ? '⏸ Ya está de baja' : '⏸ Dar de baja';
+  $('d-deactivate').innerHTML = icon('pause') + (v.status === 'inactive' ? ' Ya está de baja' : ' Dar de baja');
   $('d-usage').innerHTML       = '<div class="del-usage-row">Revisando qué información tiene ligada…</div>';
   _lastUsage    = null;
   _forceConfirmed = false;
@@ -931,18 +934,18 @@ async function loadDeleteUsage(vehicleId) {
 
   const rows = [];
   rows.push(usage.crew > 0
-    ? `<div class="del-usage-row">👷 <span class="du-n">${usage.crew}</span> ${usage.crew === 1 ? 'asignación' : 'asignaciones'} de cuadrilla — <span style="color:#fca5a5">se ${usage.crew === 1 ? 'eliminará' : 'eliminarán'}</span></div>`
-    : '<div class="del-usage-row">👷 Sin personal asignado</div>');
+    ? `<div class="del-usage-row">${icon('engineering')} <span class="du-n">${usage.crew}</span> ${usage.crew === 1 ? 'asignación' : 'asignaciones'} de cuadrilla — <span style="color:#fca5a5">se ${usage.crew === 1 ? 'eliminará' : 'eliminarán'}</span></div>`
+    : `<div class="del-usage-row">${icon('engineering')} Sin personal asignado</div>`);
 
   rows.push(usage.collections > 0
-    ? `<div class="del-usage-row">📋 <span class="du-n">${usage.collections}</span> ${usage.collections === 1 ? 'recolección' : 'recolecciones'} en su historial</div>`
-    : '<div class="del-usage-row">📋 Sin recolecciones registradas</div>');
+    ? `<div class="del-usage-row">${icon('assignment')} <span class="du-n">${usage.collections}</span> ${usage.collections === 1 ? 'recolección' : 'recolecciones'} en su historial</div>`
+    : `<div class="del-usage-row">${icon('assignment')} Sin recolecciones registradas</div>`);
 
-  if (usage.hasGpsHistory) rows.push('<div class="del-usage-row">🛰️ Tiene historial GPS guardado</div>');
-  if (usage.hasTelemetry)  rows.push('<div class="del-usage-row">📡 Tiene un dispositivo con telemetría activa</div>');
+  if (usage.hasGpsHistory) rows.push(`<div class="del-usage-row">${icon('satellite')} Tiene historial GPS guardado</div>`);
+  if (usage.hasTelemetry)  rows.push(`<div class="del-usage-row">${icon('sensors')} Tiene un dispositivo con telemetría activa</div>`);
 
   if (usage.collections > 0 || usage.hasGpsHistory || usage.hasTelemetry) {
-    rows.push('<div class="del-usage-row" style="color:var(--yellow);margin-top:4px">⚠️ Si la base protege ese historial, el borrado se rechazará y te lo diremos.</div>');
+    rows.push(`<div class="del-usage-row" style="color:var(--yellow);margin-top:4px">${icon('warning', { cls: 'ic-yellow' })} Si la base protege ese historial, el borrado se rechazará y te lo diremos.</div>`);
   }
   if (usage.unknown.length) {
     rows.push('<div class="del-usage-row" style="color:var(--text-2);margin-top:4px">No se pudo revisar: ' + usage.unknown.join(', ') + '</div>');
@@ -979,7 +982,7 @@ function showDeleteError(err, vehicle) {
   $('d-error-raw').textContent = err.raw || err.message || '—';
 
   if (err.reason === 'fk') {
-    $('d-error-title').textContent = '❌ La base de datos bloqueó el borrado';
+    $('d-error-title').innerHTML = icon('error', { cls: 'ic-red' }) + ' La base de datos bloqueó el borrado';
     $('d-error-msg').innerHTML = `${escapeHtml(err.message)}
       <div class="de-fix">Puedes:
         <br/>· <strong>Dar de baja</strong> — lo saca de operación y conserva el historial (recomendado).
@@ -990,13 +993,13 @@ function showDeleteError(err, vehicle) {
       </div>`;
     $('d-force-btn').hidden = false;
     $('d-force-btn').disabled = false;
-    $('d-force-btn').textContent = '🔥 Eliminar con todo su historial';
+    $('d-force-btn').innerHTML = icon('fire') + ' Eliminar con todo su historial';
     _forceConfirmed = false;
     return;
   }
 
   if (err.reason === 'permission') {
-    $('d-error-title').textContent = '🔒 Supabase no permite borrar';
+    $('d-error-title').innerHTML = icon('lock') + ' Supabase no permite borrar';
     $('d-error-msg').innerHTML = `${escapeHtml(err.message)}
       <div class="de-fix">Esto no se arregla desde la página: es una política de seguridad de la base.
         En Supabase → <em>Authentication → Policies</em>, la tabla <code>vehicles</code> necesita una
@@ -1006,7 +1009,7 @@ function showDeleteError(err, vehicle) {
     return;
   }
 
-  $('d-error-title').textContent = '❌ No se pudo eliminar';
+  $('d-error-title').innerHTML = icon('error', { cls: 'ic-red' }) + ' No se pudo eliminar';
   $('d-error-msg').textContent = err.message || 'Error desconocido.';
 }
 
@@ -1026,12 +1029,12 @@ window.confirmDelete = async function(btn, force = false) {
       u.hasTelemetry ? 'su telemetría' : null,
       u.crew ? `${u.crew} ${u.crew === 1 ? 'asignación' : 'asignaciones'} de cuadrilla` : null,
     ].filter(Boolean);
-    $('d-error-title').textContent = '🔥 Confirma: se destruirá el historial';
+    $('d-error-title').innerHTML = icon('fire') + ' Confirma: se destruirá el historial';
     $('d-error-msg').innerHTML = `Se eliminará <strong>${escapeHtml(v.economic_number)}</strong> junto con
       ${partes.length ? escapeHtml(partes.join(', ')) : 'todos sus registros dependientes'}.
       <div class="de-fix">Esto no se puede deshacer y esos datos no se recuperan.
         Vuelve a pulsar el botón para confirmar, o cierra el modal para cancelar.</div>`;
-    btn.textContent = '🔥 Sí, borrar todo definitivamente';
+    btn.innerHTML = icon('fire') + ' Sí, borrar todo definitivamente';
     return;
   }
 
@@ -1042,12 +1045,12 @@ window.confirmDelete = async function(btn, force = false) {
   try {
     await deleteVehicle(v.id, { force });
     window.closeDeleteModal();
-    showToast(force ? `✅ ${v.economic_number} y su historial eliminados` : `✅ ${v.economic_number} eliminado`);
+    showToast(force ? `${v.economic_number} y su historial eliminados` : ` ${v.economic_number} eliminado`);
     await loadData();
   } catch (err) {
     console.error('[deleteVehicle]', err);
     showDeleteError(err, v);
-    showToast(err.reason === 'permission' ? '🔒 Supabase no permite borrar' : '❌ No se pudo eliminar');
+    showToast(err.reason === 'permission'? ' Supabase no permite borrar' : ' No se pudo eliminar');
   } finally {
     btn.textContent = original;
     btn.disabled = false;
@@ -1065,11 +1068,11 @@ window.deactivateFromModal = async function(btn) {
   try {
     await updateVehicleStatus(v.id, 'inactive');
     window.closeDeleteModal();
-    showToast(`⏸ ${v.economic_number} dado de baja`);
+    showToast(`${v.economic_number} dado de baja`, 'info');;
     await loadData();
   } catch (err) {
     console.error('[deactivateVehicle]', err);
-    showToast('❌ ' + (err.message || 'No se pudo dar de baja'));
+    showToast('' + (err.message || 'No se pudo dar de baja', 'error'));;
     btn.disabled = false;
   } finally {
     btn.textContent = original;
@@ -1083,11 +1086,11 @@ document.addEventListener('keydown', e => {
 window.unassign = async function(crewId) {
   try {
     await removeCrewMember(crewId);
-    showToast('✅ Persona retirada de la cuadrilla');
+    showToast('Persona retirada de la cuadrilla', 'success');;
     await loadData();
   } catch (err) {
     console.error('[removeCrew]', err);
-    showToast('❌ ' + (err.message || 'No se pudo quitar'));
+    showToast('' + (err.message || 'No se pudo quitar', 'error'));;
   }
 };
 
@@ -1103,7 +1106,7 @@ async function loadData() {
     renderTrucks();
   } catch (err) {
     console.error('[camiones]', err);
-    showToast('❌ No se pudo cargar la flota');
+    showToast('No se pudo cargar la flota', 'error');;
   } finally {
     window.hidePageLoader?.();
   }
