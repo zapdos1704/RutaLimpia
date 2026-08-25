@@ -260,6 +260,111 @@ export const segmentsToLines = segments =>
   segments.filter(s => s.length >= 2).map(s => s.map(p => [p.lng, p.lat]));
 
 /* ══════════════════════════════════════
+   AJUSTE INCREMENTAL
+
+   El recorrido crece constantemente: llega una posición nueva cada pocos
+   segundos. Volver a ajustar TODO en cada una es inviable — son varias
+   peticiones por tanda y ninguna llegaría a terminar antes de la siguiente.
+
+   Este objeto mantiene el trabajo ya hecho: los tramos antiguos quedan
+   CONGELADOS y solo se vuelve a pedir la cola que está creciendo. En marcha
+   normal eso es una sola petición pequeña por actualización.
+══════════════════════════════════════ */
+export function createTrailSnapper({ endpoint } = {}) {
+  /** @type {Array<Array<[number,number]>>} tramos ya ajustados y definitivos */
+  let frozen = [];
+  /** cuántos puntos del recorrido están ya congelados */
+  let frozenUpTo = 0;
+  /** firma de la parte estable, para detectar que el recorrido cambió de raíz */
+  let shape = '';
+  let lastTail = [];
+  let lastTailKey = '';
+  let lastStats = { adjusted: 0, total: 0, error: null, truncated: false };
+
+  const chunkSize = () => (PUBLIC_OSRM.test(endpoint || getOsrmEndpoint()) ? CHUNK_PUBLIC : CHUNK_OWN);
+
+  /* Solo el ÚLTIMO segmento crece. Si cambia el número de segmentos (apareció
+     un hueco de tiempo) o el recorrido es otro, se empieza de cero. */
+  const shapeOf = segments =>
+    segments.slice(0, -1).map(s => s.length).join(',') + '|' + segments.length;
+
+  function reset() { frozen = []; frozenUpTo = 0; lastTail = []; lastTailKey = ''; }
+
+  /**
+   * @param {Array<Array<{lat,lng,timestamp}>>} segments
+   * @returns {Promise<{lines:Array, adjusted:number, total:number,
+   *                    error:string|null, incremental:boolean}>}
+   */
+  async function update(segments, { signal } = {}) {
+    const forma = shapeOf(segments);
+    const incremental = forma === shape && frozen.length > 0;
+    if (!incremental) { reset(); shape = forma; }
+
+    const previos = segments.slice(0, -1);
+    const ultimo  = segments[segments.length - 1] || [];
+
+    /* Los segmentos anteriores al último no cambian nunca: se ajustan una vez. */
+    if (!incremental) {
+      const res = await snapSegmentsToRoads(previos, { endpoint, signal });
+      frozen = res.lines;
+      frozenUpTo = 0;
+      lastStats = res;
+    }
+
+    /* De la cola se congela todo menos el último trozo, que puede seguir
+       creciendo con las posiciones que lleguen. */
+    const tamano = chunkSize();
+    const puntos = thinPoints(ultimo);
+    const corte = Math.max(0, puntos.length - tamano);
+
+    if (corte > frozenUpTo) {
+      const aCongelar = puntos.slice(frozenUpTo, corte + 1);   // +1 para solapar
+      if (aCongelar.length >= 2) {
+        const res = await snapSegmentsToRoads([aCongelar], { endpoint, signal });
+        frozen = frozen.concat(res.lines);
+        lastStats = { ...res, adjusted: (lastStats.adjusted || 0) + res.adjusted };
+      }
+      frozenUpTo = corte;
+    }
+
+    /* La cola viva: una sola petición… pero solo si de verdad cambió.
+       Si el camión está parado llegan pings que no añaden ningún punto útil
+       (thinPoints los descarta), y volver a pedir lo mismo sería tirar
+       peticiones al servidor sin cambiar un píxel del mapa. */
+    const cola = puntos.slice(frozenUpTo);
+    const colaKey = cola.length
+      ? `${cola.length}:${cola[cola.length - 1].lng.toFixed(5)},${cola[cola.length - 1].lat.toFixed(5)}`
+      : '';
+
+    if (colaKey !== lastTailKey) {
+      lastTailKey = colaKey;
+      if (cola.length >= 2) {
+        const res = await snapSegmentsToRoads([cola], { endpoint, signal });
+        lastTail = res.lines;
+        lastStats = {
+          adjusted: (lastStats.adjusted || 0) + res.adjusted,
+          total: (lastStats.total || 0) + res.total,
+          error: res.error || lastStats.error,
+          truncated: res.truncated || lastStats.truncated,
+        };
+      } else {
+        lastTail = cola.length ? [cola.map(p => [p.lng, p.lat])] : [];
+      }
+    }
+
+    return {
+      lines: frozen.concat(lastTail),
+      adjusted: lastStats.adjusted || 0,
+      total: lastStats.total || 0,
+      error: lastStats.error || null,
+      incremental,
+    };
+  }
+
+  return { update, reset, get frozenChunks() { return frozen.length; } };
+}
+
+/* ══════════════════════════════════════
    REPRODUCCIÓN ANIMADA
 
    La animación va sobre el TIEMPO REAL del recorrido, no sobre el índice de los

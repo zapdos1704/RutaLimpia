@@ -149,7 +149,10 @@
 /* ── Panel de vehículo ── */
 #vehicle-panel {
   position: absolute;
-  top: 0; right: 0; bottom: 0;
+  /* bottom:auto -> el panel mide lo que mide su contenido. Con bottom:0 se
+     estiraba siempre a toda la altura y sobraba fondo azul. */
+  top: 0; right: 0; bottom: auto;
+  max-height: 100%;
   width: 300px;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border);
@@ -221,17 +224,18 @@
 }
 .vp-tab-badge[hidden] { display:none; }
 
-/* Las hojas se apilan en el MISMO espacio: solo cambia cuál está encima. */
-.vp-panes { position:relative; flex:1; min-height:0; }
+/* Solo se muestra la hoja activa, y es ELLA la que define la altura.
+   Antes las hojas se apilaban en posición absoluta: no aportaban altura, el
+   panel se estiraba a toda la columna y con pocos eventos quedaba un bloque
+   azul vacío enorme debajo de la lista. */
+.vp-panes { display:flex; flex-direction:column; flex:0 1 auto; min-height:0; }
 .vp-pane {
-  position:absolute; inset:0;
-  display:flex; flex-direction:column; gap:9px;
-  opacity:0; visibility:hidden; pointer-events:none;
-  transform:translateY(5px);
-  transition:opacity .18s ease, transform .18s ease, visibility .18s;
-  overflow-y:auto;
+  display:none;
+  flex-direction:column; gap:9px;
+  min-height:0; overflow-y:auto;
 }
-.vp-pane.active { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+.vp-pane.active { display:flex; animation:paneIn .18s ease-out; }
+@keyframes paneIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
 
 .vp-field { display:flex; flex-direction:column; gap:4px; }
 .vp-field-lbl { font-size:9px; font-weight:700; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.4px; }
@@ -243,8 +247,9 @@
 .vp-select:focus { border-color:var(--green); }
 .vp-select option { background:var(--bg-surface); }
 
-/* En las pestañas el historial ya no se limita en altura */
-.vp-events { max-height:none; flex:1; }
+/* La lista crece con sus elementos; solo se desplaza si de verdad no cabe. */
+.vp-events { max-height:none; flex:0 1 auto; }
+.vp-ev { flex-shrink:0; }
 
 /* ══ Camiones fuera de cuadro ══ */
 .offscreen-pins { position:absolute; inset:0; z-index:12; pointer-events:none; }
@@ -301,6 +306,19 @@
 .vp-check input { accent-color:var(--green); cursor:pointer; }
 .vp-snap-note { font-size:9px; line-height:1.5; color:rgba(255,255,255,.45); }
 .vp-snap-note.warn { color:#fcd34d; }
+.vp-link {
+  background:none; border:none; padding:0; cursor:pointer;
+  font-family:inherit; font-size:10px; font-weight:700; color:var(--green-light);
+  text-decoration:underline; text-underline-offset:2px; align-self:flex-start;
+}
+.vp-link:hover { color:#86efac; }
+
+/* Resultado de la prueba de conexión al servidor de ajuste */
+.osrm-result { font-size:11px; line-height:1.7; border-radius:var(--radius-sm); padding:11px 13px; }
+.osrm-result.ok   { background:rgba(34,197,94,.10);  border:1px solid rgba(74,222,128,.35); }
+.osrm-result.bad  { background:rgba(239,68,68,.10);  border:1px solid rgba(239,68,68,.35); }
+.osrm-result.wait { background:var(--bg-raised);     border:1px solid var(--border); color:var(--text-2); }
+.osrm-result b { color:var(--text-1); }
 
 /* ══ Reproductor del recorrido ══ */
 .playbar {
@@ -694,6 +712,7 @@
               <span>Ajustar el trazo a las calles</span>
             </label>
             <div class="vp-snap-note" id="vp-snap-note"></div>
+            <button class="vp-link" type="button" onclick="openOsrmModal()">Servidor de ajuste…</button>
           </div>
 
           <!-- ── Eventos ── -->
@@ -714,6 +733,51 @@
   </div>
 
   <nav class="bottom-nav"></nav>
+</div>
+
+<!-- ══ MODAL: SERVIDOR DE AJUSTE A CALLES ══ -->
+<div class="modal-overlay" id="osrm-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Servidor de ajuste a calles</span>
+      <button class="modal-close" data-close-osrm="1" aria-label="Cerrar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="ai-note">
+        El trazo se pega a las calles reales usando <strong>OSRM</strong>, el motor de rutas de
+        OpenStreetMap. El servidor público es una demo con límites duros
+        (10 posiciones por petición), así que en recorridos largos se hacen muchas peticiones
+        y puede rechazarlas. Un servidor propio quita ese límite y va mucho más rápido.
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="osrm-url">Dirección del servidor</label>
+        <input class="form-input" id="osrm-url" placeholder="http://tu-servidor:5000"/>
+        <span class="form-hint">Vacío = servidor público de OpenStreetMap.</span>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label">Atajos</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-cancel" type="button" onclick="setOsrmPreset('')">Público</button>
+          <button class="btn-cancel" type="button" onclick="setOsrmPreset('http://localhost:5000')">Local (5000)</button>
+        </div>
+      </div>
+
+      <div class="osrm-result wait" id="osrm-result">Sin probar todavía.</div>
+
+      <div class="ai-note">
+        ¿Cómo levantar el tuyo? Está documentado paso a paso en
+        <strong>docs/OSRM_PROPIO.md</strong> del microservicio, con su
+        <strong>docker-compose</strong> listo para Michoacán.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-close-osrm="1">Cancelar</button>
+      <button class="btn-cancel" type="button" id="osrm-test-btn" onclick="testOsrm(this)">Probar conexión</button>
+      <button class="btn-new" type="button" onclick="saveOsrm()">Guardar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MODAL: NUEVA RUTA ══ -->
@@ -859,8 +923,9 @@ import {
 import { icon } from './icons.js';
 import { mapColorFor } from './vehicle-colors.js';
 import {
-  cleanTrail, segmentsToLines, snapSegmentsToRoads, buildPlayback, positionAt,
+  cleanTrail, segmentsToLines, createTrailSnapper, buildPlayback, positionAt,
   traveledLine, formatDuration, distanceMeters,
+  getOsrmEndpoint, setOsrmEndpoint, DEFAULT_OSRM,
 } from './trail.js';
 import { mountNewTruckModal, escapeHtml } from './fleet-ui.js';
 import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js';
@@ -1603,18 +1668,22 @@ let trailState = {
   snap: false,
   unsubscribe: null,
   snapToken: 0,     // invalida ajustes en curso si cambia el camión
-  snapCache: null,  // { clave, lines } del último ajuste conseguido
+  snapper: null,    // ajustador incremental (trail.js)
   snapTimer: null,
-  snapping: false,  // hay una tanda de peticiones en marcha
+  snapping: false,  // hay una petición en marcha
   snapPending: false,
 };
 
-/* Firma del recorrido para el ajuste a calles.
-   A propósito es GRUESA: se agrupa de 5 en 5 puntos. Ajustar de nuevo por cada
-   ping suelto no cambia el dibujo de forma apreciable y sí dispara una tanda de
-   peticiones al servidor cada pocos segundos. */
-const trailKey = clean =>
-  `${clean.segments.length}:${Math.floor(clean.points.length / 5)}`;
+/* El ajuste a calles va ACTIVO por omisión: es como el recorrido se entiende.
+   La preferencia se recuerda por si alguien lo apaga a propósito. */
+const LS_SNAP = 'rl_snap_to_roads';
+function snapPreference() {
+  try { return localStorage.getItem(LS_SNAP) !== 'off'; } catch { return true; }
+}
+function saveSnapPreference(on) {
+  try { localStorage.setItem(LS_SNAP, on ? 'on' : 'off'); } catch { /* modo privado */ }
+}
+trailState.snap = snapPreference();
 
 const setSource = (id, data) => { if (mapLoaded && map.getSource(id)) map.getSource(id).setData(data); };
 const clearTrailLayers = () => { setSource('live-trail', EMPTY_FC); setSource('trail-ends', EMPTY_FC); };
@@ -1629,64 +1698,66 @@ async function drawTrail() {
 
   const color = colorForVehicle(v);
   const { segments } = trailState.clean;
-  let lines = segmentsToLines(segments);
   const note = document.getElementById('vp-snap-note');
 
-  if (trailState.snap && segments.length) {
-    const clave = trailKey(trailState.clean);
-
-    if (trailState.snapCache?.clave === clave) {
-      lines = trailState.snapCache.lines;      // mismo recorrido: no se vuelve a pedir
-    } else {
-      /* Mientras llega el ajuste se pinta lo que haya, para que el mapa nunca se
-         quede vacío. Y se espera un momento antes de pedir: llegando posiciones
-         cada pocos segundos, re-ajustar en cada una machacaría el servidor y
-         ninguna petición alcanzaría a terminar. */
-      if (trailState.snapCache) lines = trailState.snapCache.lines;
-      setSource('live-trail', { type: 'FeatureCollection', features: lines.map(c => lineFeature(c, color)) });
-      if (note) { note.className = 'vp-snap-note'; note.textContent = 'Ajustando el trazo a las calles…'; }
-
-      /* Si ya hay un ajuste en marcha NO se cancela: cancelarlo en cada posición
-         nueva era justamente lo que impedía que terminase ninguno. Se apunta que
-         hay trabajo pendiente y se relanza al acabar. */
-      if (trailState.snapping) { trailState.snapPending = true; return; }
-
-      clearTimeout(trailState.snapTimer);
-      const token = trailState.snapToken;   // solo cambia al cambiar de camión
-      trailState.snapTimer = setTimeout(async () => {
-        trailState.snapping = true;
-        try {
-          const result = await snapSegmentsToRoads(segments);
-          if (token !== trailState.snapToken) return;   // se cambió de camión
-          trailState.snapCache = { clave, lines: result.lines };
-          setSource('live-trail', { type: 'FeatureCollection', features: result.lines.map(c => lineFeature(c, color)) });
-          if (note) {
-            note.className = 'vp-snap-note' + (result.error ? ' warn' : '');
-            note.innerHTML = result.error
-              ? `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(result.error)}`
-              : `${icon('check_circle', { cls: 'ic-green' })} Trazo ajustado a calles · ${result.adjusted} tramo${result.adjusted > 1 ? 's' : ''}.`;
-          }
-        } catch (err) {
-          if (token !== trailState.snapToken) return;
-          console.error('[snap]', err);
-          if (note) {
-            note.className = 'vp-snap-note warn';
-            note.innerHTML = `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(err.message)} Se muestra el trazo sin ajustar.`;
-          }
-        } finally {
-          trailState.snapping = false;
-          if (trailState.snapPending) { trailState.snapPending = false; drawTrail(); }
-        }
-      }, 900);
-    }
-  } else if (note) {
-    note.className = 'vp-snap-note';
-    note.textContent = '';
-    trailState.snapCache = null;
-    clearTimeout(trailState.snapTimer);
+  /* Sin ajuste: se pinta el trazo crudo y se acabó. */
+  if (!trailState.snap || !segments.length) {
+    if (note) { note.className = 'vp-snap-note'; note.textContent = ''; }
+    paintTrail(segmentsToLines(segments), color);
+    return;
   }
 
-  setSource('live-trail', { type: 'FeatureCollection', features: lines.map(c => lineFeature(c, color)) });
+  /* Con ajuste: se pinta ya lo que haya (el último ajuste, o el crudo la
+     primera vez) para que el mapa nunca se quede en blanco esperando. */
+  paintTrail(trailState.snapLines || segmentsToLines(segments), color);
+  if (note && !trailState.snapLines) {
+    note.className = 'vp-snap-note';
+    note.textContent = 'Ajustando el trazo a las calles…';
+  }
+
+  /* Si ya hay una petición en marcha NO se cancela: se apunta que hay trabajo
+     pendiente y se relanza al terminar. Cancelarla en cada posición nueva era
+     lo que impedía que ninguna llegase a completarse. */
+  if (trailState.snapping) { trailState.snapPending = true; return; }
+
+  clearTimeout(trailState.snapTimer);
+  const token = trailState.snapToken;
+  trailState.snapTimer = setTimeout(async () => {
+    trailState.snapping = true;
+    try {
+      trailState.snapper = trailState.snapper || createTrailSnapper();
+      const result = await trailState.snapper.update(segments);
+      if (token !== trailState.snapToken) return;      // se cambió de camión
+
+      trailState.snapLines = result.lines;
+      paintTrail(result.lines, color);
+      if (note) {
+        note.className = 'vp-snap-note' + (result.error ? ' warn' : '');
+        note.innerHTML = result.error
+          ? `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(result.error)}`
+          : `${icon('check_circle', { cls: 'ic-green' })} Ajustado a calles · se actualiza solo`;
+      }
+    } catch (err) {
+      if (token !== trailState.snapToken) return;
+      console.error('[snap]', err);
+      if (note) {
+        note.className = 'vp-snap-note warn';
+        note.innerHTML = `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(err.message)} Se muestra el trazo sin ajustar.`;
+      }
+    } finally {
+      trailState.snapping = false;
+      /* Llegaron posiciones mientras se ajustaba: se vuelve a dibujar con ellas. */
+      if (trailState.snapPending) { trailState.snapPending = false; drawTrail(); }
+    }
+  }, 700);
+}
+
+/** Vuelca las líneas al mapa y coloca los puntos de inicio y fin. */
+function paintTrail(lines, color) {
+  setSource('live-trail', {
+    type: 'FeatureCollection',
+    features: lines.map(c => lineFeature(c, color)),
+  });
 
   const first = lines[0]?.[0];
   const lastLine = lines[lines.length - 1];
@@ -1771,6 +1842,8 @@ window.onTrailWindowChange = function() {
   const v = vehicles.find(x => x.id === trailState.vehicleId);
   if (!v) return;
   trailState.window = document.getElementById('vp-window').value;
+  trailState.snapper = null;      // otro periodo, otro recorrido
+  trailState.snapLines = null;
   loadTrailForWindow(v, { fit: true });
 };
 
@@ -1793,6 +1866,7 @@ async function startVehicleTrail(v) {
   trailState.window = trailState.window || DEFAULT_TRAIL_WINDOW;
   fillTrailWindowSelect();
   document.getElementById('vp-window').value = trailState.window;
+  document.getElementById('vp-snap').checked = trailState.snap;
   document.getElementById('vp-trail-btn').innerHTML = icon('visibility_off') + ' Ocultar';
 
   await loadTrailForWindow(v);
@@ -1812,7 +1886,8 @@ async function startVehicleTrail(v) {
 }
 
 function stopVehicleTrail() {
-  trailState.snapCache = null;
+  trailState.snapper = null;
+  trailState.snapLines = null;
   trailState.snapPending = false;
   clearTimeout(trailState.snapTimer);
   trailState.snapToken++;          // invalida cualquier ajuste en vuelo
@@ -1835,6 +1910,99 @@ window.toggleVehicleTrail = function() {
 
 window.onSnapToggle = function() {
   trailState.snap = document.getElementById('vp-snap').checked;
+  saveSnapPreference(trailState.snap);
+  trailState.snapper = null;      // se recalcula desde cero al reactivarlo
+  trailState.snapLines = null;
+  drawTrail();
+};
+
+/* ══════════════════════════════════════
+   SERVIDOR DE AJUSTE A CALLES (OSRM)
+
+   Configurable desde la interfaz para que el municipio pueda apuntar a su
+   propio OSRM sin tocar código. La prueba de conexión mide de verdad: hace un
+   map matching pequeño y reporta el tope de posiciones que acepta, que es el
+   dato que decide si el ajuste va fluido o a trompicones.
+══════════════════════════════════════ */
+window.openOsrmModal = function() {
+  const actual = getOsrmEndpoint();
+  document.getElementById('osrm-url').value = actual === DEFAULT_OSRM ? '' : actual;
+  setOsrmResult('wait', 'Sin probar todavía.');
+  document.getElementById('osrm-modal').classList.add('open');
+};
+const closeOsrmModal = () => document.getElementById('osrm-modal').classList.remove('open');
+
+window.setOsrmPreset = function(url) {
+  document.getElementById('osrm-url').value = url;
+  setOsrmResult('wait', 'Sin probar todavía.');
+};
+
+function setOsrmResult(tipo, html) {
+  const el = document.getElementById('osrm-result');
+  el.className = 'osrm-result ' + tipo;
+  el.innerHTML = html;
+}
+
+/** Descubre cuántas posiciones acepta por petición: 10 = demo público. */
+async function probeMatchLimit(base) {
+  const punto = (i) => `${(-102.7245 + i * 0.0006).toFixed(6)},${(20.0538 + i * 0.0004).toFixed(6)}`;
+  const intentar = async (n) => {
+    const coords = Array.from({ length: n }, (_, i) => punto(i)).join(';');
+    const r = await fetch(`${base.replace(/\/$/, '')}/match/v1/driving/${coords}?geometries=geojson&overview=full`);
+    const j = await r.json().catch(() => ({}));
+    return { ok: r.ok, code: j.code, message: j.message };
+  };
+  for (const n of [100, 50, 25, 10, 5]) {
+    const res = await intentar(n);
+    if (res.ok || res.code === 'NoMatch' || res.code === 'NoSegment') return { limite: n, res };
+    if (res.code !== 'TooBig') return { limite: null, res };   // otro fallo distinto
+  }
+  return { limite: null, res: { message: 'No acepta ni 5 posiciones.' } };
+}
+
+window.testOsrm = async function(btn) {
+  const base = (document.getElementById('osrm-url').value || '').trim() || DEFAULT_OSRM;
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Probando…';
+  setOsrmResult('wait', 'Contactando el servidor…');
+
+  const t0 = performance.now();
+  try {
+    const { limite, res } = await probeMatchLimit(base);
+    const ms = Math.round(performance.now() - t0);
+
+    if (!limite) {
+      setOsrmResult('bad',
+        `${icon('error', { cls: 'ic-red' })} No respondió al map matching.<br/>` +
+        `<b>${escapeHtml(res.message || res.code || 'sin detalle')}</b>`);
+      return;
+    }
+    const propio = limite > 10;
+    setOsrmResult('ok',
+      `${icon('check_circle', { cls: 'ic-green' })} Responde en <b>${ms} ms</b>.<br/>` +
+      `Acepta <b>${limite}</b> posiciones por petición. ` +
+      (propio
+        ? 'Es un servidor propio: el ajuste irá en pocas peticiones.'
+        : 'Es el límite del demo público: en recorridos largos hará muchas peticiones y puede rechazarlas.'));
+  } catch (err) {
+    setOsrmResult('bad',
+      `${icon('error', { cls: 'ic-red' })} No se pudo contactar.<br/><b>${escapeHtml(err.message)}</b><br/>` +
+      'Revisa la dirección y que el servidor permita peticiones desde el navegador (CORS).');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+};
+
+window.saveOsrm = function() {
+  const url = (document.getElementById('osrm-url').value || '').trim();
+  setOsrmEndpoint(url);
+  /* El recorrido se vuelve a ajustar con el servidor nuevo. */
+  trailState.snapper = null;
+  trailState.snapLines = null;
+  closeOsrmModal();
+  showToast(url ? 'Servidor de ajuste guardado' : 'Se usará el servidor público', 'success');
   drawTrail();
 };
 
@@ -2719,6 +2887,9 @@ function initRouteModal() {
   $id('route-modal').addEventListener('click', e => {
     if (e.target.id === 'route-modal' || e.target.dataset.closeRoute) closeRouteModal();
   });
+  $id('osrm-modal').addEventListener('click', e => {
+    if (e.target.id === 'osrm-modal' || e.target.dataset.closeOsrm) closeOsrmModal();
+  });
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
   $id('ai-scope').addEventListener('change', onScopeChange);
   $id('ai-vehicle').addEventListener('change', useVehicleArea);
@@ -2731,6 +2902,7 @@ function initRouteModal() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (drawing) { window.cancelAreaDraw(); return; }
+    if ($id('osrm-modal').classList.contains('open')) { closeOsrmModal(); return; }
     if ($id('route-modal').classList.contains('open')) closeRouteModal();
   });
 }
