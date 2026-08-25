@@ -459,50 +459,96 @@ function normalizeEvent(row, col) {
                    pageSize?:number, radiusKm?:number}} [options]
           Se acepta un número por compatibilidad con las llamadas antiguas.
 */
-export async function getGpsLogs(vehicleId, options = {}) {
+/**
+ * Descarga el recorrido y explica qué pasó. Lanza si falla, para que la
+ * interfaz pueda decir el motivo en vez de mostrar un mapa vacío sin más.
+ *
+ * @returns {Promise<{points:Array, meta:{fetched:number, pages:number,
+ *          droppedFar:number, pageCap:number|null, reachedLimit:boolean}}>}
+ */
+export async function fetchTrail(vehicleId, options = {}) {
   const opt = typeof options === 'number' ? { limit: options } : (options || {});
   const {
-    limit    = 6000,          // suficiente para un turno completo con pings de 10 s
+    limit    = 20000,         // un día entero de pings cada 10 s son ~8600
     pageSize = 1000,
     from     = null,
     to       = null,
     radiusKm = GPS_MAX_RADIUS_KM,
+    timeoutMs = 30000,
   } = opt;
 
+  const col  = await getEventColumn();
+  const cols = ['location', 'timestamp', 'battery_pct', 'truck_capacity',
+                'gps_quality', 'gsm_signal_dbm', 'accuracy', col].filter(Boolean).join(', ');
+
+  const rows = [];
+  let offset = 0, pages = 0, pageCap = null, sospechaTope = null;
+
+  /* ── Paginado ──
+     Antes se cortaba en cuanto una página devolvía menos filas de las pedidas,
+     dando por hecho que era el final. Pero PostgREST tiene su propio tope de
+     filas por respuesta (db-max-rows): si ese tope es menor que la página que
+     pedimos, la PRIMERA respuesta ya viene corta y el bucle paraba ahí. De ahí
+     que solo se viera un trozo del recorrido.
+
+     Ahora se avanza por las filas realmente recibidas y solo se para cuando una
+     página vuelve vacía. */
+  while (offset < limit) {
+    const take = Math.min(pageSize, limit - offset);
+    let query = sb.from('gps_logs')
+      .select(cols)
+      .eq('vehicle_id', vehicleId)
+      .order('timestamp', { ascending: false })
+      .range(offset, offset + take - 1);
+
+    if (from) query = query.gte('timestamp', new Date(from).toISOString());
+    if (to)   query = query.lte('timestamp', new Date(to).toISOString());
+
+    const { data, error } = await withTimeout(query, timeoutMs);
+    if (error) throw error;
+
+    const recibidas = data?.length || 0;
+    if (recibidas === 0) break;              // aquí sí se acabó de verdad
+
+    /* Una página corta puede ser el final de los datos O el tope del servidor.
+       Solo es tope si DESPUÉS sigue habiendo filas, así que se anota como
+       sospecha y se confirma en la vuelta siguiente. */
+    if (sospechaTope !== null) { pageCap = sospechaTope; sospechaTope = null; }
+    if (recibidas < take) sospechaTope = recibidas;
+
+    pages++;
+    rows.push(...data);
+    offset += recibidas;
+  }
+
+  const todos = rows
+    .map(row => normalizeEvent(row, col))
+    .filter(row => row.lat != null && row.lng != null);
+
+  /* Guarda grueso contra lecturas corruptas (se han visto puntos a 380 km).
+     Se CUENTA lo descartado para poder avisar: si desaparece medio recorrido,
+     hay que saberlo en lugar de mirar un mapa incompleto sin explicación. */
+  let points = todos;
+  let droppedFar = 0;
+  if (todos.length && radiusKm) {
+    const latest = todos[0];                 // el más reciente
+    points = todos.filter(p => distanceKm(p, latest) <= radiusKm);
+    droppedFar = todos.length - points.length;
+  }
+
+  return {
+    points: points.reverse(),                // orden cronológico
+    meta: { fetched: todos.length, pages, droppedFar, pageCap, reachedLimit: offset >= limit },
+  };
+}
+
+/* Envoltorio compatible: devuelve solo los puntos y nunca lanza.
+   Lo usan las partes donde un fallo no debe interrumpir nada (recorridos de
+   toda la flota, ventana de área para la IA…). */
+export async function getGpsLogs(vehicleId, options = {}) {
   try {
-    const col  = await getEventColumn();
-    const cols = ['location', 'timestamp', 'battery_pct', 'truck_capacity',
-                  'gps_quality', 'gsm_signal_dbm', 'accuracy', col].filter(Boolean).join(', ');
-
-    const rows = [];
-    for (let offset = 0; offset < limit; offset += pageSize) {
-      let query = sb.from('gps_logs')
-        .select(cols)
-        .eq('vehicle_id', vehicleId)
-        .order('timestamp', { ascending: false })
-        .range(offset, Math.min(offset + pageSize, limit) - 1);
-
-      if (from) query = query.gte('timestamp', new Date(from).toISOString());
-      if (to)   query = query.lte('timestamp', new Date(to).toISOString());
-
-      const { data, error } = await withTimeout(query, 20000);
-      if (error) throw error;
-      rows.push(...(data || []));
-      if (!data || data.length < pageSize) break;   // ya no hay más páginas
-    }
-
-    const points = rows
-      .map(row => normalizeEvent(row, col))
-      .filter(row => row.lat != null && row.lng != null);
-    if (!points.length) return [];
-
-    /* Guarda grueso contra lecturas corruptas (se han visto puntos a 380 km).
-       El anclaje es la posición más reciente; el filtrado fino por velocidad
-       vive en trail.js, que además parte el trazo por huecos de tiempo. */
-    const latest = points[0];
-    return points
-      .filter(p => distanceKm(p, latest) <= radiusKm)
-      .reverse();                                    // orden cronológico
+    const { points } = await fetchTrail(vehicleId, options);
+    return points;
   } catch (err) { console.error('[gps_logs]', err); return []; }
 }
 
@@ -527,10 +573,22 @@ export function trailWindowStart(windowId = DEFAULT_TRAIL_WINDOW) {
   return start;
 }
 
-/* Recorrido reciente del camión. Por omisión, la última hora y media. */
-export function getTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW, opts = {}) {
+/* Recorrido reciente del camión. Por omisión, la última hora y media.
+   Lanza si la consulta falla: quien lo llama decide cómo contarlo. */
+export function fetchTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW, opts = {}) {
   const from = trailWindowStart(windowId);
-  return getGpsLogs(vehicleId, { ...(from ? { from } : {}), ...opts });
+  /* Los periodos largos necesitan más margen: ordenar por timestamp sobre
+     gps_logs es caro si la tabla no tiene índice por (vehicle_id, timestamp). */
+  const timeoutMs = windowId === 'all' ? 60000 : windowId === '24h' ? 45000 : 30000;
+  return fetchTrail(vehicleId, { ...(from ? { from } : {}), timeoutMs, ...opts });
+}
+
+/* Versión que no lanza, para los sitios donde un fallo no debe cortar nada. */
+export async function getTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW, opts = {}) {
+  try {
+    const { points } = await fetchTrailWindow(vehicleId, windowId, opts);
+    return points;
+  } catch (err) { console.error('[trail_window]', err); return []; }
 }
 
 /* Compatibilidad: el recorrido del día completo. */

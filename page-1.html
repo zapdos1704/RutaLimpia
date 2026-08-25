@@ -915,7 +915,7 @@
 <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
-  getVehicles, getTelemetry, getGpsLogs, getTrailWindow, subscribeVehicleGps, subscribeFleetPositions,
+  getVehicles, getTelemetry, getGpsLogs, fetchTrailWindow, subscribeVehicleGps, subscribeFleetPositions,
   TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents, insertRoute,
   getSession, getCurrentUserProfile, getNotifications, signOut,
@@ -943,6 +943,7 @@ window.doLogout = async function() {
 
 /* ── ESTADO ── */
 const EMPTY_FC = { type: 'FeatureCollection', features: [] };
+const TRAIL_RADIUS_KM = 25;   // debe coincidir con GPS_MAX_RADIUS_KM de db.js
 let vehicles = [];   // datos DB + telemetry combinados
 let selectedId = null;
 const markers  = {};
@@ -1774,6 +1775,20 @@ function paintTrail(lines, color) {
 function renderTrailStats() {
   const el = document.getElementById('vp-trail-stats');
   if (!el) return;
+
+  /* Un fallo de consulta manda sobre todo lo demás: es la única explicación
+     accionable, y antes quedaba tapada por unas estadísticas en cero. */
+  if (trailState.loadError) {
+    const err = trailState.loadError;
+    const esTimeout = /tiempo de espera|timeout/i.test(err.message || '');
+    el.innerHTML =
+      `<div class="vp-trail-empty" style="color:#fca5a5">No se pudo cargar el recorrido.<br/>` +
+      `<span style="color:rgba(255,255,255,.55)">${escapeHtml(err.message || 'error desconocido')}</span>` +
+      (esTimeout ? '<br/>Prueba con un periodo más corto: la consulta tarda demasiado.' : '') +
+      '</div>';
+    return;
+  }
+
   const c = trailState.clean;
   if (!c || !c.points.length) {
     el.innerHTML = '<div class="vp-trail-empty">Este camión no tiene recorrido registrado hoy.</div>';
@@ -1782,12 +1797,29 @@ function renderTrailStats() {
   const first = c.points[0], last = c.points[c.points.length - 1];
   const dur = new Date(last.timestamp) - new Date(first.timestamp);
   const stat = (k, v) => `<div class="vp-trail-stat"><div class="vp-trail-k">${k}</div><div class="vp-trail-v">${v}</div></div>`;
+  const m = trailState.meta || {};
+  const avisos = [];
+
+  if (c.removed) {
+    avisos.push(`Se ${c.removed > 1 ? 'descartaron' : 'descartó'} ${c.removed} lectura${c.removed > 1 ? 's' : ''} (saltos imposibles o ruido estando parado).`);
+  }
+  if (c.gaps) {
+    avisos.push(`El trazo se partió en ${c.gaps + 1} tramos por pausas largas.`);
+  }
+  /* Estos dos son la explicación de "me falta parte del recorrido": mejor
+     decirlo que dejar al usuario mirando un trazo incompleto. */
+  if (m.droppedFar) {
+    avisos.push(`⚠ ${m.droppedFar} posición${m.droppedFar > 1 ? 'es' : ''} quedaron a más de ${TRAIL_RADIUS_KM} km de la última y se descartaron por considerarse lecturas corruptas.`);
+  }
+  if (m.reachedLimit) {
+    avisos.push('⚠ Se alcanzó el máximo de posiciones por consulta: el recorrido puede estar recortado. Usa un periodo más corto.');
+  }
+
   el.innerHTML =
     stat('Distancia', c.distanceKm.toFixed(1) + ' km') +
     stat('Duración', formatDuration(dur)) +
     stat('Puntos', c.points.length) +
-    (c.removed ? `<div class="vp-trail-empty">Se descartó${c.removed > 1 ? 'aron' : ''} ${c.removed} lectura${c.removed > 1 ? 's' : ''} (saltos imposibles o ruido estando parado).</div>` : '') +
-    (c.gaps ? `<div class="vp-trail-empty">El trazo se partió en ${c.gaps + 1} tramos por pausas largas.</div>` : '');
+    avisos.map(a => `<div class="vp-trail-empty">${a}</div>`).join('');
 }
 
 function applyTrailPoints(points, { fit = false } = {}) {
@@ -1848,14 +1880,36 @@ window.onTrailWindowChange = function() {
 };
 
 async function loadTrailForWindow(v, { fit = false } = {}) {
-  document.getElementById('vp-trail-stats').innerHTML = '<div class="vp-trail-empty">Cargando recorrido…</div>';
-  const points = await getTrailWindow(v.id, trailState.window);
+  const stats = document.getElementById('vp-trail-stats');
+  trailState.loadError = null;
+  stats.innerHTML = '<div class="vp-trail-empty">Cargando recorrido…</div>';
+
+  let points = [], meta = null;
+  try {
+    ({ points, meta } = await fetchTrailWindow(v.id, trailState.window));
+  } catch (err) {
+    if (trailState.vehicleId !== v.id) return;
+    console.error('[trail]', err);
+    /* Antes un fallo devolvía una lista vacía y la pantalla decía "sin
+       posiciones", que es justo lo contrario de lo que pasaba. Ahora se dice
+       qué falló, que es lo único accionable. */
+    /* El motivo se guarda en el estado, no se escribe directamente: el
+       seguimiento en vivo repinta las estadísticas cada pocos segundos y se
+       llevaba por delante el aviso. */
+    trailState.loadError = err;
+    applyTrailPoints([], { fit: false });
+    return;
+  }
+
   if (trailState.vehicleId !== v.id) return;   // ya cambió de camión
 
+  trailState.meta = meta;
   applyTrailPoints(points, { fit });
+
   if (!points.length) {
-    document.getElementById('vp-trail-stats').innerHTML =
-      `<div class="vp-trail-empty">Sin posiciones en este periodo. Prueba con un rango más amplio en el selector de arriba.</div>`;
+    stats.innerHTML = meta?.fetched
+      ? `<div class="vp-trail-empty">Se recibieron ${meta.fetched} posiciones pero ninguna con coordenadas válidas.</div>`
+      : `<div class="vp-trail-empty">Este camión no reportó ninguna posición en este periodo.<br/>Prueba con un rango más amplio.</div>`;
   }
 }
 
@@ -1886,6 +1940,7 @@ async function startVehicleTrail(v) {
 }
 
 function stopVehicleTrail() {
+  trailState.loadError = null;
   trailState.snapper = null;
   trailState.snapLines = null;
   trailState.snapPending = false;
