@@ -245,6 +245,21 @@
   color:var(--text-1); outline:none; cursor:pointer; width:100%;
 }
 .vp-select:focus { border-color:var(--green); }
+.vp-day-row { display:flex; gap:6px; align-items:stretch; }
+.vp-day-row .vp-select { flex:1; min-width:0; }
+.vp-day-nav {
+  width:30px; flex-shrink:0; border-radius:6px; cursor:pointer;
+  background:rgba(255,255,255,.07); border:1px solid var(--border-md);
+  color:var(--text-1); font-family:inherit; font-size:15px; line-height:1;
+  transition:all var(--transition);
+}
+.vp-day-nav:hover:not(:disabled) { background:rgba(255,255,255,.16); }
+.vp-day-nav:disabled { opacity:.3; cursor:not-allowed; }
+/* El calendario nativo se ve casi negro sobre el panel azul si no se invierte */
+#vp-date::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.65; cursor:pointer; }
+#vp-date::-webkit-calendar-picker-indicator:hover { opacity:1; }
+#vp-date { color-scheme:dark; }
+.vp-field:has(#vp-window) .vp-select[disabled] { opacity:.5; cursor:not-allowed; }
 .vp-select option { background:var(--bg-surface); }
 
 /* La lista crece con sus elementos; solo se desplaza si de verdad no cabe. */
@@ -371,7 +386,16 @@
   border:2px solid #08111f; cursor:pointer;
 }
 .pb-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:9px; color:rgba(255,255,255,.45); }
-.pb-stat { color:var(--text-1); font-weight:700; }
+.pb-stat {
+  color:var(--text-1); font-weight:700;
+  display:flex; align-items:center; gap:7px;
+  min-width:0; flex:1; justify-content:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pb-stat .ic  { width:12px; height:12px; }
+.pb-sep       { color:rgba(255,255,255,.28); font-weight:400; }
+.pb-pct       { color:var(--green-light); font-variant-numeric:tabular-nums; }
+.pb-foot > span:first-child, .pb-foot > span:last-child { flex-shrink:0; white-space:nowrap; }
 
 @media (max-width:768px) {
   .playbar { bottom:12px; padding:10px 12px 9px; }
@@ -696,7 +720,19 @@
             <button class="vp-btn primary" id="vp-route-btn" onclick="toggleVehicleRoute()" style="width:100%">Mostrar ruta asignada</button>
 
             <div class="vp-field">
-              <label class="vp-field-lbl" for="vp-window">Periodo del recorrido</label>
+              <label class="vp-field-lbl" for="vp-date">Día del recorrido</label>
+              <div class="vp-day-row">
+                <button class="vp-day-nav" type="button" id="vp-day-prev"
+                        onclick="shiftTrailDay(-1)" aria-label="Día anterior" title="Día anterior">‹</button>
+                <input class="vp-select" type="date" id="vp-date" onchange="onTrailDayChange()"/>
+                <button class="vp-day-nav" type="button" id="vp-day-next"
+                        onclick="shiftTrailDay(1)" aria-label="Día siguiente" title="Día siguiente">›</button>
+              </div>
+              <button class="vp-link" type="button" id="vp-day-today" onclick="goToday()">Ir a hoy</button>
+            </div>
+
+            <div class="vp-field">
+              <label class="vp-field-lbl" for="vp-window">Periodo</label>
               <select class="vp-select" id="vp-window" onchange="onTrailWindowChange()"></select>
             </div>
 
@@ -916,7 +952,7 @@
 <script type="module">
 import {
   getVehicles, getTelemetry, getGpsLogs, fetchTrailWindow, subscribeVehicleGps, subscribeFleetPositions,
-  TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, capacityPct, capacityLabel,
+  TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, todayIso, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents, insertRoute,
   getSession, getCurrentUserProfile, getNotifications, signOut,
 } from './db.js';
@@ -1663,6 +1699,7 @@ window.openVehicleById = function(id) {
 let trailState = {
   vehicleId: null,
   window: DEFAULT_TRAIL_WINDOW,
+  day: todayIso(),          // qué jornada se está mirando
   raw: [],          // puntos crudos tal como vienen de la base
   clean: null,      // resultado de cleanTrail (segmentos, descartados, km)
   visible: true,
@@ -1865,18 +1902,67 @@ window.showVehicleTab = function(name) {
    Los periodos largos se piden a propósito desde este selector. */
 function fillTrailWindowSelect() {
   const sel = document.getElementById('vp-window');
-  if (!sel || sel.options.length) return;
-  sel.innerHTML = TRAIL_WINDOWS.map(w =>
-    `<option value="${w.id}" ${w.id === trailState.window ? 'selected' : ''}>${w.label}</option>`).join('');
+  if (sel && !sel.options.length) {
+    sel.innerHTML = TRAIL_WINDOWS.map(w =>
+      `<option value="${w.id}">${w.label}</option>`).join('');
+  }
+  syncDayControls();
+}
+
+/* El día solo tiene sentido con "Día completo"; con los periodos relativos
+   (últimas N horas) se apaga para no sugerir algo que no hace nada. */
+function syncDayControls() {
+  const esDia = trailState.window === 'day';
+  const fecha = document.getElementById('vp-date');
+  if (!fecha) return;
+
+  fecha.value = trailState.day;
+  fecha.max   = todayIso();          // no se puede pedir el futuro
+  fecha.disabled = !esDia;
+  document.getElementById('vp-day-prev').disabled = !esDia;
+  /* Sin días futuros: si ya estás en hoy, la flecha de avanzar se apaga. */
+  document.getElementById('vp-day-next').disabled = !esDia || trailState.day >= todayIso();
+
+  const irHoy = document.getElementById('vp-day-today');
+  irHoy.hidden = !esDia || trailState.day === todayIso();
+  document.getElementById('vp-window').value = trailState.window;
+}
+
+function recargarRecorrido() {
+  const v = vehicles.find(x => x.id === trailState.vehicleId);
+  if (!v) return;
+  syncDayControls();
+  /* Se rehace el seguimiento: cambiar de día lo apaga, volver a hoy lo enciende. */
+  startVehicleTrail(v);
 }
 
 window.onTrailWindowChange = function() {
-  const v = vehicles.find(x => x.id === trailState.vehicleId);
-  if (!v) return;
   trailState.window = document.getElementById('vp-window').value;
-  trailState.snapper = null;      // otro periodo, otro recorrido
-  trailState.snapLines = null;
-  loadTrailForWindow(v, { fit: true });
+  recargarRecorrido();
+};
+
+window.onTrailDayChange = function() {
+  const valor = document.getElementById('vp-date').value;
+  if (!valor) return;
+  trailState.day = valor > todayIso() ? todayIso() : valor;
+  recargarRecorrido();
+};
+
+/** Mueve la jornada un día atrás o adelante. */
+window.shiftTrailDay = function(dias) {
+  const [y, m, d] = trailState.day.split('-').map(Number);
+  const fecha = new Date(y, m - 1, d + dias);
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  const nuevo = `${fecha.getFullYear()}-${mes}-${dia}`;
+  if (nuevo > todayIso()) return;          // no hay recorridos del futuro
+  trailState.day = nuevo;
+  recargarRecorrido();
+};
+
+window.goToday = function() {
+  trailState.day = todayIso();
+  recargarRecorrido();
 };
 
 async function loadTrailForWindow(v, { fit = false } = {}) {
@@ -1886,7 +1972,7 @@ async function loadTrailForWindow(v, { fit = false } = {}) {
 
   let points = [], meta = null;
   try {
-    ({ points, meta } = await fetchTrailWindow(v.id, trailState.window));
+    ({ points, meta } = await fetchTrailWindow(v.id, trailState.window, { day: trailState.day }));
   } catch (err) {
     if (trailState.vehicleId !== v.id) return;
     console.error('[trail]', err);
@@ -1918,18 +2004,22 @@ async function startVehicleTrail(v) {
   trailState.vehicleId = v.id;
   trailState.visible = true;
   trailState.window = trailState.window || DEFAULT_TRAIL_WINDOW;
+  trailState.day    = trailState.day || todayIso();
   fillTrailWindowSelect();
-  document.getElementById('vp-window').value = trailState.window;
   document.getElementById('vp-snap').checked = trailState.snap;
   document.getElementById('vp-trail-btn').innerHTML = icon('visibility_off') + ' Ocultar';
 
   await loadTrailForWindow(v);
   if (trailState.vehicleId !== v.id) return;
 
+  /* Una jornada pasada ya no recibe posiciones nuevas: seguirla en vivo solo
+     serviría para meter en el trazo puntos de hoy que no son de ese día. */
+  if (!viendoHoy()) return;
+
   /* A partir de aquí la línea se extiende sola. */
   const last = trailState.raw[trailState.raw.length - 1];
   trailState.unsubscribe = subscribeVehicleGps(v.id, fresh => {
-    if (trailState.vehicleId !== v.id) return;
+    if (trailState.vehicleId !== v.id || !viendoHoy()) return;
     applyTrailPoints([...trailState.raw, ...fresh]);
     /* El marcador también avanza sin esperar al refresco de 30 s. */
     const p = fresh[fresh.length - 1];
@@ -1938,6 +2028,11 @@ async function startVehicleTrail(v) {
     if (markers[v.id]) markers[v.id].marker.setLngLat([p.lng, p.lat]);
   }, { since: last?.timestamp });
 }
+
+/* ¿El recorrido que se está mirando es el de hoy? Solo entonces tiene sentido
+   seguirlo en vivo. */
+const viendoHoy = () =>
+  trailState.window !== 'day' || trailState.day === todayIso();
 
 function stopVehicleTrail() {
   trailState.loadError = null;
@@ -2122,13 +2217,16 @@ function renderPlaybackFrame() {
   document.getElementById('pb-clock').textContent = new Date(f.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.getElementById('pb-scrub').value = Math.round((pb.elapsed / pb.playback.duration) * 1000);
 
+  /* Estos trozos llevan SVG dentro, así que van por innerHTML. Con textContent
+     se pintaba el marcado del icono como texto literal en la barra. El texto
+     que viene de datos se escapa igualmente. */
   const partes = [
-    `${Math.round((pb.elapsed / pb.playback.duration) * 100)}%`,
+    `<span class="pb-pct">${Math.round((pb.elapsed / pb.playback.duration) * 100)}%</span>`,
     f.battery_pct != null ? `${icon('battery_alert')} ${Math.round(f.battery_pct)}%` : null,
-    f.truck_capacity ? `${icon('inventory')} ${capacityLabel(f.truck_capacity)}` : null,
-    f.event ? eventMeta(f.event).short : null,
+    f.truck_capacity ? `${icon('inventory')} ${escapeHtml(capacityLabel(f.truck_capacity))}` : null,
+    f.event ? `${icon(eventMeta(f.event).icon)} ${escapeHtml(eventMeta(f.event).short)}` : null,
   ].filter(Boolean);
-  document.getElementById('pb-stat').textContent = partes.join('  ·  ');
+  document.getElementById('pb-stat').innerHTML = partes.join('<span class="pb-sep">·</span>');
 
   /* La cámara sigue al camión solo si no se está mirando otra zona a mano. */
   if (pb.following && pb.playing && !map.getBounds().contains([pos.lng, pos.lat])) {

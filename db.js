@@ -552,35 +552,70 @@ export async function getGpsLogs(vehicleId, options = {}) {
   } catch (err) { console.error('[gps_logs]', err); return []; }
 }
 
-/* ── Ventanas de tiempo del recorrido ──
-   En el mapa en vivo interesa lo reciente: un turno completo satura la vista y
-   pesa más de lo necesario. El recorrido largo se consulta a propósito desde el
-   selector de historial. */
+/* ── Periodos del recorrido ──
+   "El día completo" es el que de verdad se usa: empieza en el primer registro
+   de esa jornada y llega hasta el último, sin recortar por delante. Los
+   periodos relativos quedan como atajo para mirar lo inmediato. */
 export const TRAIL_WINDOWS = [
-  { id: '90m',   label: 'Última 1.5 h', minutes: 90 },
-  { id: '4h',    label: 'Últimas 4 h',  minutes: 240 },
-  { id: 'today', label: 'Hoy',          minutes: null },   // desde las 00:00
-  { id: '24h',   label: 'Últimas 24 h', minutes: 1440 },
-  { id: 'all',   label: 'Todo el historial', minutes: null, all: true },
+  { id: 'day',   label: 'Día completo',      day: true },
+  { id: '90m',   label: 'Última 1.5 h',      minutes: 90 },
+  { id: '4h',    label: 'Últimas 4 h',       minutes: 240 },
+  { id: '24h',   label: 'Últimas 24 h',      minutes: 1440 },
+  { id: 'all',   label: 'Todo el historial', all: true },
 ];
-export const DEFAULT_TRAIL_WINDOW = '90m';
+export const DEFAULT_TRAIL_WINDOW = 'day';
 
-export function trailWindowStart(windowId = DEFAULT_TRAIL_WINDOW) {
-  const w = TRAIL_WINDOWS.find(x => x.id === windowId) || TRAIL_WINDOWS[0];
-  if (w.all) return null;                       // sin límite inferior
-  if (w.minutes != null) return new Date(Date.now() - w.minutes * 60000);
-  const start = new Date(); start.setHours(0, 0, 0, 0);   // "Hoy"
-  return start;
+/** Fecha de hoy como AAAA-MM-DD en hora local (no en UTC). */
+export function todayIso() {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
-/* Recorrido reciente del camión. Por omisión, la última hora y media.
-   Lanza si la consulta falla: quien lo llama decide cómo contarlo. */
+/**
+ * Rango que hay que consultar.
+ * @param {string} windowId
+ * @param {string} [dayIso] día en formato AAAA-MM-DD; solo aplica a 'day'
+ * @returns {{from:Date|null, to:Date|null}}
+ */
+export function trailRange(windowId = DEFAULT_TRAIL_WINDOW, dayIso = todayIso()) {
+  const w = TRAIL_WINDOWS.find(x => x.id === windowId) || TRAIL_WINDOWS[0];
+
+  if (w.all) return { from: null, to: null };
+
+  if (w.day) {
+    /* Se construye en hora LOCAL: con new Date('2026-08-24') el navegador lo
+       interpreta como medianoche UTC y en México el día saldría corrido. */
+    const [y, m, d] = String(dayIso).split('-').map(Number);
+    return {
+      from: new Date(y, m - 1, d, 0, 0, 0, 0),
+      to:   new Date(y, m - 1, d, 23, 59, 59, 999),
+    };
+  }
+
+  return { from: new Date(Date.now() - w.minutes * 60000), to: null };
+}
+
+/* Compatibilidad con las llamadas antiguas. */
+export const trailWindowStart = (windowId, dayIso) => trailRange(windowId, dayIso).from;
+
+/* Recorrido del camión. Lanza si la consulta falla: quien lo llama decide
+   cómo contarlo. */
 export function fetchTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW, opts = {}) {
-  const from = trailWindowStart(windowId);
+  const { day, ...resto } = opts;
+  const { from, to } = trailRange(windowId, day);
   /* Los periodos largos necesitan más margen: ordenar por timestamp sobre
      gps_logs es caro si la tabla no tiene índice por (vehicle_id, timestamp). */
-  const timeoutMs = windowId === 'all' ? 60000 : windowId === '24h' ? 45000 : 30000;
-  return fetchTrail(vehicleId, { ...(from ? { from } : {}), timeoutMs, ...opts });
+  const timeoutMs = windowId === 'all' ? 60000
+                  : (windowId === '24h' || windowId === 'day') ? 45000
+                  : 30000;
+  return fetchTrail(vehicleId, {
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+    timeoutMs,
+    ...resto,
+  });
 }
 
 /* Versión que no lanza, para los sitios donde un fallo no debe cortar nada. */
@@ -593,7 +628,7 @@ export async function getTrailWindow(vehicleId, windowId = DEFAULT_TRAIL_WINDOW,
 
 /* Compatibilidad: el recorrido del día completo. */
 export function getTodayTrail(vehicleId, opts = {}) {
-  return getTrailWindow(vehicleId, 'today', opts);
+  return getTrailWindow(vehicleId, 'day', opts);
 }
 
 /* ── Color del camión ──
