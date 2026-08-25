@@ -412,10 +412,14 @@
 }
 .pb-play:hover { background:#16a34a; }
 .pb-play:active { transform:scale(.94); }
-.pb-info { min-width:0; flex:1; }
+/* El reloj del recorrido es justo lo que hay que mirar a 1×, así que se le da
+   un ancho mínimo: antes los botones de velocidad lo aplastaban hasta 0 px. */
+.pb-info { flex:1; min-width:78px; }
 .pb-veh   { font-size:12px; font-weight:800; }
 .pb-clock { font-size:11px; color:var(--green-light); font-variant-numeric:tabular-nums; margin-top:1px; }
-.pb-speeds { display:flex; gap:3px; flex-shrink:0; }
+/* Al añadir el 1× son seis botones: en pantallas angostas la fila envuelve a
+   un segundo renglón en vez de robarle el ancho al reloj. */
+.pb-speeds { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; }
 .pb-speed {
   font-family:inherit; font-size:10px; font-weight:700; padding:4px 7px;
   border-radius:6px; cursor:pointer; border:1px solid var(--border);
@@ -423,6 +427,10 @@
 }
 .pb-speed:hover  { color:var(--text-1); border-color:var(--border-md); }
 .pb-speed.active { background:var(--green-dim); border-color:rgba(74,222,128,.5); color:var(--green-light); }
+/* El 1× va marcado: es la velocidad real y la que se toma por omisión, así que
+   conviene que se distinga de los multiplicadores aunque no esté seleccionado. */
+.pb-speed.pb-real { border-color:rgba(74,222,128,.35); color:var(--green-light); }
+.pb-speed.pb-real.active { border-color:rgba(74,222,128,.7); }
 .pb-close {
   width:26px; height:26px; border-radius:6px; flex-shrink:0;
   background:rgba(255,255,255,.08); border:1px solid var(--border-md);
@@ -2271,8 +2279,12 @@ window.saveOsrm = function() {
    recorrido, no punto por punto: entre dos pings se interpola la posición, así
    que el movimiento es continuo aunque el dispositivo reporte cada 45 s.
 ══════════════════════════════════════ */
-const PLAY_SPEEDS = [30, 60, 120, 300, 600];   // × tiempo real
-let pb = { playback: null, elapsed: 0, speed: 60, playing: false, raf: null, lastFrame: 0, following: true };
+/* Multiplicadores sobre el tiempo real del recorrido. El 1× es la velocidad
+   sin alterar: un minuto de reproducción = un minuto de aquel día. Los demás
+   siguen ahí porque un turno completo a 1× dura lo que duró el turno. */
+const VELOCIDAD_REAL = 1;
+const PLAY_SPEEDS = [VELOCIDAD_REAL, 30, 60, 120, 300, 600];
+let pb = { playback: null, elapsed: 0, speed: VELOCIDAD_REAL, playing: false, raf: null, lastFrame: 0, following: true };
 
 /* ── Camión de la reproducción ──
    Va como marcador del DOM y no como capa de símbolos, para reusar tal cual el
@@ -2309,6 +2321,10 @@ window.openPlayback = function() {
   if (!pb.playback) { showToast('Recorrido demasiado corto para reproducir', 'info'); return; }
 
   pb.elapsed = 0;
+  /* Se vuelve a tiempo real en CADA apertura: si alguien aceleró a 600× para
+     revisar un turno largo, esa prisa no debe heredarse al siguiente recorrido
+     que quiera verse tal cual ocurrió. */
+  pb.speed = VELOCIDAD_REAL;
   pb.following = true;
   document.getElementById('playbar').hidden = false;
   document.getElementById('pb-veh').textContent = v.economic_number;
@@ -2361,8 +2377,12 @@ window.closePlayback = function() {
 };
 
 function renderSpeedButtons() {
-  document.getElementById('pb-speeds').innerHTML = PLAY_SPEEDS.map(s =>
-    `<button class="pb-speed ${s === pb.speed ? 'active' : ''}" onclick="setPlaySpeed(${s})">${s}×</button>`).join('');
+  document.getElementById('pb-speeds').innerHTML = PLAY_SPEEDS.map(s => {
+    const real = s === VELOCIDAD_REAL;
+    const titulo = real ? 'Tiempo real: sin acelerar' : `${s} veces más rápido que el tiempo real`;
+    return `<button class="pb-speed ${s === pb.speed ? 'active' : ''} ${real ? 'pb-real' : ''}"
+                    title="${titulo}" onclick="setPlaySpeed(${s})">${s}×</button>`;
+  }).join('');
 }
 window.setPlaySpeed = function(s) { pb.speed = s; renderSpeedButtons(); };
 
