@@ -1268,7 +1268,9 @@ function placeMarkers() {
 const hasPosition = v =>
   Number.isFinite(v?._lat) && Number.isFinite(v?._lng) && !(v._lat === 0 && v._lng === 0);
 
-const PIN_MARGIN = 26;   // separación del borde, en píxeles
+/* Separación del borde. Se mide sobre el propio elemento para que la etiqueta
+   quede entera dentro del mapa y no pegada al canto. */
+const PIN_MARGIN_BASE = 54;
 let _pinFrame = null;
 let _pinEls = {};
 
@@ -1319,9 +1321,15 @@ function renderOffscreenPins() {
       _pinEls[v.id] = el;
     }
 
-    /* Se pega al borde más cercano y la flecha apunta hacia el camión. */
-    const x = Math.max(PIN_MARGIN, Math.min(W - PIN_MARGIN, p.x));
-    const y = Math.max(PIN_MARGIN, Math.min(H - PIN_MARGIN, p.y));
+    /* Se acerca al borde más cercano dejando aire, y la flecha apunta al camión.
+       El margen horizontal cuenta el ancho real de la etiqueta (va centrada con
+       translate(-50%)), así que sin esto la mitad se salía del mapa. */
+    const anchoMedio = (el.offsetWidth || 90) / 2;
+    const altoMedio  = (el.offsetHeight || 24) / 2;
+    const mx = Math.min(W / 3, anchoMedio + PIN_MARGIN_BASE);
+    const my = Math.min(H / 3, altoMedio  + PIN_MARGIN_BASE);
+    const x = Math.max(mx, Math.min(W - mx, p.x));
+    const y = Math.max(my, Math.min(H - my, p.y));
     const ang = Math.atan2(p.y - y, p.x - x) * 180 / Math.PI;
 
     const color = colorForVehicle(v);
@@ -1595,7 +1603,18 @@ let trailState = {
   snap: false,
   unsubscribe: null,
   snapToken: 0,     // invalida ajustes en curso si cambia el camión
+  snapCache: null,  // { clave, lines } del último ajuste conseguido
+  snapTimer: null,
+  snapping: false,  // hay una tanda de peticiones en marcha
+  snapPending: false,
 };
+
+/* Firma del recorrido para el ajuste a calles.
+   A propósito es GRUESA: se agrupa de 5 en 5 puntos. Ajustar de nuevo por cada
+   ping suelto no cambia el dibujo de forma apreciable y sí dispara una tanda de
+   peticiones al servidor cada pocos segundos. */
+const trailKey = clean =>
+  `${clean.segments.length}:${Math.floor(clean.points.length / 5)}`;
 
 const setSource = (id, data) => { if (mapLoaded && map.getSource(id)) map.getSource(id).setData(data); };
 const clearTrailLayers = () => { setSource('live-trail', EMPTY_FC); setSource('trail-ends', EMPTY_FC); };
@@ -1614,26 +1633,57 @@ async function drawTrail() {
   const note = document.getElementById('vp-snap-note');
 
   if (trailState.snap && segments.length) {
-    const token = ++trailState.snapToken;
-    if (note) { note.className = 'vp-snap-note'; note.textContent = 'Ajustando el trazo a las calles…'; }
-    try {
-      const result = await snapSegmentsToRoads(segments);
-      if (token !== trailState.snapToken) return;   // el usuario cambió de camión
-      lines = result.lines;
-      if (note) {
-        note.className = 'vp-snap-note' + (result.error ? ' warn' : '');
-        note.textContent = result.error
-          ? `${icon('warning', { cls: 'ic-yellow' })} ${result.error} Esos tramos se muestran sin ajustar.`
-          : `${icon('check_circle', { cls: 'ic-green' })} Trazo ajustado a la red vial de OpenStreetMap.`;
-      }
-    } catch (err) {
-      if (token !== trailState.snapToken) return;
-      console.error('[snap]', err);
-      if (note) { note.className = 'vp-snap-note warn'; note.textContent = `${icon('warning', { cls: 'ic-yellow' })} ${err.message} Se muestra el trazo sin ajustar.`; }
+    const clave = trailKey(trailState.clean);
+
+    if (trailState.snapCache?.clave === clave) {
+      lines = trailState.snapCache.lines;      // mismo recorrido: no se vuelve a pedir
+    } else {
+      /* Mientras llega el ajuste se pinta lo que haya, para que el mapa nunca se
+         quede vacío. Y se espera un momento antes de pedir: llegando posiciones
+         cada pocos segundos, re-ajustar en cada una machacaría el servidor y
+         ninguna petición alcanzaría a terminar. */
+      if (trailState.snapCache) lines = trailState.snapCache.lines;
+      setSource('live-trail', { type: 'FeatureCollection', features: lines.map(c => lineFeature(c, color)) });
+      if (note) { note.className = 'vp-snap-note'; note.textContent = 'Ajustando el trazo a las calles…'; }
+
+      /* Si ya hay un ajuste en marcha NO se cancela: cancelarlo en cada posición
+         nueva era justamente lo que impedía que terminase ninguno. Se apunta que
+         hay trabajo pendiente y se relanza al acabar. */
+      if (trailState.snapping) { trailState.snapPending = true; return; }
+
+      clearTimeout(trailState.snapTimer);
+      const token = trailState.snapToken;   // solo cambia al cambiar de camión
+      trailState.snapTimer = setTimeout(async () => {
+        trailState.snapping = true;
+        try {
+          const result = await snapSegmentsToRoads(segments);
+          if (token !== trailState.snapToken) return;   // se cambió de camión
+          trailState.snapCache = { clave, lines: result.lines };
+          setSource('live-trail', { type: 'FeatureCollection', features: result.lines.map(c => lineFeature(c, color)) });
+          if (note) {
+            note.className = 'vp-snap-note' + (result.error ? ' warn' : '');
+            note.innerHTML = result.error
+              ? `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(result.error)}`
+              : `${icon('check_circle', { cls: 'ic-green' })} Trazo ajustado a calles · ${result.adjusted} tramo${result.adjusted > 1 ? 's' : ''}.`;
+          }
+        } catch (err) {
+          if (token !== trailState.snapToken) return;
+          console.error('[snap]', err);
+          if (note) {
+            note.className = 'vp-snap-note warn';
+            note.innerHTML = `${icon('warning', { cls: 'ic-yellow' })} ${escapeHtml(err.message)} Se muestra el trazo sin ajustar.`;
+          }
+        } finally {
+          trailState.snapping = false;
+          if (trailState.snapPending) { trailState.snapPending = false; drawTrail(); }
+        }
+      }, 900);
     }
   } else if (note) {
     note.className = 'vp-snap-note';
     note.textContent = '';
+    trailState.snapCache = null;
+    clearTimeout(trailState.snapTimer);
   }
 
   setSource('live-trail', { type: 'FeatureCollection', features: lines.map(c => lineFeature(c, color)) });
@@ -1665,7 +1715,7 @@ function renderTrailStats() {
     stat('Distancia', c.distanceKm.toFixed(1) + ' km') +
     stat('Duración', formatDuration(dur)) +
     stat('Puntos', c.points.length) +
-    (c.removed ? `<div class="vp-trail-empty">Se descartaron ${c.removed} lecturas (saltos imposibles o ruido estando parado).</div>` : '') +
+    (c.removed ? `<div class="vp-trail-empty">Se descartó${c.removed > 1 ? 'aron' : ''} ${c.removed} lectura${c.removed > 1 ? 's' : ''} (saltos imposibles o ruido estando parado).</div>` : '') +
     (c.gaps ? `<div class="vp-trail-empty">El trazo se partió en ${c.gaps + 1} tramos por pausas largas.</div>` : '');
 }
 
@@ -1762,6 +1812,10 @@ async function startVehicleTrail(v) {
 }
 
 function stopVehicleTrail() {
+  trailState.snapCache = null;
+  trailState.snapPending = false;
+  clearTimeout(trailState.snapTimer);
+  trailState.snapToken++;          // invalida cualquier ajuste en vuelo
   trailState.unsubscribe?.();
   trailState.unsubscribe = null;
   trailState.vehicleId = null;

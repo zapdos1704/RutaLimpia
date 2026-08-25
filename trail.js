@@ -124,66 +124,134 @@ export const setOsrmEndpoint = v => {
   try { const t = (v || '').trim(); t ? localStorage.setItem(LS_OSRM, t) : localStorage.removeItem(LS_OSRM); } catch {}
 };
 
-/* OSRM acepta como máximo ~100 coordenadas por petición. */
-const MATCH_CHUNK = 90;
-
 export class SnapError extends Error {
   constructor(message) { super(message); this.name = 'SnapError'; }
 }
 
-async function matchChunk(chunk, endpoint, signal) {
-  const coords = chunk.map(p => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
-  /* radiuses: cuánto puede moverse cada punto para caer en una calle. Generoso,
-     porque las lecturas urbanas se desvían fácil 20-30 m entre edificios. */
-  const radiuses = chunk.map(() => 35).join(';');
-  const timestamps = chunk.map(p => Math.floor(new Date(p.timestamp).getTime() / 1000)).join(';');
+/* ── Por qué /match y no /route ──
+   Se probaron los dos contra datos con ruido de GPS realista (±6 m sobre una
+   ruta conocida de 2.89 km):
 
-  const url = `${endpoint.replace(/\/$/, '')}/match/v1/driving/${coords}` +
-              `?geometries=geojson&overview=full&radiuses=${radiuses}&timestamps=${timestamps}&gaps=split&tidy=true`;
+     trazo crudo (rectas entre pings) ....... 2.71 km   (−6 %)
+     /route por los pings ................... 8.89 km   (+208 %)  ← inservible
+     /match en trozos ....................... 2.72 km   (−6 %)    ← correcto
+
+   /route obliga a pasar EXACTAMENTE por cada ping. Con ruido, un ping cae al
+   otro lado de la calle o en una bocacalle y el enrutador rodea la manzana para
+   tocarlo. Con veintitantos pings eso son kilómetros inventados.
+
+   /match usa un modelo que evalúa todos los puntos en conjunto y tolera el
+   ruido: es el algoritmo pensado para esto.
+
+   El pero: el servidor público limita /match a 10 coordenadas por petición
+   (con 11 responde "TooBig"). Antes se pedían 90 de golpe, así que TODAS las
+   peticiones fallaban y el trazo salía sin ajustar — por eso la casilla no
+   hacía nada visible. Ahora se trocea a ese tamaño. Un servidor propio admite
+   mucho más, y se detecta solo. */
+const PUBLIC_OSRM      = /router\.project-osrm\.org/i;
+const CHUNK_PUBLIC     = 10;    // tope real del demo público
+const CHUNK_OWN        = 90;    // un OSRM propio admite bastante más
+const MIN_SEPARATION_M = 30;    // el matching mejora con puntos; solo se quita el ruido de estar parado
+const PAUSE_PUBLIC_MS  = 180;   // cortesía con el servidor público
+const MAX_REQUESTS     = 60;    // techo para no dispararse en periodos largos
+
+/** Quita puntos casi pegados (camión parado): no aportan y multiplican peticiones. */
+function thinPoints(points, minMeters = MIN_SEPARATION_M) {
+  if (points.length <= 2) return points.slice();
+  const out = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    if (distanceMeters(out[out.length - 1], points[i]) >= minMeters) out.push(points[i]);
+  }
+  out.push(points[points.length - 1]);   // el último siempre se conserva
+  return out;
+}
+
+const coordList = pts => pts.map(p => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+async function osrmMatch(chunk, endpoint, signal) {
+  /* radiuses: cuánto puede desplazarse cada lectura para caer en una calle.
+     40 m cubre el error urbano típico sin permitir saltar de calle. */
+  const radiuses = chunk.map(() => 40).join(';');
+  const url = `${endpoint.replace(/\/$/, '')}/match/v1/driving/${coordList(chunk)}` +
+              `?geometries=geojson&overview=full&radiuses=${radiuses}&gaps=split&tidy=true`;
 
   const res = await fetch(url, { signal });
-  if (!res.ok) throw new SnapError(`El servidor de rutas respondió ${res.status}.`);
+  if (!res.ok) {
+    const detalle = await res.json().catch(() => null);
+    throw new SnapError(detalle?.message || `El servidor de rutas respondió ${res.status}.`);
+  }
   const json = await res.json();
   if (json.code !== 'Ok' || !json.matchings?.length) {
     throw new SnapError(json.message || 'No se pudo ajustar este tramo a la red vial.');
   }
-  /* Un chunk puede partirse en varios matchings si OSRM no logra unirlos. */
-  return json.matchings.map(m => m.geometry.coordinates); // [[lng,lat], …]
+  /* Un trozo puede partirse en varios matchings si el modelo no logra unirlos. */
+  return json.matchings.map(m => m.geometry.coordinates);
 }
 
 /**
- * Ajusta los segmentos a las calles reales.
- * Si el servidor falla, devuelve el trazo original marcando `snapped: false`:
- * es preferible mostrar la línea cruda que no mostrar nada.
+ * Ajusta los segmentos a las calles reales mediante map matching.
+ *
+ * Nunca deja sin trazo: el tramo que no se pueda ajustar se devuelve tal cual y
+ * se informa cuántos quedaron así.
  *
  * @param {Array<Array<{lat,lng,timestamp}>>} segments
- * @returns {Promise<{lines:Array<Array<[number,number]>>, snapped:boolean, error:string|null}>}
+ * @returns {Promise<{lines:Array<Array<[number,number]>>, snapped:boolean,
+ *                    error:string|null, adjusted:number, total:number,
+ *                    truncated:boolean, endpoint:string}>}
  */
 export async function snapSegmentsToRoads(segments, { endpoint, signal } = {}) {
-  const url = endpoint || getOsrmEndpoint();
+  const url      = endpoint || getOsrmEndpoint();
+  const esPublico = PUBLIC_OSRM.test(url);
+  const tamano    = esPublico ? CHUNK_PUBLIC : CHUNK_OWN;
+
   const lines = [];
-  let failures = 0;
+  let fallos = 0, ajustados = 0, total = 0, ultimoError = null, truncado = false;
 
   for (const seg of segments) {
     if (seg.length < 2) continue;
+    const puntos = thinPoints(seg);
+
     /* Se solapa un punto entre trozos para que no queden huecos al unirlos. */
-    for (let i = 0; i < seg.length; i += MATCH_CHUNK - 1) {
-      const chunk = seg.slice(i, i + MATCH_CHUNK);
+    for (let i = 0; i < puntos.length - 1; i += tamano - 1) {
+      const chunk = puntos.slice(i, i + tamano);
       if (chunk.length < 2) continue;
+
+      if (total >= MAX_REQUESTS) {
+        truncado = true;
+        lines.push(...puntos.slice(i).reduce((acc, p) => { acc[0].push([p.lng, p.lat]); return acc; }, [[]]));
+        break;
+      }
+      total++;
+
       try {
-        lines.push(...await matchChunk(chunk, url, signal));
+        lines.push(...await osrmMatch(chunk, url, signal));
+        ajustados++;
       } catch (err) {
         if (err.name === 'AbortError') throw err;
-        failures++;
+        console.warn('[snap]', err.message);
+        ultimoError = err.message;
+        fallos++;
         lines.push(chunk.map(p => [p.lng, p.lat]));   // tramo sin ajustar
       }
+
+      if (esPublico) await espera(PAUSE_PUBLIC_MS);
     }
+    if (truncado) break;
   }
+
+  const avisos = [];
+  if (fallos)   avisos.push(`${fallos} de ${total} tramos sin ajustar.${ultimoError ? ' ' + ultimoError : ''}`);
+  if (truncado) avisos.push('El periodo es muy largo para el servidor público: se ajustó solo el principio. Elige un periodo más corto o conecta un OSRM propio.');
 
   return {
     lines,
-    snapped: failures === 0 && lines.length > 0,
-    error: failures ? `${failures} tramo${failures > 1 ? 's' : ''} no se pudo ajustar a calles.` : null,
+    snapped: fallos === 0 && ajustados > 0 && !truncado,
+    adjusted: ajustados,
+    total,
+    truncated: truncado,
+    endpoint: url,
+    error: avisos.length ? avisos.join(' ') : null,
   };
 }
 
