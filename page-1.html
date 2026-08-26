@@ -203,6 +203,43 @@
 /* ── Vehicles list ── */
 .vehicles-list { display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex:1; }
 
+/* ══ Panel minimizado ══
+   Al minimizar, el panel se va del todo y queda esta pastilla: el mapa se ve
+   entero pero sigue claro qué camión está seleccionado y cómo volver. */
+.vp-mini {
+  position:absolute; top:14px; right:14px; z-index:22;
+  display:flex; align-items:center; gap:9px;
+  padding:8px 12px 8px 9px; border-radius:22px;
+  background:rgba(8,15,30,.94); border:1.5px solid var(--mini-color, var(--green));
+  color:#fff; font-family:inherit; font-size:12px; font-weight:800;
+  cursor:pointer; white-space:nowrap;
+  box-shadow:0 4px 18px rgba(0,0,0,.55);
+  transition:background var(--transition);
+  /* Solo se anima la opacidad: la pastilla se coloca con `right`, así que
+     animar transform la dejaba desplazada si la animación no llegaba a
+     terminar (pestaña en segundo plano, animaciones reducidas…). */
+  animation:miniIn .22s ease-out;
+}
+.vp-mini[hidden] { display:none; }
+.vp-mini:hover  { background:rgba(20,32,58,.98); }
+.vp-mini:active { filter:brightness(.9); }
+@keyframes miniIn { from { opacity:0; } to { opacity:1; } }
+
+.vp-mini-dot {
+  width:26px; height:26px; border-radius:50%; flex-shrink:0;
+  background:var(--mini-color, var(--green));
+  display:flex; align-items:center; justify-content:center;
+}
+.vp-mini-dot .ic { width:14px; height:14px; fill:#fff; }
+.vp-mini-txt  { display:flex; flex-direction:column; align-items:flex-start; line-height:1.25; }
+.vp-mini-sub  { font-size:9px; font-weight:500; color:rgba(255,255,255,.5); }
+.vp-mini-open { color:rgba(255,255,255,.45); display:flex; }
+.vp-mini-open .ic { width:15px; height:15px; }
+
+@media (max-width:768px) {
+  .vp-mini { top:auto; bottom:calc(var(--bottom-nav-h) + 12px); right:12px; font-size:11px; }
+}
+
 /* ══ Pestañas del panel del vehículo ══ */
 .vp-head-txt { min-width:0; }
 .vp-tabs {
@@ -653,6 +690,10 @@
         </button>
       </div>
 
+        <!-- Panel minimizado: deja el mapa despejado sin perder el camión -->
+        <button class="vp-mini" id="vp-mini" hidden onclick="restoreVehiclePanel()"
+                title="Volver a abrir el detalle"></button>
+
         <!-- Panel de eventos de toda la flota -->
         <div id="events-panel">
           <div class="ep-header">
@@ -671,6 +712,8 @@
       <div id="vehicle-panel">
         <div class="vp-header">
           <span class="vp-title">Detalle del vehículo</span>
+          <button class="vp-close" id="vp-minimize" onclick="minimizeVehiclePanel()"
+                  title="Minimizar y ver solo el recorrido" aria-label="Minimizar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h12v2H6z"/></svg></button>
           <button class="vp-close" onclick="closeVehiclePanel()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
         </div>
 
@@ -1686,7 +1729,15 @@ window.openVehicleById = function(id) {
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
   const card = document.querySelector(`[data-id="${v.id}"]`);
   if (card) card.classList.add('selected');
-  document.getElementById('vehicle-panel').classList.add('open');
+
+  /* Si el usuario dejó el panel minimizado, se respeta: cambiar de camión
+     actualiza el recorrido y la pastilla, sin volver a taparle el mapa. */
+  if (panelMinimizado) {
+    renderMiniPill();
+    document.getElementById('vp-mini').hidden = false;
+  } else {
+    document.getElementById('vehicle-panel').classList.add('open');
+  }
 };
 
 /* ══════════════════════════════════════
@@ -1810,6 +1861,9 @@ function paintTrail(lines, color) {
 }
 
 function renderTrailStats() {
+  /* La pastilla muestra el resumen del recorrido, así que se refresca aquí. */
+  if (panelMinimizado && selectedId) renderMiniPill();
+
   const el = document.getElementById('vp-trail-stats');
   if (!el) return;
 
@@ -2270,6 +2324,8 @@ window.togglePlay = function() { pb.playing ? pausePlay() : startPlay(); };
 
 window.closeVehiclePanel = function() {
   document.getElementById('vehicle-panel').classList.remove('open');
+  document.getElementById('vp-mini').hidden = true;
+  panelMinimizado = false;
   closePlayback();
   stopVehicleTrail();
   clearVehicleRoute();
@@ -2277,6 +2333,60 @@ window.closeVehiclePanel = function() {
   if (selectedId) updateMarkerAppearance(selectedId, false);
   selectedId = null;
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
+};
+
+/* ══════════════════════════════════════
+   MINIMIZAR EL PANEL
+
+   Minimizar NO es cerrar: el camión sigue seleccionado, el recorrido sigue
+   dibujándose y el seguimiento en vivo sigue corriendo. Solo se quita el panel
+   de en medio para poder mirar el trazo sobre el mapa completo.
+
+   La preferencia se recuerda: si alguien trabaja siempre así, no tiene que
+   minimizar cada vez que abre un camión.
+══════════════════════════════════════ */
+const LS_PANEL_MINI = 'rl_panel_minimizado';
+let panelMinimizado = (() => {
+  try { return localStorage.getItem(LS_PANEL_MINI) === '1'; } catch { return false; }
+})();
+
+function guardarMinimizado(on) {
+  try { localStorage.setItem(LS_PANEL_MINI, on ? '1' : '0'); } catch { /* modo privado */ }
+}
+
+/** Dibuja la pastilla con el camión que sigue seleccionado. */
+function renderMiniPill() {
+  const mini = document.getElementById('vp-mini');
+  const v = vehicles.find(x => x.id === selectedId);
+  if (!v) { mini.hidden = true; return; }
+
+  const km = trailState.clean?.distanceKm;
+  const detalle = km != null && trailState.clean?.points?.length
+    ? `${km.toFixed(1)} km · ${trailState.clean.points.length} puntos`
+    : 'recorrido en pantalla';
+
+  mini.style.setProperty('--mini-color', colorForVehicle(v));
+  mini.innerHTML =
+    `<span class="vp-mini-dot">${icon('truck')}</span>` +
+    `<span class="vp-mini-txt"><span>${escapeHtml(v.economic_number)}</span>` +
+    `<span class="vp-mini-sub">${escapeHtml(detalle)}</span></span>` +
+    `<span class="vp-mini-open">${icon('chevron_left')}</span>`;
+}
+
+window.minimizeVehiclePanel = function() {
+  if (!selectedId) return;
+  panelMinimizado = true;
+  guardarMinimizado(true);
+  document.getElementById('vehicle-panel').classList.remove('open');
+  renderMiniPill();
+  document.getElementById('vp-mini').hidden = false;
+};
+
+window.restoreVehiclePanel = function() {
+  panelMinimizado = false;
+  guardarMinimizado(false);
+  document.getElementById('vp-mini').hidden = true;
+  if (selectedId) document.getElementById('vehicle-panel').classList.add('open');
 };
 
 /* ══════════════════════════════════════
@@ -3056,7 +3166,10 @@ function initRouteModal() {
     if (e.key !== 'Escape') return;
     if (drawing) { window.cancelAreaDraw(); return; }
     if ($id('osrm-modal').classList.contains('open')) { closeOsrmModal(); return; }
-    if ($id('route-modal').classList.contains('open')) closeRouteModal();
+    if ($id('route-modal').classList.contains('open')) { closeRouteModal(); return; }
+    /* Con el panel abierto, Escape lo minimiza en vez de cerrarlo: es lo que
+       se suele querer, y cerrar del todo sigue a un clic. */
+    if ($id('vehicle-panel').classList.contains('open')) window.minimizeVehiclePanel();
   });
 }
 
