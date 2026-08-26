@@ -65,6 +65,8 @@ export const ICON_PATHS = {
   chevron_right: 'M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z',
   chevron_left:  'M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z',
   minimize:      'M6 19h12v2H6z',
+  chevron_down:  'M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z',
+  chevron_up:    'M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z',
   expand:        'M4 20h4v-2H6v-2H4v4zm2-12h2V6h2V4H4v4h2zm10 10h-2v2h4v-4h-2v2zm-2-14v2h2v2h2V4h-4z',
 
   /* ── Reproducción ── */

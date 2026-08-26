@@ -434,6 +434,38 @@
 .pb-pct       { color:var(--green-light); font-variant-numeric:tabular-nums; }
 .pb-foot > span:first-child, .pb-foot > span:last-child { flex-shrink:0; white-space:nowrap; }
 
+/* ── Reproductor plegado ──
+   Queda SOLO la flecha: el mapa se ve entero. La reproducción no se detiene,
+   sigue corriendo por debajo. */
+.playbar.collapsed {
+  width:auto; min-width:0; padding:0; gap:0;
+  border-radius:50%; background:rgba(8,15,30,.94);
+  box-shadow:0 4px 18px rgba(0,0,0,.55);
+}
+.playbar.collapsed .pb-top { gap:0; }
+/* Todo fuera menos la flecha (el cierre ✕ también: primero se despliega) */
+.playbar.collapsed .pb-play,
+.playbar.collapsed .pb-info,
+.playbar.collapsed .pb-speeds,
+.playbar.collapsed .pb-scrub,
+.playbar.collapsed .pb-foot,
+.playbar.collapsed .pb-close:not(#pb-collapse) { display:none; }
+
+.playbar.collapsed #pb-collapse {
+  width:40px; height:40px; border-radius:50%;
+  background:transparent; border:none;
+}
+.playbar.collapsed #pb-collapse .ic { width:20px; height:20px; }
+.playbar.collapsed #pb-collapse:hover { background:rgba(255,255,255,.12); }
+
+/* Mientras reproduce, el borde se tiñe: así se sabe que sigue en marcha aunque
+   no se vea ningún control. */
+.playbar.collapsed.playing { border-color:var(--green); }
+
+/* La flecha gira para indicar que ahora despliega */
+#pb-collapse .ic { transition:transform .2s; }
+.playbar.collapsed #pb-collapse .ic { transform:rotate(180deg); }
+
 @media (max-width:768px) {
   .playbar { bottom:12px; padding:10px 12px 9px; }
   .pb-speeds { gap:2px; }
@@ -664,6 +696,8 @@
               <div class="pb-clock" id="pb-clock">—</div>
             </div>
             <div class="pb-speeds" id="pb-speeds"></div>
+            <button class="pb-close" id="pb-collapse" onclick="togglePlaybarCollapsed()"
+                    aria-label="Ocultar controles" title="Ocultar controles"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></button>
             <button class="pb-close" onclick="closePlayback()" aria-label="Cerrar reproductor"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
           </div>
           <input class="pb-scrub" id="pb-scrub" type="range" min="0" max="1000" value="0" step="1"
@@ -2235,9 +2269,40 @@ window.openPlayback = function() {
   document.getElementById('pb-start').textContent = shortTime(pb.playback.startedAt);
   document.getElementById('pb-end').textContent   = shortTime(pb.playback.endedAt);
   renderSpeedButtons();
+  applyPlaybarCollapsed();
   fitToTrail();
   renderPlaybackFrame();
   startPlay();
+};
+
+/* ── Plegar el reproductor ──
+   Igual que el panel del camión: ocultar los controles no detiene nada, solo
+   los quita de en medio. La preferencia se recuerda. */
+const LS_PB_COLLAPSED = 'rl_playbar_plegado';
+let playbarPlegado = (() => {
+  try { return localStorage.getItem(LS_PB_COLLAPSED) === '1'; } catch { return false; }
+})();
+
+function applyPlaybarCollapsed() {
+  const barra = document.getElementById('playbar');
+  barra.classList.toggle('collapsed', playbarPlegado);
+  const btn = document.getElementById('pb-collapse');
+  btn.title = playbarPlegado
+    ? 'Mostrar los controles del recorrido'
+    : 'Ocultar los controles y dejar solo la flecha';
+  btn.setAttribute('aria-label', btn.title);
+  btn.setAttribute('aria-expanded', String(!playbarPlegado));
+}
+
+/* Plegado no se ve ningún control, así que el borde indica si sigue corriendo. */
+function markPlaybarPlaying(on) {
+  document.getElementById('playbar')?.classList.toggle('playing', on);
+}
+
+window.togglePlaybarCollapsed = function() {
+  playbarPlegado = !playbarPlegado;
+  try { localStorage.setItem(LS_PB_COLLAPSED, playbarPlegado ? '1' : '0'); } catch {}
+  applyPlaybarCollapsed();
 };
 
 window.closePlayback = function() {
@@ -2311,6 +2376,7 @@ function startPlay() {
   pb.playing = true;
   pb.lastFrame = 0;
   document.getElementById('pb-play').innerHTML = icon('pause');
+  markPlaybarPlaying(true);
   pb.raf = requestAnimationFrame(tick);
 }
 function pausePlay() {
@@ -2319,6 +2385,7 @@ function pausePlay() {
   pb.raf = null;
   const btn = document.getElementById('pb-play');
   if (btn) btn.innerHTML = icon('play');
+  markPlaybarPlaying(false);
 }
 window.togglePlay = function() { pb.playing ? pausePlay() : startPlay(); };
 
