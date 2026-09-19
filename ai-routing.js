@@ -20,6 +20,7 @@
 const LS_AI_ENDPOINT   = 'rl_ai_routing_endpoint';
 const LS_AI_KEY        = 'rl_ai_routing_key';
 const LS_OVERPASS       = 'rl_overpass_endpoint';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
 
 /* Puente estable (Cloudflare Worker) hacia la IA que corre en la PC. No es un
    secreto: la clave de acceso NO va en el código, se captura una vez y queda
@@ -40,8 +41,8 @@ export const getAiKey       = () => read(LS_AI_KEY);
 export const setAiKey       = v => write(LS_AI_KEY, (v || '').trim());
 export const getOverpass    = () => read(LS_OVERPASS) || DEFAULT_OVERPASS;
 export const setOverpass    = v => write(LS_OVERPASS, (v || '').trim());
-/* Con endpoint por defecto, "configurada" significa que ya hay clave guardada. */
-export const isAiConfigured = () => !!getAiEndpoint() && !!getAiKey();
+/* Con sesión iniciada el puente pone la clave por su cuenta: siempre está lista. */
+export const isAiConfigured = () => !!getAiEndpoint();
 
 /* ── Geometría ── */
 
@@ -208,13 +209,14 @@ export async function requestAiRoute(request, { signal } = {}) {
   const endpoint = getAiEndpoint();
   if (!endpoint) throw new AiNotConfiguredError();
 
-  const headers = { 'Content-Type': 'application/json' };
-  const key = getAiKey();
-  if (key) headers['Authorization'] = `Bearer ${key}`;
+  const headers = { 'Content-Type': 'application/json', ...await bridgeAuthHeaders(endpoint) };
 
   const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(request), signal });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    if (res.status === 401) throw new Error('El servicio de IA no reconoció tu sesión. Cierra sesión y vuelve a entrar.');
+    if (res.status === 403) throw new Error('Tu cuenta no tiene permiso para usar la IA de rutas.');
+    if (res.status === 503) throw new Error('La IA no está disponible ahora (la PC con el servicio debe estar encendida).');
     throw new Error(`El servicio de IA respondió ${res.status}. ${text.slice(0, 200)}`);
   }
   const data = await res.json();

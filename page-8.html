@@ -4,8 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Quejas</title>
-<link rel="stylesheet" href="shared.css"/>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
+<link rel="stylesheet" href="shared.css?v=6378755c"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 
@@ -240,6 +241,26 @@
   .vtab        { flex: 1; justify-content: center; }
 }
 </style>
+<!-- rl-hints:start -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+<link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
+<link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="modulepreload" href="icons.js?v=6378755c"/>
+<link rel="modulepreload" href="db.js?v=6378755c"/>
+<link rel="modulepreload" href="events.js?v=6378755c"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/tslib@2.8.1/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/phoenix@0.4.5/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/iceberg-js@0.8.1/+esm"/>
+<link rel="preload" as="fetch" href="https://api.maptiler.com/maps/019ce0a5-32b2-7581-b623-7e96b2b2898e/style.json?key=Gunxj5fPn1CLzgDqQOZb" crossorigin/>
+<!-- rl-hints:end -->
 </head>
 <body>
 <div class="shell">
@@ -349,16 +370,16 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js';
+  import './icons.js?v=6378755c';
 </script>
-<script src="shared.js"></script>
-<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<script src="shared.js?v=6378755c"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
   getReports, resolveReport, getRoutes, getCollections,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js';
-import { icon } from './icons.js';
+} from './db.js?v=6378755c';
+import { icon } from './icons.js?v=6378755c';
 
 window.doLogout = async function() {
   await signOut();

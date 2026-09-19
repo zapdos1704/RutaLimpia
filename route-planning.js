@@ -8,166 +8,28 @@
    función save_route_plan, que exige una sesión Supabase autenticada).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js';
-import { getOsrmEndpoint } from './trail.js';
+import { sb } from './db.js?v=6378755c';
+import { getOsrmEndpoint } from './trail.js?v=6378755c';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
 
-const LS_AI_KEY = 'rl_ai_routing_key';
 const PUBLIC_OSRM = /router\.project-osrm\.org/i;
 const REQUEST_TIMEOUT_MS = 20_000;
 
-/* ── Geometría ─────────────────────────────────────── */
-
-const rad = d => (d * Math.PI) / 180;
-
-/** Distancia en metros entre dos puntos [lng, lat]. */
-export function haversineM(a, b) {
-  const dLat = rad(b[1] - a[1]);
-  const dLng = rad(b[0] - a[0]);
-  const h = Math.sin(dLat / 2) ** 2 +
-    Math.cos(rad(a[1])) * Math.cos(rad(b[1])) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-/** Proyección plana local (metros) alrededor de una latitud: suficiente para zonas urbanas. */
-const toXY = (p, lat0) => [
-  rad(p[0]) * 6371000 * Math.cos(rad(lat0)),
-  rad(p[1]) * 6371000,
-];
-
-/** ¿El punto cae dentro del anillo (ray casting)? El anillo puede venir cerrado o abierto. */
-export function pointInRing(pt, ring) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    if ((yi > pt[1]) !== (yj > pt[1]) &&
-        pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
-
-/** Distancia en metros del punto al segmento a-b. */
-function distanceToSegmentM(p, a, b) {
-  const lat0 = p[1];
-  const [px, py] = toXY(p, lat0);
-  const [ax, ay] = toXY(a, lat0);
-  const [bx, by] = toXY(b, lat0);
-  const dx = bx - ax, dy = by - ay;
-  const len2 = dx * dx + dy * dy;
-  const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-}
-
-/** Distancia en metros del punto al borde del anillo. */
-export function distanceToRingM(p, ring) {
-  let best = Infinity;
-  for (let i = 0; i < ring.length - 1; i++) {
-    best = Math.min(best, distanceToSegmentM(p, ring[i], ring[i + 1]));
-  }
-  return best;
-}
-
-export function polylineLengthM(coords) {
-  let total = 0;
-  for (let i = 1; i < coords.length; i++) total += haversineM(coords[i - 1], coords[i]);
-  return total;
-}
-
-/** Punto a `distM` metros del inicio de la línea. */
-export function alongLine(coords, distM) {
-  let remaining = distM;
-  for (let i = 1; i < coords.length; i++) {
-    const seg = haversineM(coords[i - 1], coords[i]);
-    if (seg >= remaining && seg > 0) {
-      const k = remaining / seg;
-      return [
-        coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * k,
-        coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * k,
-      ];
-    }
-    remaining -= seg;
-  }
-  return coords[coords.length - 1];
-}
-
-/** Anillo cerrado (primer punto repetido al final). */
-export const closeRing = ring => {
-  const first = ring[0], last = ring[ring.length - 1];
-  return first[0] === last[0] && first[1] === last[1] ? ring.slice() : [...ring, first];
-};
-
-export function ringAreaKm2(ring) {
-  const lat0 = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-  const xy = closeRing(ring).map(p => toXY(p, lat0));
-  let sum = 0;
-  for (let i = 0; i < xy.length - 1; i++) sum += xy[i][0] * xy[i + 1][1] - xy[i + 1][0] * xy[i][1];
-  return Math.abs(sum) / 2 / 1e6;
-}
-
-export function ringCentroid(ring) {
-  const pts = closeRing(ring);
-  const lat0 = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-  const xy = pts.map(p => toXY(p, lat0));
-  let a = 0, cx = 0, cy = 0;
-  for (let i = 0; i < xy.length - 1; i++) {
-    const cross = xy[i][0] * xy[i + 1][1] - xy[i + 1][0] * xy[i][1];
-    a += cross;
-    cx += (xy[i][0] + xy[i + 1][0]) * cross;
-    cy += (xy[i][1] + xy[i + 1][1]) * cross;
-  }
-  if (!a) return pts[0];
-  cx /= 3 * a; cy /= 3 * a;
-  return [(cx / (6371000 * Math.cos(rad(lat0)))) * (180 / Math.PI), (cy / 6371000) * (180 / Math.PI)];
-}
-
-/** ¿Algún par de lados no contiguos se cruza? (polígono inválido) */
-export function ringSelfIntersects(ring) {
-  const pts = closeRing(ring);
-  const n = pts.length - 1;
-  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const hit = (p1, p2, p3, p4) => {
-    const d1 = cross(p3, p4, p1), d2 = cross(p3, p4, p2);
-    const d3 = cross(p1, p2, p3), d4 = cross(p1, p2, p4);
-    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
-  };
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 2; j < n; j++) {
-      if (i === 0 && j === n - 1) continue;   // primer y último lado comparten vértice
-      if (hit(pts[i], pts[i + 1], pts[j], pts[j + 1])) return true;
-    }
-  }
-  return false;
-}
-
-/** Fracción (0–1) de la ruta que queda dentro de la zona, muestreada a lo largo del trazo. */
-export function insideRatio(routeCoords, ring) {
-  const total = polylineLengthM(routeCoords);
-  if (!total) return 0;
-  const samples = Math.max(20, Math.min(80, Math.ceil((total / 1000) * 12)));
-  let inside = 0;
-  for (let i = 0; i <= samples; i++) {
-    if (pointInRing(alongLine(routeCoords, total * (i / samples)), ring)) inside++;
-  }
-  return inside / (samples + 1);
-}
+/* La geometría vive en geo.js (sin dependencias, probada en Node); se reexporta
+   aquí para no cambiar los imports existentes. */
+import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=6378755c';
+export * from './geo.js?v=6378755c';
 
 /* ── OSRM ──────────────────────────────────────────── */
-
-function osrmHeaders(endpoint) {
-  if (PUBLIC_OSRM.test(endpoint)) return {};
-  try {
-    const key = localStorage.getItem(LS_AI_KEY) || '';
-    return key ? { Authorization: `Bearer ${key}` } : {};
-  } catch { return {}; }
-}
 
 async function osrm(path) {
   const endpoint = getOsrmEndpoint().replace(/\/$/, '');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${endpoint}${path}`, { signal: controller.signal, headers: osrmHeaders(endpoint) });
-    if (res.status === 401) throw new Error('OSRM rechazó la clave de acceso. Captúrala en Nueva ruta → Trazo automático (IA).');
+    const res = await fetch(`${endpoint}${path}`, { signal: controller.signal, headers: await bridgeAuthHeaders(endpoint) });
+    if (res.status === 401) throw new Error('El servidor de rutas no reconoció tu sesión. Cierra sesión y vuelve a entrar.');
+    if (res.status === 403) throw new Error('Tu cuenta no tiene permiso para usar el servidor de rutas.');
     if (!res.ok) throw new Error(`El servidor de rutas respondió ${res.status}. Revisa que la PC con OSRM esté encendida.`);
     const data = await res.json();
     if (data.code !== 'Ok') throw new Error(data.message || `OSRM respondió ${data.code}`);
@@ -193,6 +55,12 @@ export async function fetchOSRMRoute(start, end) {
   const route = data.routes?.[0];
   if (!route?.geometry) throw new Error('OSRM no encontró una ruta entre los puntos');
   return { geometry: route.geometry, distanceMeters: route.distance, durationSeconds: route.duration };
+}
+
+/** Rutas entre puntos (con alternativas opcionales). Devuelve listas de [[lng,lat],…]. */
+export async function fetchOSRMRoutes(points, { alternatives = false } = {}) {
+  const data = await osrm(`/route/v1/driving/${coordText(points)}?overview=full&geometries=geojson&steps=false&alternatives=${alternatives ? 'true' : 'false'}`);
+  return (data.routes || []).map(r => r.geometry?.coordinates).filter(c => c?.length >= 2);
 }
 
 /** Candidatos: puntos del contorno + el centro, ajustados a calles y dentro de la zona. */
@@ -271,6 +139,8 @@ export async function fetchRoutePlans() {
     zone_geojson: parseJson(r.zone_geojson),
     start_geojson: parseJson(r.start_geojson),
     end_geojson: parseJson(r.end_geojson),
+    timeline: parseJson(r.timeline),
+    base_route: parseJson(r.base_route),
   }));
 }
 
@@ -296,6 +166,42 @@ export async function saveRoutePlan(plan) {
   if (error) throw error;
   return data;
 }
+
+/* ── Aprendizaje y cambios de ruta (migración 006_route_learning.sql) ──
+   Estas funciones fallan con un mensaje claro si la migración aún no se aplicó. */
+
+const MIGRATION_HINT = 'Falta ejecutar 006_route_learning.sql en Supabase para activar el aprendizaje de rutas.';
+export const isMissingMigration = err => /does not exist|could not find|schema cache|PGRST20d|42883|42703|42P01/i.test(`${err?.code || ''} ${err?.message || ''}`);
+const rpc = async (name, args) => {
+  const { data, error } = await sb.rpc(name, args);
+  if (error) { const e = new Error(isMissingMigration(error) ? MIGRATION_HINT : error.message); e.code = error.code; e.missingMigration = isMissingMigration(error); throw e; }
+  return data;
+};
+
+/** Modo de la ruta, aprendizaje activo, ruta predeterminada y línea del tiempo. */
+export const saveRouteExtras = (routeId, { mode, learningEnabled, baseRoute, timeline }) => rpc('set_route_learning', {
+  p_route_id: routeId, p_mode: mode, p_learning: !!learningEnabled, p_base_route: baseRoute || null, p_timeline: timeline || null,
+});
+
+/** Cambia la ruta activa y deja el aviso en route_events (una sola transacción). */
+export const applyRouteChange = ({ routeId, route, timeline, kind, message, payload, expectedUpdatedAt, dedupeKey }) => rpc('apply_route_change', {
+  p_route_id: routeId, p_route_geojson: route, p_timeline: timeline || null, p_kind: kind, p_message: message,
+  p_payload: payload || {}, p_expected_updated_at: expectedUpdatedAt || null, p_dedupe_key: dedupeKey || null,
+});
+
+/** Aviso sin cambiar la ruta (desvío, bloqueo sin salida, etc.). */
+export const logRouteEvent = ({ routeId, kind, message, payload, dedupeKey }) => rpc('log_route_event', {
+  p_route_id: routeId, p_kind: kind, p_message: message, p_payload: payload || {}, p_dedupe_key: dedupeKey || null,
+});
+
+/** Pendiente y calles angostas (no forman parte de save_route_plan). */
+export async function saveRouteFlags(routeId, { steep, narrow }) {
+  const { error } = await sb.from('routes').update({ has_steep_terrain: !!steep, has_narrow_alleys: !!narrow }).eq('id', routeId);
+  if (error) throw error;
+}
+
+/** Enciende o apaga el aprendizaje; al apagarlo se restaura la ruta predeterminada. */
+export const setLearningEnabled = (routeId, enabled) => rpc('set_route_learning_enabled', { p_route_id: routeId, p_enabled: !!enabled });
 
 /* ── Avisos de proximidad ──────────────────────────── */
 

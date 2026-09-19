@@ -1,10 +1,21 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=6378755c';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* Si dos partes de la página piden lo mismo a la vez (p. ej. la carga inicial y el
+   refresco de avisos), comparten UNA sola petición. Sólo se comparte mientras está
+   en vuelo: al terminar se descarta, así que nunca sirve datos viejos. */
+const inflight = new Map();
+function once(key, fn) {
+  if (inflight.has(key)) return inflight.get(key);
+  const promise = Promise.resolve().then(fn).finally(() => inflight.delete(key));
+  inflight.set(key, promise);
+  return promise;
+}
 
 /* ── Evita que una petición se quede colgada para siempre ──
    Si Supabase no responde en el tiempo dado, se rechaza la promesa
@@ -28,7 +39,8 @@ export function getDateRange(period = 'mensual') {
 }
 
 /* ── Vehiculos ── */
-export async function getVehicles() {
+export function getVehicles() { return once('vehicles', fetchVehicles); }
+async function fetchVehicles() {
   try {
     const { data, error } = await withTimeout(sb.from('vehicles').select('*').order('economic_number'));
     if (error) throw error;
@@ -57,7 +69,8 @@ function pointFromGeometry(geom) {
 /* ── Telemetria GPS ──
    La tabla real es "device_telemetry" (con columna "location" tipo geometry),
    no "device_telemetry_geo". */
-export async function getTelemetry() {
+export function getTelemetry() { return once('telemetry', fetchTelemetry); }
+async function fetchTelemetry() {
   try {
     const { data, error } = await withTimeout(
       sb.from('device_telemetry').select('*, vehicle:vehicles(economic_number, plates)')

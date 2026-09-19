@@ -114,8 +114,9 @@ export function cleanTrail(points, options = {}) {
    apuntar a un OSRM propio cuando exista.
 ══════════════════════════════════════ */
 
+import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
+
 const LS_OSRM = 'rl_osrm_endpoint';
-const LS_AI_KEY = 'rl_ai_routing_key';
 export const DEFAULT_OSRM = 'https://rutalimpia-ai-proxy.edgarcharmandercr04.workers.dev/osrm';
 
 export const getOsrmEndpoint = () => {
@@ -169,13 +170,6 @@ function thinPoints(points, minMeters = MIN_SEPARATION_M) {
 
 const coordList = pts => pts.map(p => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
 const espera = ms => new Promise(r => setTimeout(r, ms));
-const osrmHeaders = endpoint => {
-  if (PUBLIC_OSRM.test(endpoint)) return {};
-  try {
-    const key = localStorage.getItem(LS_AI_KEY) || '';
-    return key ? { Authorization: `Bearer ${key}` } : {};
-  } catch { return {}; }
-};
 
 async function osrmMatch(chunk, endpoint, signal) {
   /* radiuses: cuánto puede desplazarse cada lectura para caer en una calle.
@@ -184,7 +178,7 @@ async function osrmMatch(chunk, endpoint, signal) {
   const url = `${endpoint.replace(/\/$/, '')}/match/v1/driving/${coordList(chunk)}` +
               `?geometries=geojson&overview=full&radiuses=${radiuses}&gaps=split&tidy=true`;
 
-  const res = await fetch(url, { signal, headers: osrmHeaders(endpoint) });
+  const res = await fetch(url, { signal, headers: await bridgeAuthHeaders(endpoint) });
   if (!res.ok) {
     const detalle = await res.json().catch(() => null);
     throw new SnapError(detalle?.message || `El servidor de rutas respondió ${res.status}.`);

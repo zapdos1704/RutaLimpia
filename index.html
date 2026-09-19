@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Acceso</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 /* ══════════════════════════════════════
    RESET & BASE
@@ -383,6 +383,24 @@ html, body {
 }
 .screen.active { animation: fadeUp .3s ease; }
 </style>
+<!-- rl-hints:start -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+<link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="modulepreload" href="db.js?v=6378755c"/>
+<link rel="modulepreload" href="events.js?v=6378755c"/>
+<link rel="modulepreload" href="icons.js?v=6378755c"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/tslib@2.8.1/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/phoenix@0.4.5/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/iceberg-js@0.8.1/+esm"/>
+<!-- rl-hints:end -->
 </head>
 <body>
 
@@ -462,10 +480,10 @@ html, body {
 <div class="toast" id="toast"></div>
 
 <!-- LEAFLET -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { signIn, resetPassword, getSession } from './db.js';
-import { icon } from './icons.js';
+import { signIn, resetPassword, getSession } from './db.js?v=6378755c';
+import { icon } from './icons.js?v=6378755c';
 
 /* ── Si ya hay una sesión activa, saltar directo al dashboard ── */
 getSession().then(session => {
