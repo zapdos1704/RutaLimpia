@@ -670,6 +670,47 @@
   .as-title, .as-pill { flex-shrink: 0; }
   .draw-hint   { font-size: 10px; padding: 8px 12px; width: max-content; max-width: calc(100% - 24px); }
 }
+
+/* ══ Barras plegables (lista de camiones e incidencias) ══ */
+.sidebar { transition: width .2s ease, min-width .2s ease, padding .2s ease; }
+.sb-toggle {
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:100%; height:24px; border-radius:6px; margin-bottom:2px;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.75); font-family:inherit; font-size:14px; line-height:1; cursor:pointer;
+  transition:background var(--transition), color var(--transition);
+}
+.sb-toggle:hover { background:rgba(255,255,255,.16); color:#fff; }
+.sidebar.collapsed { width:36px; min-width:36px; padding:12px 5px; }
+.sidebar.collapsed > :not(.sb-toggle) { display:none; }
+.sidebar.collapsed .sb-toggle { margin-bottom:0; }
+
+.mf-wrap { display:flex; align-items:stretch; flex-shrink:0; background:var(--bg-surface); border-bottom:1px solid var(--border); }
+.mf-wrap .map-filters { flex:1; min-width:0; border-bottom:0; }
+.mf-toggle {
+  display:flex; align-items:center; gap:6px; flex-shrink:0; padding:0 10px;
+  background:transparent; border:0; border-right:1px solid var(--border);
+  color:var(--text-2); font-family:inherit; font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.5px; cursor:pointer;
+}
+.mf-toggle:hover { color:var(--text-1); background:rgba(255,255,255,.04); }
+.mf-toggle-label { display:none; }
+.mf-wrap.collapsed .map-filters { display:none; }
+.mf-wrap.collapsed .mf-toggle { border-right:0; padding:6px 12px; }
+.mf-wrap.collapsed .mf-toggle-label { display:inline; }
+
+/* La pastilla del camión minimizado va debajo de los botones para no taparlos. */
+@media (min-width:769px) { .vp-mini { top:58px; } }
+
+/* ══ Planeación por zona ══ */
+.draw-hint [hidden] { display:none !important; }
+.pl-colors { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:38px; }
+.pl-swatch { width:22px; height:22px; padding:0; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+.pl-swatch.active { border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.25); }
+.pl-color-input { width:30px; height:26px; padding:0; border:0; background:none; cursor:pointer; }
+.pl-btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+.pl-btn-row > * { flex:1 1 auto; justify-content:center; }
+.ai-saved { color:var(--green-light); }
 </style>
 </head>
 <body>
@@ -681,6 +722,7 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
+      <button class="sb-toggle" id="sb-toggle" type="button" aria-expanded="true" title="Ocultar la lista de camiones">‹</button>
       <input class="sidebar-search" id="search-input" placeholder="Buscar vehículo…"/>
       <div class="filter-tabs">
         <button class="ftab active" onclick="filterVehicles('all',this)">Todas</button>
@@ -697,9 +739,12 @@
     <div class="map-wrap">
 
       <!-- Filtros por tipo de incidencia -->
-      <div class="map-filters" id="map-filters">
-        <span class="mf-label">Incidencias</span>
-        <span style="font-size:11px;color:var(--text-2)">cargando…</span>
+      <div class="mf-wrap" id="mf-wrap">
+        <button class="mf-toggle" id="mf-toggle" type="button" aria-expanded="true" title="Ocultar las incidencias"><span class="mf-chev">▾</span><span class="mf-toggle-label">Incidencias</span></button>
+        <div class="map-filters" id="map-filters">
+          <span class="mf-label">Incidencias</span>
+          <span style="font-size:11px;color:var(--text-2)">cargando…</span>
+        </div>
       </div>
 
       <!-- Alerta de camiones pausados / con bloqueo -->
@@ -710,6 +755,8 @@
 
         <div class="draw-hint" id="draw-hint">
           <span id="draw-hint-text">Haz clic en dos esquinas para delimitar el área</span>
+          <button type="button" id="draw-undo" onclick="undoPlanPoint()" hidden>Deshacer</button>
+          <button type="button" id="draw-finish" onclick="finishPlanDraw()" hidden>Terminar zona</button>
           <button type="button" onclick="cancelAreaDraw()">Cancelar</button>
         </div>
 
@@ -739,6 +786,10 @@
         <button class="btn-primary" id="btn-new-route">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           Nueva ruta
+        </button>
+        <button class="btn-secondary" id="btn-plans" type="button" onclick="togglePlans()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+          Zonas
         </button>
         <button class="btn-secondary" id="btn-events" onclick="toggleEventsPanel()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/></svg>
@@ -883,22 +934,23 @@
     </div>
     <div class="modal-body">
       <div class="ai-note">
-        El trazo se pega a las calles reales usando <strong>OSRM</strong>, el motor de rutas de
-        OpenStreetMap. El servidor público es una demo con límites duros
-        (10 posiciones por petición), así que en recorridos largos se hacen muchas peticiones
-        y puede rechazarlas. Un servidor propio quita ese límite y va mucho más rápido.
+        El trazo se pega a las calles reales usando <strong>OSRM</strong>. Por defecto se usa
+        el servidor privado de RutaLimpia que corre en esta computadora y se publica por HTTPS;
+        responderá únicamente cuando la computadora esté encendida. Usa la misma clave del
+        servicio de IA configurada en “Nueva ruta”.
       </div>
 
       <div class="form-field">
         <label class="form-label" for="osrm-url">Dirección del servidor</label>
-        <input class="form-input" id="osrm-url" placeholder="http://tu-servidor:5000"/>
-        <span class="form-hint">Vacío = servidor público de OpenStreetMap.</span>
+        <input class="form-input" id="osrm-url" placeholder="https://…workers.dev/osrm"/>
+        <span class="form-hint">Vacío = puente HTTPS privado de RutaLimpia.</span>
       </div>
 
       <div class="form-field">
         <label class="form-label">Atajos</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-cancel" type="button" onclick="setOsrmPreset('')">Público</button>
+          <button class="btn-cancel" type="button" onclick="setOsrmPreset('https://router.project-osrm.org')">Demo público</button>
           <button class="btn-cancel" type="button" onclick="setOsrmPreset('http://localhost:5000')">Local (5000)</button>
         </div>
       </div>
@@ -931,6 +983,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="manual" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Datos de la ruta</button>
         <button class="tab-btn" data-tab="auto" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V7c0-1.1-.9-2-2-2h-3V3a3 3 0 1 0-6 0v2H6c-1.1 0-2 .9-2 2v2a3 3 0 1 0 0 6v2c0 1.1.9 2 2 2h3v-2a3 3 0 1 1 6 0v2h3c1.1 0 2-.9 2-2v-2a3 3 0 1 0 0-6zM9.5 12a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zm5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z"/></svg> Trazo automático (IA)</button>
+        <button class="tab-btn" data-tab="zona" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg> Zona y recorrido</button>
       </div>
 
       <!-- ─── Pestaña manual ─── -->
@@ -980,6 +1033,9 @@
       <!-- ─── Pestaña automática ─── -->
       <div class="tab-pane" id="tab-auto">
 
+        <button class="btn-new" type="button" id="ai-quick-btn" style="width:100%;justify-content:center"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m19 9 1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></svg> Buscar ruta con IA</button>
+        <div class="ai-note" style="margin-top:-4px">Elige el camión (o el área) y pulsa el botón: descarga las calles y pide el recorrido en un solo paso. Los pasos de abajo siguen disponibles para ajustar.</div>
+
         <div class="ai-step" id="ai-step-1">
           <div class="ai-step-head"><span class="ai-step-num">1</span> ¿Sobre qué se calcula la ruta?</div>
           <div class="form-row">
@@ -1022,11 +1078,12 @@
           <div class="form-field">
             <label class="form-label" for="ai-endpoint">Servicio de IA (URL)</label>
             <input class="form-input" id="ai-endpoint" placeholder="https://…/rutas/sugerir  ·  vacío = aún no conectado"/>
-            <span class="form-hint">Cuando el modelo esté desplegado, pega aquí su URL. El contrato de petición y respuesta está en <strong>AI_RUTAS.md</strong>.</span>
+            <span class="form-hint">Ya viene conectado al puente de RutaLimpia; solo cámbialo si mueves el servicio.</span>
           </div>
           <div class="form-field">
-            <label class="form-label" for="ai-key">Clave de acceso (opcional)</label>
-            <input class="form-input" id="ai-key" type="password" placeholder="Se envía como Authorization: Bearer …"/>
+            <label class="form-label" for="ai-key">Clave de acceso</label>
+            <input class="form-input" id="ai-key" type="password" placeholder="Pégala una vez: queda guardada en este navegador"/>
+            <span class="form-hint ai-saved" id="ai-saved"></span>
           </div>
           <div class="form-field">
             <label class="form-label" for="ai-maxkm">Máximo de km (opcional)</label>
@@ -1036,6 +1093,46 @@
           <div class="ai-result" id="ai-suggest-info">Primero descarga las calles del área.</div>
         </div>
 
+      </div>
+
+      <!-- ─── Pestaña zona y recorrido ─── -->
+      <div class="tab-pane" id="tab-zona">
+        <div class="ai-note">
+          Delimita la zona en el mapa, asígnala a un camión con un color y elige el inicio y el fin.
+          El nombre y el tipo se toman de la pestaña <strong>Datos de la ruta</strong>.
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="pl-vehicle">Camión asignado</label>
+            <select class="form-select" id="pl-vehicle"></select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Color de la zona</label>
+            <div class="pl-colors" id="pl-colors"></div>
+          </div>
+        </div>
+
+        <div class="ai-step" id="pl-step-1">
+          <div class="ai-step-head"><span class="ai-step-num">1</span> Zona en el mapa</div>
+          <button class="btn-cancel" type="button" id="pl-zone-btn" onclick="startPlanZone()" style="width:100%">Dibujar zona</button>
+          <div class="ai-result" id="pl-zone-info">Haz clic en cada esquina de la zona y termina con «Terminar zona» o doble clic.</div>
+        </div>
+
+        <div class="ai-step" id="pl-step-2">
+          <div class="ai-step-head"><span class="ai-step-num">2</span> Inicio y fin</div>
+          <div class="pl-btn-row">
+            <button class="btn-cancel" type="button" onclick="startPlanPoint('start')">Elegir inicio</button>
+            <button class="btn-cancel" type="button" onclick="startPlanPoint('end')">Elegir fin</button>
+            <button class="btn-new" type="button" id="pl-suggest-btn" onclick="suggestPlanRoute(this)">Sugerir con OSRM</button>
+          </div>
+          <div class="ai-result" id="pl-points-info">Primero dibuja la zona.</div>
+        </div>
+
+        <div class="ai-step" id="pl-step-3">
+          <div class="ai-step-head"><span class="ai-step-num">3</span> Recorrido por calles</div>
+          <div class="ai-result" id="pl-route-info">Se calcula solo cuando hay inicio y fin.</div>
+        </div>
       </div>
     </div>
 
@@ -1073,6 +1170,10 @@ import {
   suggestRoute, isAiConfigured, getAiEndpoint, setAiEndpoint, getAiKey, setAiKey,
   getOverpass, setOverpass, DEFAULT_OVERPASS, LOCAL_OVERPASS, pathLengthKm, AiNotConfiguredError,
 } from './ai-routing.js';
+import {
+  pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
+  fetchOSRMRoute, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
+} from './route-planning.js';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -1119,6 +1220,7 @@ let hasFittedBounds = false;
    Se dibuja el trayecto que registró cada camión en gps_logs, con el mismo
    color que su marcador, más un punto de inicio en el primer registro. */
 function setupTrailLayers() {
+  setupPlanLayers();   // por debajo de los recorridos y marcadores
   // Ruta asignada al camión seleccionado (línea punteada por debajo del recorrido)
   map.addSource('vehicle-route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({
@@ -1646,6 +1748,7 @@ map.on('load', () => {
      y nada lo volvía a intentar. */
   placeMarkers();
   drawTrail();
+  renderPlans();
   if (pb.playback) renderPlaybackFrame();
 
   /* Las chinchetas de "fuera de cuadro" se recalculan al mover o hacer zoom. */
@@ -1791,6 +1894,7 @@ window.openVehicleById = function(id) {
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
   const card = document.querySelector(`[data-id="${v.id}"]`);
   if (card) card.classList.add('selected');
+  applyPlanFocus();
 
   /* Si el usuario dejó el panel minimizado, se respeta: cambiar de camión
      actualiza el recorrido y la pastilla, sin volver a taparle el mapa. */
@@ -2214,7 +2318,9 @@ async function probeMatchLimit(base) {
   const punto = (i) => `${(-102.7245 + i * 0.0006).toFixed(6)},${(20.0538 + i * 0.0004).toFixed(6)}`;
   const intentar = async (n) => {
     const coords = Array.from({ length: n }, (_, i) => punto(i)).join(';');
-    const r = await fetch(`${base.replace(/\/$/, '')}/match/v1/driving/${coords}?geometries=geojson&overview=full`);
+    const key = getAiKey();
+    const headers = /router\.project-osrm\.org/i.test(base) || !key ? {} : { Authorization: `Bearer ${key}` };
+    const r = await fetch(`${base.replace(/\/$/, '')}/match/v1/driving/${coords}?geometries=geojson&overview=full`, { headers });
     const j = await r.json().catch(() => ({}));
     return { ok: r.ok, code: j.code, message: j.message };
   };
@@ -2268,7 +2374,7 @@ window.saveOsrm = function() {
   trailState.snapper = null;
   trailState.snapLines = null;
   closeOsrmModal();
-  showToast(url ? 'Servidor de ajuste guardado' : 'Se usará el servidor público', 'success');
+  showToast(url ? 'Servidor de ajuste guardado' : 'Se usará el puente privado de RutaLimpia', 'success');
   drawTrail();
 };
 
@@ -2474,6 +2580,7 @@ window.closeVehiclePanel = function() {
   if (selectedId) updateMarkerAppearance(selectedId, false);
   selectedId = null;
   document.querySelectorAll('.vcard').forEach(c=>c.classList.remove('selected'));
+  applyPlanFocus();
 };
 
 /* ══════════════════════════════════════
@@ -2724,6 +2831,7 @@ function mergeVehicle(v, t, previous) {
     ...v,
     _bat:        t ? (t.battery_pct ?? 0) : (prev._bat ?? 0),
     _gsm:        t ? (t.gsm_signal_dbm ?? null) : (prev._gsm ?? null),
+    _ts:         t ? (t.timestamp ?? prev._ts ?? null) : (prev._ts ?? null),
     _lat:        t ? t.lat : (prev._lat ?? null),
     _lng:        t ? t.lng : (prev._lng ?? null),
     _capPct:     t ? capacityPct(t.truck_capacity) : (prev._capPct ?? 0),
@@ -2766,6 +2874,7 @@ async function loadMapData({ initial = false } = {}) {
     refreshVehicleList();
     fillAiVehicleSelect();
     placeMarkers();
+    checkProximity();
   } catch (err) {
     console.error('[map]', err);
     showToast('No se pudieron cargar los vehículos', 'error');;
@@ -2778,6 +2887,9 @@ async function loadMapData({ initial = false } = {}) {
   /* ── Segundo bloque: enriquecimiento, cada uno por su cuenta ── */
   const tasks = [
     getRoutesByVehicle().then(r => { if (!outdated()) _routesByVehicle = r; }),
+    fetchRoutePlans()
+      .then(p => { if (outdated()) return; plans = p; renderPlans(); checkProximity(); })
+      .catch(err => console.warn('[zonas]', err.message || err)),
     getVehicleCrew().then(crew => {
       if (outdated()) return;
       _crewByVehicle = crew.reduce((acc, c) => { (acc[c.vehicle_id] = acc[c.vehicle_id] || []).push(c); return acc; }, {});
@@ -2854,6 +2966,7 @@ function applyFleetMovement(cambios) {
     if (!v) return;
 
     v._lat = lat; v._lng = lng;
+    if (row.timestamp) v._ts = row.timestamp;
     if (row.battery_pct != null)    v._bat = Math.round(row.battery_pct);
     if (row.gsm_signal_dbm != null) v._gsm = row.gsm_signal_dbm;
     if (row.gps_quality != null)    v._gpsQuality = row.gps_quality;
@@ -2868,6 +2981,8 @@ function applyFleetMovement(cambios) {
 
     if (selectedId === vehicle_id) { renderGauges(v); renderSignals(v); }
   });
+
+  checkProximity();
 
   /* Solo se rehace la capa si apareció un camión que antes no tenía posición. */
   if (algunoNuevo) placeMarkers();
@@ -2931,6 +3046,7 @@ function switchTab(name) {
 }
 
 function fillAiVehicleSelect() {
+  fillPlanVehicleSelect();
   const sel = $id('ai-vehicle');
   if (!sel) return;
   const previous = sel.value;
@@ -2978,6 +3094,7 @@ function startAreaDraw() {
 }
 
 window.cancelAreaDraw = function(opts = {}) {
+  if (planPick) { cancelPlanPick(); return; }
   if (!drawing) return;
   drawing = false;
   drawCorner = null;
@@ -3121,10 +3238,8 @@ function syncAiServiceNote() {
   const note = $id('ai-service-note');
   if (!note) return;
   note.innerHTML = isAiConfigured()
-    ? `${icon('robot')} Servicio de IA conectado: <code>${escapeHtml(getAiEndpoint())}</code>`
-    : `${icon('warning', { cls: 'ic-yellow' })} <strong>El modelo de IA todavía no está conectado.</strong> Mientras tanto el trazo lo genera una
-       heurística local (vecino más cercano sobre las calles reales) y se etiqueta como tal.
-       Al capturar la URL del servicio, esta pantalla empieza a usarlo sin más cambios.`;
+    ? `${icon('robot')} IA conectada: <code>${escapeHtml(getAiEndpoint())}</code>. La clave ya está guardada en este navegador.`
+    : `${icon('warning', { cls: 'ic-yellow' })} <strong>Falta la clave de acceso.</strong> Pégala una sola vez abajo y queda guardada en este navegador. Mientras tanto el trazo lo genera una heurística local (vecino más cercano sobre las calles reales) y se etiqueta como tal.`;
 }
 
 async function suggestRouteFlow(btn) {
@@ -3210,6 +3325,42 @@ async function saveRoute(btn) {
   const name = $id('nr-name').value.trim();
   if (!name) { showToast('El nombre de la ruta es obligatorio', 'warn');; switchTab('manual'); $id('nr-name').focus(); return; }
 
+  /* Con una zona dibujada se guarda la planeación completa (zona, color, camión, inicio y fin). */
+  if (plan.zone) {
+    if (!plan.route || !plan.start || !plan.end) {
+      showToast('Falta el inicio, el fin o el recorrido de la zona', 'warn');
+      switchTab('zona');
+      return;
+    }
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Guardando…';
+    try {
+      await saveRoutePlan({
+        name,
+        vehicleId: $id('pl-vehicle').value,
+        ring: plan.zone,
+        color: plan.color,
+        start: plan.start,
+        end: plan.end,
+        routeGeometry: plan.route,
+        mode: plan.mode,
+        description: $id('nr-desc').value.trim(),
+        routeType: $id('nr-type').value,
+      });
+      closeRouteModal();
+      showToast('Ruta y zona guardadas', 'success');
+      loadMapData();
+    } catch (err) {
+      console.error('[saveRoutePlan]', err);
+      showToast(planSaveError(err), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+    return;
+  }
+
   const km = Number($id('nr-km').value);
   const form = {
     name,
@@ -3251,6 +3402,7 @@ function resetRouteModal() {
   drawAreaOnMap(null); drawSuggestionOnMap(null);
   ['ai-step-1','ai-step-2','ai-step-3'].forEach(id => $id(id).classList.remove('done'));
   updateGeomInfo();
+  resetPlan();
   switchTab('manual');
 }
 
@@ -3301,17 +3453,448 @@ function initRouteModal() {
   $id('ai-streets-btn').addEventListener('click', e => loadStreets(e.currentTarget));
   $id('ai-suggest-btn').addEventListener('click', e => suggestRouteFlow(e.currentTarget));
   $id('nr-save-btn').addEventListener('click', e => saveRoute(e.currentTarget));
+  ['ai-endpoint', 'ai-key'].forEach(id => $id(id).addEventListener('change', saveAiSettings));
+  $id('ai-quick-btn').addEventListener('click', e => quickAiRoute(e.currentTarget));
+  initPlanUI();
   $id('ev-type-filter').addEventListener('change', e => { evTypeFilter = e.target.value; renderEventsList(); });
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (drawing) { window.cancelAreaDraw(); return; }
+    if (drawing || planPick) { window.cancelAreaDraw(); return; }
     if ($id('osrm-modal').classList.contains('open')) { closeOsrmModal(); return; }
     if ($id('route-modal').classList.contains('open')) { closeRouteModal(); return; }
     /* Con el panel abierto, Escape lo minimiza en vez de cerrarlo: es lo que
        se suele querer, y cerrar del todo sigue a un clic. */
     if ($id('vehicle-panel').classList.contains('open')) window.minimizeVehiclePanel();
   });
+}
+
+/* ══════════════════════════════════════
+   PLANEACIÓN POR ZONA
+   Zona (polígono) + color + camión + inicio/fin + recorrido por calles (OSRM).
+   Se guarda con la función save_route_plan de Supabase (requiere sesión).
+   Las rutas guardadas se pintan en el mapa, se atenúan al seleccionar otro
+   camión y avisan cuando su camión se acerca (≤ 100 m) o entra a la zona.
+══════════════════════════════════════ */
+const PLAN_COLORS = ['#4F8CFF', '#22C55E', '#F59E0B', '#EF4444', '#A855F7', '#06B6D4', '#EC4899', '#84CC16'];
+const LS_PLANS_VISIBLE = 'rl_plans_visible';
+const MAX_ZONE_KM2 = 50;
+const MIN_ZONE_KM2 = 0.0005;
+
+let plans = [];
+let plansVisible = (() => { try { return localStorage.getItem(LS_PLANS_VISIBLE) !== '0'; } catch { return true; } })();
+const plan = { ring: [], zone: null, start: null, end: null, route: null, metrics: null, mode: 'manual', color: PLAN_COLORS[0] };
+let planPick = null;   // 'zone' | 'start' | 'end' | null
+
+function checkProximity() {
+  try {
+    evaluateProximity({
+      vehicles, plans,
+      notify: (title, msg, kind) => showToast(`${title}. ${msg}`, kind),
+    });
+  } catch (err) { console.warn('[proximidad]', err); }
+}
+
+const planColorExpr = () => ['coalesce', ['get', 'color'], '#4F8CFF'];
+
+function setupPlanLayers() {
+  ['plans-zones', 'plans-routes', 'plan-draft', 'plan-route', 'plan-points']
+    .forEach(id => map.addSource(id, { type: 'geojson', data: EMPTY_FC }));
+
+  map.addLayer({ id: 'plans-zones-fill', type: 'fill', source: 'plans-zones',
+    paint: { 'fill-color': planColorExpr(), 'fill-opacity': 0.14 } });
+  map.addLayer({ id: 'plans-zones-line', type: 'line', source: 'plans-zones',
+    paint: { 'line-color': planColorExpr(), 'line-width': 2.2 } });
+  map.addLayer({ id: 'plans-routes-line', type: 'line', source: 'plans-routes',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': planColorExpr(), 'line-width': 4, 'line-opacity': 0.9 } });
+
+  map.addLayer({ id: 'plan-draft-fill', type: 'fill', source: 'plan-draft',
+    filter: ['==', ['geometry-type'], 'Polygon'],
+    paint: { 'fill-color': planColorExpr(), 'fill-opacity': 0.18 } });
+  map.addLayer({ id: 'plan-draft-line', type: 'line', source: 'plan-draft',
+    filter: ['!=', ['geometry-type'], 'Point'],
+    paint: { 'line-color': planColorExpr(), 'line-width': 2.5, 'line-dasharray': [2, 1.5] } });
+  map.addLayer({ id: 'plan-draft-vertex', type: 'circle', source: 'plan-draft',
+    filter: ['==', ['geometry-type'], 'Point'],
+    paint: { 'circle-radius': 5, 'circle-color': '#ffffff', 'circle-stroke-width': 2, 'circle-stroke-color': planColorExpr() } });
+  map.addLayer({ id: 'plan-route-line', type: 'line', source: 'plan-route',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': planColorExpr(), 'line-width': 5, 'line-opacity': 0.95 } });
+  map.addLayer({ id: 'plan-points-dot', type: 'circle', source: 'plan-points',
+    paint: { 'circle-radius': 8, 'circle-color': ['get', 'color'], 'circle-stroke-width': 3, 'circle-stroke-color': '#ffffff' } });
+
+  map.on('click', 'plans-zones-fill', e => {
+    if (planPick || drawing) return;
+    const f = e.features?.[0];
+    const p = f && plans.find(x => x.id === f.properties.id);
+    if (!p) return;
+    const v = vehicles.find(x => x.id === p.vehicle_id);
+    const km = p.distance_km != null ? `${Number(p.distance_km).toFixed(2)} km` : '—';
+    new maplibregl.Popup({ maxWidth: '240px' })
+      .setLngLat(e.lngLat)
+      .setHTML(`<div style="color:#0f172a;font-family:inherit;font-size:12px;line-height:1.5">
+        <strong>${escapeHtml(p.name)}</strong><br/>
+        Camión: ${escapeHtml(v?.economic_number || 'sin asignar')}<br/>
+        Recorrido: ${km} · ${p.planning_mode === 'osrm' ? 'sugerido con OSRM' : 'inicio y fin manuales'}</div>`)
+      .addTo(map);
+  });
+}
+
+function plansFeatures() {
+  const zones = [], routes = [];
+  plans.forEach(p => {
+    const props = { id: p.id, name: p.name, color: p.color || '#4F8CFF', vehicle_id: p.vehicle_id || '' };
+    if (p.zone_geojson) zones.push({ type: 'Feature', properties: props, geometry: p.zone_geojson });
+    if (p.route_geojson) routes.push({ type: 'Feature', properties: props, geometry: p.route_geojson });
+  });
+  return { zones, routes };
+}
+
+/* Con un camión seleccionado, sus zonas resaltan y las demás se atenúan. */
+function applyPlanFocus() {
+  if (!mapLoaded || !map.getLayer('plans-zones-fill')) return;
+  const sel = selectedId || null;
+  const dim = (hi, lo) => sel ? ['case', ['==', ['get', 'vehicle_id'], sel], hi, lo] : hi;
+  map.setPaintProperty('plans-zones-fill', 'fill-opacity', dim(0.2, 0.05));
+  map.setPaintProperty('plans-zones-line', 'line-opacity', dim(1, 0.25));
+  map.setPaintProperty('plans-routes-line', 'line-opacity', dim(0.95, 0.2));
+}
+
+function renderPlans() {
+  if (!mapLoaded) return;
+  const { zones, routes } = plansFeatures();
+  setSource('plans-zones', plansVisible ? { type: 'FeatureCollection', features: zones } : EMPTY_FC);
+  setSource('plans-routes', plansVisible ? { type: 'FeatureCollection', features: routes } : EMPTY_FC);
+  applyPlanFocus();
+  $id('btn-plans')?.classList.toggle('active', plansVisible);
+}
+
+window.togglePlans = function() {
+  plansVisible = !plansVisible;
+  try { localStorage.setItem(LS_PLANS_VISIBLE, plansVisible ? '1' : '0'); } catch { /* modo privado */ }
+  renderPlans();
+  showToast(plansVisible ? `${plans.length} zona${plans.length === 1 ? '' : 's'} en pantalla` : 'Zonas ocultas', 'info');
+};
+
+/* ── Borrador (lo que se está dibujando) ── */
+function renderPlanDraft() {
+  if (!mapLoaded) return;
+  const color = plan.color;
+  const feats = [];
+  const pts = plan.ring;
+  if (plan.zone) feats.push({ type: 'Feature', properties: { color }, geometry: { type: 'Polygon', coordinates: [plan.zone] } });
+  else if (pts.length >= 3) feats.push({ type: 'Feature', properties: { color }, geometry: { type: 'Polygon', coordinates: [closeRing(pts)] } });
+  else if (pts.length === 2) feats.push({ type: 'Feature', properties: { color }, geometry: { type: 'LineString', coordinates: pts } });
+  if (!plan.zone) pts.forEach(p => feats.push({ type: 'Feature', properties: { color }, geometry: { type: 'Point', coordinates: p } }));
+  setSource('plan-draft', { type: 'FeatureCollection', features: feats });
+
+  setSource('plan-route', plan.route
+    ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { color }, geometry: plan.route }] }
+    : EMPTY_FC);
+
+  const points = [];
+  if (plan.start) points.push({ type: 'Feature', properties: { color: '#22c55e' }, geometry: { type: 'Point', coordinates: plan.start } });
+  if (plan.end)   points.push({ type: 'Feature', properties: { color: '#ef4444' }, geometry: { type: 'Point', coordinates: plan.end } });
+  setSource('plan-points', { type: 'FeatureCollection', features: points });
+}
+
+const fmtArea = km2 => km2 < 0.1 ? `${Math.round(km2 * 1e6).toLocaleString('es-MX')} m²` : `${km2.toFixed(2)} km²`;
+
+function updatePlanInfo() {
+  const zoneInfo = $id('pl-zone-info');
+  if (!zoneInfo) return;
+
+  zoneInfo.innerHTML = plan.zone
+    ? `${icon('check_circle', { cls: 'ic-green' })} Zona lista: <strong>${plan.ring.length} vértices</strong> · ${fmtArea(ringAreaKm2(plan.zone))}`
+    : 'Haz clic en cada esquina de la zona y termina con «Terminar zona» o doble clic.';
+  $id('pl-step-1').classList.toggle('done', !!plan.zone);
+
+  $id('pl-points-info').innerHTML = !plan.zone
+    ? 'Primero dibuja la zona.'
+    : `Inicio: <strong>${plan.start ? 'elegido (verde)' : 'pendiente'}</strong> · Fin: <strong>${plan.end ? 'elegido (rojo)' : 'pendiente'}</strong>`;
+  $id('pl-step-2').classList.toggle('done', !!(plan.start && plan.end));
+
+  const routeInfo = $id('pl-route-info');
+  if (plan.metrics) {
+    const m = plan.metrics;
+    const pct = Math.round(m.insideRatio * 100);
+    const warn = m.insideRatio < 0.75
+      ? `<br/>${icon('warning', { cls: 'ic-yellow' })} Solo el ${pct} % del recorrido queda dentro de la zona: las calles obligan a salir de ella.`
+      : '';
+    routeInfo.innerHTML = `${icon('check_circle', { cls: 'ic-green' })} <strong>${(m.distanceMeters / 1000).toFixed(2)} km</strong> · ` +
+      `${Math.max(1, Math.round(m.durationSeconds / 60))} min · ${pct} % dentro de la zona · ` +
+      `${plan.mode === 'osrm' ? 'sugerido con OSRM' : 'inicio y fin manuales'}${warn}`;
+    $id('pl-step-3').classList.add('done');
+  } else {
+    routeInfo.textContent = 'Se calcula solo cuando hay inicio y fin.';
+    $id('pl-step-3').classList.remove('done');
+  }
+}
+
+/* ── Selección en el mapa (zona / inicio / fin) ── */
+function beginPlanPick(kind) {
+  if (drawing || planPick) return;
+  if (kind !== 'zone' && !plan.zone) { showToast('Primero dibuja la zona', 'warn'); return; }
+
+  planPick = kind;
+  if (kind === 'zone') {
+    Object.assign(plan, { ring: [], zone: null, start: null, end: null, route: null, metrics: null });
+    renderPlanDraft(); updatePlanInfo();
+  }
+  $id('route-modal').classList.remove('open');     // se oculta para poder ver el mapa
+  $id('map-stage').classList.add('drawing');
+  $id('draw-hint').classList.add('show');
+  $id('draw-undo').hidden = kind !== 'zone';
+  $id('draw-finish').hidden = kind !== 'zone';
+  $id('draw-hint-text').textContent =
+    kind === 'zone'  ? 'Haz clic en cada esquina de la zona' :
+    kind === 'start' ? 'Haz clic en el punto de INICIO (dentro de la zona)' :
+                       'Haz clic en el punto de FIN (dentro de la zona)';
+  map.doubleClickZoom.disable();
+  map.on('click', onPlanClick);
+  map.on('dblclick', onPlanDblClick);
+}
+
+function endPlanPick() {
+  if (!planPick) return;
+  planPick = null;
+  map.off('click', onPlanClick);
+  map.off('dblclick', onPlanDblClick);
+  map.doubleClickZoom.enable();
+  $id('map-stage').classList.remove('drawing');
+  $id('draw-hint').classList.remove('show');
+  $id('draw-undo').hidden = true;
+  $id('draw-finish').hidden = true;
+  $id('route-modal').classList.add('open');
+  switchTab('zona');
+  renderPlanDraft(); updatePlanInfo();
+}
+
+function cancelPlanPick() {
+  if (planPick === 'zone' && !plan.zone) plan.ring = [];
+  endPlanPick();
+  showToast('Selección cancelada', 'info');
+}
+
+function onPlanClick(e) {
+  const pt = [e.lngLat.lng, e.lngLat.lat];
+
+  if (planPick === 'zone') {
+    /* Un doble clic dispara dos clics casi idénticos: el segundo se ignora. */
+    const last = plan.ring[plan.ring.length - 1];
+    if (last) {
+      const a = map.project(last);
+      if (Math.hypot(a.x - e.point.x, a.y - e.point.y) < 5) return;
+    }
+    plan.ring.push(pt);
+    renderPlanDraft();
+    $id('draw-hint-text').textContent = plan.ring.length < 3
+      ? `Vértice ${plan.ring.length}: faltan ${3 - plan.ring.length} como mínimo`
+      : `${plan.ring.length} vértices · «Terminar zona» o doble clic`;
+    return;
+  }
+
+  if (!pointInRing(pt, plan.zone)) { showToast('El punto debe quedar dentro de la zona', 'warn'); return; }
+  if (planPick === 'start') plan.start = pt; else plan.end = pt;
+  plan.mode = 'manual';
+  plan.route = null; plan.metrics = null;
+  endPlanPick();
+  recomputePlanRoute();
+}
+
+function onPlanDblClick(e) {
+  if (planPick !== 'zone') return;
+  e.preventDefault();
+  window.finishPlanDraw();
+}
+
+window.undoPlanPoint = function() {
+  if (planPick !== 'zone') return;
+  plan.ring.pop();
+  renderPlanDraft();
+  $id('draw-hint-text').textContent = plan.ring.length < 3
+    ? `Haz clic en cada esquina de la zona (${plan.ring.length} de 3 como mínimo)`
+    : `${plan.ring.length} vértices · «Terminar zona» o doble clic`;
+};
+
+window.finishPlanDraw = function() {
+  if (planPick !== 'zone') return;
+  if (plan.ring.length < 3) { showToast('La zona necesita al menos 3 puntos', 'warn'); return; }
+  if (ringSelfIntersects(plan.ring)) { showToast('Los lados de la zona se cruzan: usa «Deshacer» y corrígelos', 'warn'); return; }
+  const km2 = ringAreaKm2(plan.ring);
+  if (km2 > MAX_ZONE_KM2) { showToast(`La zona mide ${km2.toFixed(1)} km²; el máximo es ${MAX_ZONE_KM2} km². Dibújala más pequeña`, 'warn'); return; }
+  if (km2 < MIN_ZONE_KM2) { showToast(`La zona mide ${Math.round(km2 * 1e6)} m²; el mínimo es ${Math.round(MIN_ZONE_KM2 * 1e6)} m². Aleja el mapa y dibújala más grande`, 'warn'); return; }
+
+  plan.zone = closeRing(plan.ring);
+  endPlanPick();
+  const lngs = plan.zone.map(p => p[0]), lats = plan.zone.map(p => p[1]);
+  map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 80 });
+};
+
+window.startPlanZone = () => beginPlanPick('zone');
+window.startPlanPoint = kind => beginPlanPick(kind);
+
+/* ── Recorrido (OSRM) ── */
+async function recomputePlanRoute() {
+  if (!plan.zone || !plan.start || !plan.end) { renderPlanDraft(); updatePlanInfo(); return; }
+  $id('pl-route-info').textContent = 'Calculando el recorrido con OSRM…';
+  try {
+    const r = await fetchOSRMRoute(plan.start, plan.end);
+    plan.route = r.geometry;
+    plan.metrics = {
+      distanceMeters: r.distanceMeters,
+      durationSeconds: r.durationSeconds,
+      insideRatio: insideRatio(r.geometry.coordinates, plan.zone),
+    };
+  } catch (err) {
+    plan.route = null; plan.metrics = null;
+    console.error('[plan-route]', err);
+    $id('pl-route-info').innerHTML = `${icon('error', { cls: 'ic-red' })} ${escapeHtml(err.message)}`;
+    renderPlanDraft();
+    return;
+  }
+  renderPlanDraft(); updatePlanInfo();
+}
+
+window.suggestPlanRoute = async function(btn) {
+  if (!plan.zone) { showToast('Primero dibuja la zona', 'warn'); return; }
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Buscando…';
+  $id('pl-route-info').textContent = 'Buscando el mejor recorrido dentro de la zona con OSRM…';
+  try {
+    const s = await suggestRouteForZone(plan.zone);
+    plan.start = s.start; plan.end = s.end;
+    plan.route = s.geometry;
+    plan.mode = 'osrm';
+    plan.metrics = { distanceMeters: s.distanceMeters, durationSeconds: s.durationSeconds, insideRatio: s.insideRatio };
+    renderPlanDraft(); updatePlanInfo();
+  } catch (err) {
+    console.error('[plan-suggest]', err);
+    $id('pl-route-info').innerHTML = `${icon('error', { cls: 'ic-red' })} ${escapeHtml(err.message)}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+};
+
+function resetPlan() {
+  Object.assign(plan, { ring: [], zone: null, start: null, end: null, route: null, metrics: null, mode: 'manual' });
+  renderPlanDraft(); updatePlanInfo();
+}
+
+function fillPlanVehicleSelect() {
+  const sel = $id('pl-vehicle');
+  if (!sel) return;
+  const previous = sel.value;
+  sel.innerHTML = '<option value="">Sin camión asignado</option>' + vehicles
+    .map(v => `<option value="${v.id}">${escapeHtml(v.economic_number)}${v.plates ? ' — ' + escapeHtml(v.plates) : ''}</option>`)
+    .join('');
+  if (previous && vehicles.some(v => v.id === previous)) sel.value = previous;
+}
+
+function planSaveError(err) {
+  const msg = err?.message || '';
+  if (/duplicate|unique/i.test(msg)) return 'Ya existe una ruta con ese nombre';
+  if (/iniciar sesi/i.test(msg) || /permission|row-level|JWT/i.test(msg)) return 'Necesitas iniciar sesión para guardar rutas';
+  return msg || 'No se pudo guardar la ruta';
+}
+
+function initPlanUI() {
+  const box = $id('pl-colors');
+  if (!box) return;
+  box.innerHTML = PLAN_COLORS.map(c => `<button type="button" class="pl-swatch" data-color="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('') +
+    `<input type="color" class="pl-color-input" id="pl-color" value="${plan.color.toLowerCase()}" aria-label="Otro color"/>`;
+  const setColor = c => {
+    plan.color = c.toUpperCase();
+    $id('pl-color').value = plan.color.toLowerCase();
+    box.querySelectorAll('.pl-swatch').forEach(b => b.classList.toggle('active', b.dataset.color.toUpperCase() === plan.color));
+    renderPlanDraft();
+  };
+  box.addEventListener('click', e => { const b = e.target.closest('.pl-swatch'); if (b) setColor(b.dataset.color); });
+  $id('pl-color').addEventListener('input', e => setColor(e.target.value));
+  setColor(plan.color);
+  updatePlanInfo();
+}
+
+/* ══════════════════════════════════════
+   CONFIGURACIÓN DE IA GUARDADA + BÚSQUEDA EN UN PASO
+══════════════════════════════════════ */
+function saveAiSettings() {
+  setAiEndpoint($id('ai-endpoint').value);
+  setAiKey($id('ai-key').value);
+  syncAiServiceNote();
+  const saved = $id('ai-saved');
+  if (saved) saved.innerHTML = `${icon('check_circle', { cls: 'ic-green' })} Guardado en este navegador`;
+}
+
+/** Descarga las calles del área y pide el recorrido a la IA, todo con un solo botón. */
+async function quickAiRoute(btn) {
+  if (!isAiConfigured()) {
+    showToast('Falta la clave de acceso de la IA: pégala abajo una sola vez', 'warn');
+    $id('ai-key').focus();
+    return;
+  }
+  btn.disabled = true;
+  const original = btn.innerHTML;
+  btn.textContent = 'Buscando ruta…';
+  try {
+    if (!aiState.bbox && aiState.scope === 'vehicle') await useVehicleArea();
+    if (!aiState.bbox) { showToast('Primero define el área o elige un camión con posición GPS', 'warn'); return; }
+    if (!aiState.streets?.length) await loadStreets($id('ai-streets-btn'));
+    if (!aiState.streets?.length) return;
+    await suggestRouteFlow($id('ai-suggest-btn'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+/* ══════════════════════════════════════
+   BARRAS PLEGABLES
+   La lista de camiones y la barra de incidencias se pueden ocultar; la
+   preferencia se recuerda en este navegador.
+══════════════════════════════════════ */
+const LS_SIDEBAR_COLLAPSED = 'rl_sidebar_colapsado';
+const LS_INCIDENTS_COLLAPSED = 'rl_incidencias_colapsadas';
+
+function initCollapsibles() {
+  const readFlag = k => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
+  const saveFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* modo privado */ } };
+
+  const sidebar = document.querySelector('.sidebar');
+  const sbBtn = $id('sb-toggle');
+  const applySidebar = collapsed => {
+    sidebar.classList.toggle('collapsed', collapsed);
+    sbBtn.textContent = collapsed ? '›' : '‹';
+    sbBtn.setAttribute('aria-expanded', String(!collapsed));
+    sbBtn.title = collapsed ? 'Mostrar la lista de camiones' : 'Ocultar la lista de camiones';
+    /* MapLibre solo escucha la ventana: al cambiar el contenedor hay que avisarle. */
+    setTimeout(() => map.resize(), 260);
+  };
+  sbBtn.addEventListener('click', () => {
+    const next = !sidebar.classList.contains('collapsed');
+    saveFlag(LS_SIDEBAR_COLLAPSED, next);
+    applySidebar(next);
+  });
+  applySidebar(readFlag(LS_SIDEBAR_COLLAPSED));
+
+  const wrap = $id('mf-wrap');
+  const mfBtn = $id('mf-toggle');
+  const applyIncidents = collapsed => {
+    wrap.classList.toggle('collapsed', collapsed);
+    mfBtn.setAttribute('aria-expanded', String(!collapsed));
+    mfBtn.querySelector('.mf-chev').textContent = collapsed ? '▸' : '▾';
+    mfBtn.title = collapsed ? 'Mostrar las incidencias' : 'Ocultar las incidencias';
+    setTimeout(() => map.resize(), 60);
+  };
+  mfBtn.addEventListener('click', () => {
+    const next = !wrap.classList.contains('collapsed');
+    saveFlag(LS_INCIDENTS_COLLAPSED, next);
+    applyIncidents(next);
+  });
+  applyIncidents(readFlag(LS_INCIDENTS_COLLAPSED));
 }
 
 /* ══ INICIO (requiere sesión activa) ══ */
@@ -3326,6 +3909,7 @@ async function main() {
   const openTruckModal = mountNewTruckModal({ onCreated: loadMapData });
   document.getElementById('btn-new-truck').addEventListener('click', openTruckModal);
 
+  initCollapsibles();
   initRouteModal();
   initPlaybackControls();
   subscribeFleetPositions(applyFleetMovement);

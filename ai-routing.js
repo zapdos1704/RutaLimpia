@@ -21,6 +21,11 @@ const LS_AI_ENDPOINT   = 'rl_ai_routing_endpoint';
 const LS_AI_KEY        = 'rl_ai_routing_key';
 const LS_OVERPASS       = 'rl_overpass_endpoint';
 
+/* Puente estable (Cloudflare Worker) hacia la IA que corre en la PC. No es un
+   secreto: la clave de acceso NO va en el código, se captura una vez y queda
+   guardada en este navegador. */
+export const DEFAULT_AI_ENDPOINT = 'https://rutalimpia-ai-proxy.edgarcharmandercr04.workers.dev/ai/route';
+
 export const DEFAULT_OVERPASS = 'https://overpass-api.de/api/interpreter';
 /* El proyecto ya tiene un Overpass propio (mapOverPass/docker-compose.yaml)
    publicado en el puerto 12345; se ofrece como opción en la interfaz. */
@@ -29,13 +34,14 @@ export const LOCAL_OVERPASS   = 'http://localhost:12345/api/interpreter';
 const read  = (k, fallback = '') => { try { return localStorage.getItem(k) ?? fallback; } catch { return fallback; } };
 const write = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* modo privado */ } };
 
-export const getAiEndpoint  = () => read(LS_AI_ENDPOINT);
+export const getAiEndpoint  = () => read(LS_AI_ENDPOINT) || DEFAULT_AI_ENDPOINT;
 export const setAiEndpoint  = v => write(LS_AI_ENDPOINT, (v || '').trim());
 export const getAiKey       = () => read(LS_AI_KEY);
 export const setAiKey       = v => write(LS_AI_KEY, (v || '').trim());
 export const getOverpass    = () => read(LS_OVERPASS) || DEFAULT_OVERPASS;
 export const setOverpass    = v => write(LS_OVERPASS, (v || '').trim());
-export const isAiConfigured = () => !!getAiEndpoint();
+/* Con endpoint por defecto, "configurada" significa que ya hay clave guardada. */
+export const isAiConfigured = () => !!getAiEndpoint() && !!getAiKey();
 
 /* ── Geometría ── */
 
