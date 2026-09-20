@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=fe162393';
-import { localDate, mergeRows, periodRange } from './service-stats.js?v=fe162393';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=7d5234fc';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=7d5234fc';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -809,6 +809,50 @@ export async function resolveReport(id) {
     sb.from('reports').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', id)
   );
   if (error) throw error;
+}
+
+/* ══════════════════════════════════════
+   ADMINISTRACIÓN: tiraderos y horarios (SQL 008)
+   La escritura pasa por funciones SQL que comprueban que quien llama sea administrador.
+══════════════════════════════════════ */
+export async function getDumpSites() {
+  const { data, error } = await withTimeout(
+    sb.from('dump_sites_geo').select('id, name, is_active, radius_m, center_lng, center_lat, area, created_at').order('created_at')
+  );
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveDumpSite(args) {
+  const { data, error } = await withTimeout(sb.rpc('save_dump_site', args));
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDumpSite(id) {
+  const { data, error } = await withTimeout(sb.rpc('delete_dump_site', { p_id: id }));
+  if (error) throw error;
+  return data === true;
+}
+
+export async function getPickupSchedules() {
+  const { data, error } = await withTimeout(
+    sb.from('pickup_schedules').select('*').order('day_of_week').order('time')
+  );
+  if (error) throw error;
+  return data || [];
+}
+
+export async function savePickupSchedule(args) {
+  const { data, error } = await withTimeout(sb.rpc('save_pickup_schedule', args));
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePickupSchedule(id) {
+  const { data, error } = await withTimeout(sb.rpc('delete_pickup_schedule', { p_id: id }));
+  if (error) throw error;
+  return data === true;
 }
 
 /* ══════════════════════════════════════

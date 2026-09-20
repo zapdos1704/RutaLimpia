@@ -49,6 +49,19 @@ estado actual se **deriva** recorriéndolos en orden (`events.js`):
   desde la misma pantalla, sin tocar código. Mientras tanto el trazo lo genera una
   heurística local, siempre etiquetada como tal — ver **[AI_RUTAS.md](AI_RUTAS.md)**
 
+#### 🗑️ Tiraderos y 📋 Horarios (sólo administradores)
+Botones **Tiraderos** y **Horarios** en el mapa en vivo (los escribe `admin-tools.js`; la base de datos vuelve a
+comprobar el rol al guardar). Requieren `rutalimpia-ai-service/docs/sql/008_panel_dump_sites_schedules.sql`.
+
+- **Tiraderos (geocercas):** círculo (centro + radio 30–1000 m) o polígono dibujado con clics (400 m² – 2 km²).
+  Cuando un camión entra a uno y se queda unos segundos, el backend lo marca «Vaciando» y pausa la hora estimada
+  que ven los ciudadanos hasta que vuelve a la ruta.
+- **Horarios:** día, hora y tipo de residuo por ruta. Un horario **sin ruta** es general y lo ven los ciudadanos de
+  todas las rutas; los de una ruta sólo los suyos (más los generales).
+- **Dashboard → «Servicio a domicilio»:** ciudadanos que dijeron que van a tirar basura y cuántos quedaron
+  atendidos, desatendidos o sin confirmar (aparte), por ruta y por día. Sólo agregados.
+- **Camiones → «Domicilios por carga»:** valor inicial con el que el sistema predice cuándo se llena el camión.
+
 ### 📣 Campañas
 - Listado de campañas con filtros por estado (activa, planificada, completada)
 - Barra de progreso por campaña
