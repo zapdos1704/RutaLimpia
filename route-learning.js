@@ -19,7 +19,7 @@
 import {
   haversineM, polylineLengthM, pointInRing, ringSelfIntersects, ringAreaKm2,
   closeRing, distanceToSegmentM, rad, toXY, insideRatio,
-} from './geo.js?v=75ab819d';
+} from './geo.js?v=f2794234';
 
 const R = 6371000;
 const isFiniteNum = Number.isFinite;

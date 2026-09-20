@@ -10,11 +10,11 @@
    La interfaz (page-1.html) sólo pinta lo que estas funciones devuelven.
 ══════════════════════════════════════════════════════ */
 
-import { fetchTrail } from './db.js?v=75ab819d';
-import { requestZoneRoute } from './ai-routing.js?v=75ab819d';
-import { snapSegmentsToRoads } from './trail.js?v=75ab819d';
-import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=75ab819d';
-import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, fitRouteToPoints } from './route-learning.js?v=75ab819d';
+import { fetchTrail } from './db.js?v=f2794234';
+import { requestZoneRoute } from './ai-routing.js?v=f2794234';
+import { snapSegmentsToRoads } from './trail.js?v=f2794234';
+import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=f2794234';
+import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, fitRouteToPoints } from './route-learning.js?v=f2794234';
 
 const MIN_DAY_POINTS = 20;
 const MIN_DAY_METERS = 300;

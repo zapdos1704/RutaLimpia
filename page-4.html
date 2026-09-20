@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Dashboard</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=75ab819d"/>
+<link rel="stylesheet" href="shared.css?v=f2794234"/>
 <style>
 /* ── Solo estilos específicos del Dashboard ── */
 
@@ -178,6 +178,27 @@
 .hmap-scale { display: flex; align-items: center; gap: 3px; margin-top: 6px; justify-content: flex-end; }
 .hscl       { font-size: 8px; color: var(--text-2); }
 
+/* Servicio a domicilio (sondeo) */
+.svc-wrap   { display: flex; flex-direction: column; gap: 14px; padding: 14px; width: 100%; align-self: flex-start; }
+.svc-tiles  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.svc-tile   { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; min-width: 0; }
+.svc-tile-label { font-size: 9px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; gap: 5px; }
+.svc-tile-val   { font-size: 20px; font-weight: 800; line-height: 1.1; margin-top: 4px; }
+.svc-note   { font-size: 10px; color: var(--text-2); line-height: 1.5; }
+.svc-note b { color: var(--text-1); }
+.svc-h      { font-size: 9px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; }
+.svc-routes { display: flex; flex-direction: column; gap: 9px; }
+.svc-track  { display: flex; height: 6px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+.svc-track > span { display: block; height: 100%; transition: width .6s cubic-bezier(.34,1.2,.64,1); }
+.svc-nums   { display: flex; gap: 8px; font-size: 10px; font-weight: 700; }
+.svc-days   { display: flex; align-items: flex-end; justify-content: flex-start; gap: 4px; height: 72px; }
+.svc-day    { flex: 1 1 0; max-width: 40px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; }
+.svc-col    { width: 100%; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; }
+.svc-col > span { display: block; width: 100%; }
+.svc-day-lbl { font-size: 8px; color: var(--text-2); }
+.svc-empty  { width: 100%; text-align: center; color: var(--text-2); font-size: 11px; padding: 18px 12px; line-height: 1.5; }
+@media (max-width: 768px) { .svc-tiles { grid-template-columns: repeat(2, 1fr); } }
+
 /* Gauges */
 .gauges-wrap { display: flex; justify-content: space-around; align-items: center; padding: 14px; width: 100%; }
 .gauge-item  { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -227,10 +248,11 @@
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=75ab819d"/>
-<link rel="modulepreload" href="db.js?v=75ab819d"/>
-<link rel="modulepreload" href="events.js?v=75ab819d"/>
-<link rel="modulepreload" href="fleet-ui.js?v=75ab819d"/>
+<link rel="modulepreload" href="icons.js?v=f2794234"/>
+<link rel="modulepreload" href="db.js?v=f2794234"/>
+<link rel="modulepreload" href="events.js?v=f2794234"/>
+<link rel="modulepreload" href="service-stats.js?v=f2794234"/>
+<link rel="modulepreload" href="fleet-ui.js?v=f2794234"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -479,6 +501,17 @@
             </div>
           </div>
 
+          <!-- Servicio a domicilio (sondeo) -->
+          <div class="chart-card span2">
+            <div class="chart-head">
+              <div><div class="chart-title">Servicio a domicilio</div><div class="chart-sub" id="service-sub">Ciudadanos que dijeron que van a tirar basura</div></div>
+              <span class="chart-badge">Sondeo</span>
+            </div>
+            <div class="chart-body scroll" style="--cb-min:120px;--cb-max:340px;">
+              <div class="svc-wrap" id="chart-service"><div class="svc-empty">Cargando…</div></div>
+            </div>
+          </div>
+
         </div><!-- /charts-grid -->
       </div><!-- /dash-inner -->
     </div><!-- /main -->
@@ -489,15 +522,16 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=75ab819d';
+  import './icons.js?v=f2794234';
 </script>
-<script src="shared.js?v=75ab819d"></script>
+<script src="shared.js?v=f2794234"></script>
 <script type="module">
 import {
-  getVehicles, getTelemetry, getCollections, getCampaigns, getWasteStats, capacityPct,
+  getVehicles, getTelemetry, getCollections, getCampaigns, getWasteStats, capacityPct, getServiceSurvey,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=75ab819d';
-import { mountNewTruckModal } from './fleet-ui.js?v=75ab819d';
+} from './db.js?v=f2794234';
+import { mountNewTruckModal } from './fleet-ui.js?v=f2794234';
+import { summarize, segments } from './service-stats.js?v=f2794234';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -827,6 +861,72 @@ function renderRoutesTable(colls) {
     || '<tr><td colspan="3" style="text-align:center;color:var(--text-2)">Sin datos disponibles</td></tr>';
 }
 
+/* ══ SERVICIO A DOMICILIO (sondeo) ══
+   Sólo agregados. «Sin confirmar» (dijo que sí y no contestó) se muestra aparte:
+   NO cuenta como desatendido. */
+const SVC_COLORS = { served: '#22c55e', unserved: '#ef4444', unconfirmed: '#64748b' };
+const SVC_PERIOD = { diario: 'Hoy', semanal: 'Últimos 7 días', mensual: 'Últimos 30 días' };
+const esc = v => String(v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+function svcBar(t) {
+  const g = segments(t);
+  return `<div class="svc-track" title="Atendidos ${t.served} · Desatendidos ${t.unserved} · Sin confirmar ${t.unconfirmed}">
+    <span style="width:${g.served}%;background:${SVC_COLORS.served}"></span>
+    <span style="width:${g.unserved}%;background:${SVC_COLORS.unserved}"></span>
+    <span style="width:${g.unconfirmed}%;background:${SVC_COLORS.unconfirmed}"></span></div>`;
+}
+
+function renderService(res) {
+  const el = $('chart-service');
+  if (!el) return;
+  if ($('service-sub')) $('service-sub').textContent = `${SVC_PERIOD[currentPeriod] || 'Hoy'} · ciudadanos que dijeron que van a tirar basura`;
+  if (!res.ok) {
+    el.innerHTML = '<div class="svc-empty">No se pudo consultar el sondeo. Se reintentará solo.</div>';
+    return;
+  }
+  const s = summarize(res.rows);
+  if (s.isEmpty) {
+    el.innerHTML = `<div class="svc-empty">Sin respuestas del sondeo en este periodo.<br>Aparecen cuando los ciudadanos con ruta responden «¿vas a depositar basura?».</div>`;
+    return;
+  }
+
+  const t = s.total;
+  const tile = (label, val, color) => `<div class="svc-tile"><div class="svc-tile-label"><span class="d-dot" style="background:${color}"></span>${label}</div><div class="svc-tile-val" style="color:${color}">${val}</div></div>`;
+  const confirmed = t.served + t.unserved;
+  const note = confirmed
+    ? `<b>${t.servedOfConfirmed}%</b> atendido entre quienes confirmaron (${confirmed} de ${t.willDispose}). Los <b>${t.unconfirmed}</b> sin confirmar no cuentan como desatendidos.`
+    : `Aún nadie ha confirmado. «Sin confirmar» = dijo que sí y todavía no contesta si recogieron su basura.`;
+
+  const routes = s.byRoute.map(r => `<div class="prog-item">
+      <div class="prog-row"><span class="prog-name">${esc(r.routeName)}</span>
+        <span class="svc-nums"><span style="color:${SVC_COLORS.served}">${r.served}</span><span style="color:${SVC_COLORS.unserved}">${r.unserved}</span><span style="color:${SVC_COLORS.unconfirmed}">${r.unconfirmed}</span></span></div>
+      ${svcBar(r)}</div>`).join('');
+
+  let days = '';
+  if (currentPeriod !== 'diario' && s.byDay.length > 1) {
+    const max = Math.max(...s.byDay.map(d => d.willDispose), 1);
+    days = `<div><div class="svc-h" style="margin-bottom:6px">Por día</div><div class="svc-days">${s.byDay.map(d => {
+      const h = Math.max(4, Math.round((d.willDispose / max) * 56));
+      const g = segments(d);
+      return `<div class="svc-day" title="${d.date}: ${d.served} atendidos · ${d.unserved} desatendidos · ${d.unconfirmed} sin confirmar">
+        <div class="svc-col" style="height:${h}px"><span style="height:${g.served}%;background:${SVC_COLORS.served}"></span><span style="height:${g.unserved}%;background:${SVC_COLORS.unserved}"></span><span style="height:${g.unconfirmed}%;background:${SVC_COLORS.unconfirmed}"></span></div>
+        <div class="svc-day-lbl">${d.date.slice(8)}</div></div>`;
+    }).join('')}</div></div>`;
+  }
+
+  el.innerHTML = `
+    <div class="svc-tiles">
+      ${tile('Dijeron que sí', t.willDispose, '#93c5fd')}
+      ${tile('Atendidos', t.served, SVC_COLORS.served)}
+      ${tile('Desatendidos', t.unserved, SVC_COLORS.unserved)}
+      ${tile('Sin confirmar', t.unconfirmed, SVC_COLORS.unconfirmed)}
+    </div>
+    <div class="svc-note">${note}</div>
+    ${days}
+    <div><div class="svc-h" style="margin-bottom:8px">Por ruta <span style="text-transform:none;letter-spacing:0;font-weight:400">· atendidos · desatendidos · sin confirmar</span></div>
+      <div class="svc-routes">${routes}</div></div>`;
+}
+
 /* ══ SIDEBAR VEHÍCULOS ══ */
 let _vehicles = [];
 function renderVehicleList(list) {
@@ -866,12 +966,13 @@ async function loadAll() {
   try {
     // La gráfica de línea siempre muestra la semana ("Tendencia semanal"),
     // mientras que el KPI de toneladas sí respeta el periodo elegido.
-    const [vehs, telem, colls, camps, waste, weeklyWaste] = await Promise.all([
+    const [vehs, telem, colls, camps, waste, weeklyWaste, survey] = await Promise.all([
       getVehicles(), getTelemetry(),
       getCollections(currentPeriod),
       getCampaigns(),
       getWasteStats(currentPeriod),
       getWasteStats('semanal'),
+      getServiceSurvey(currentPeriod),
     ]);
     _vehicles = vehs.map(v => {
       const t = telem.find(r=>r.vehicle_id===v.id);
@@ -886,6 +987,7 @@ async function loadAll() {
     renderDriverPerformance(colls);
     renderHeatmap(colls);
     renderRoutesTable(colls);
+    renderService(survey);
     renderVehicleList(_vehicles);
   } catch (err) {
     console.error('[dashboard]', err);

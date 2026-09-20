@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=75ab819d';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=f2794234';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=f2794234';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -115,6 +116,25 @@ export async function getWasteStats(period = 'mensual') {
     if (error) throw error;
     return data || [];
   } catch (err) { console.error('[waste_stats]', err); return []; }
+}
+
+/* ── Sondeo a domicilio (sólo agregados, sólo personal) ──
+   Días cerrados: daily_service_stats. Día en curso: vista service_survey_live.
+   Si la sesión no es de personal, ambas devuelven vacío por RLS. Devuelve
+   { ok, rows, today }: ok=false si no se pudo consultar (para no mostrar «0» falsos). */
+export async function getServiceSurvey(period = 'diario') {
+  const today = localDate();
+  const { from, to } = periodRange(period, today);
+  try {
+    const cols = 'stat_date, route_id, route_name, will_dispose, served, unserved, unconfirmed';
+    const [closed, live] = await Promise.all([
+      withTimeout(sb.from('daily_service_stats').select(cols).gte('stat_date', from).lte('stat_date', to)),
+      withTimeout(sb.from('service_survey_live').select(cols).gte('stat_date', from).lte('stat_date', to)),
+    ]);
+    if (closed.error) throw closed.error;
+    if (live.error) throw live.error;
+    return { ok: true, rows: mergeRows(closed.data || [], live.data || [], today), today };
+  } catch (err) { console.error('[service_survey]', err); return { ok: false, rows: [], today }; }
 }
 
 /* ── Capacidad del camión ──
