@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Camiones</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=f2794234"/>
+<link rel="stylesheet" href="shared.css?v=fe162393"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 
@@ -334,11 +334,12 @@
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=f2794234"/>
-<link rel="modulepreload" href="db.js?v=f2794234"/>
-<link rel="modulepreload" href="events.js?v=f2794234"/>
-<link rel="modulepreload" href="service-stats.js?v=f2794234"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=f2794234"/>
+<link rel="modulepreload" href="icons.js?v=fe162393"/>
+<link rel="modulepreload" href="db.js?v=fe162393"/>
+<link rel="modulepreload" href="events.js?v=fe162393"/>
+<link rel="modulepreload" href="service-stats.js?v=fe162393"/>
+<link rel="modulepreload" href="vehicle-load.js?v=fe162393"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=fe162393"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -490,6 +491,32 @@
   </div>
 </div>
 
+<!-- MODAL: domicilios por carga -->
+<div class="modal-overlay" id="load-modal" onclick="if(event.target===this) closeLoadModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9 1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg> Domicilios por carga</span>
+      <button class="modal-close" onclick="closeLoadModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Camión</label>
+        <input class="form-input" id="l-vehicle-name" disabled/>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="l-value">Domicilios que caben en una carga completa</label>
+        <input class="form-input" id="l-value" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej. 120"/>
+      </div>
+      <div class="tc-color-note" id="l-hint">Es el valor de partida: el sistema lo va ajustando solo con cada carga real que el camión lleva al tiradero. Con él se avisa a los ciudadanos cuando el camión se llenará antes de llegar a su casa.</div>
+      <div class="del-error" id="l-error" style="display:none;margin-top:8px;padding:8px 10px;font-size:11px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeLoadModal()">Cancelar</button>
+      <button class="btn-new" onclick="submitLoad(this)">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: asignar personal -->
 <div class="modal-overlay" id="crew-modal" onclick="if(event.target===this) closeCrewModal()">
   <div class="modal">
@@ -578,18 +605,19 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=f2794234';
+  import './icons.js?v=fe162393';
 </script>
-<script src="shared.js?v=f2794234"></script>
+<script src="shared.js?v=fe162393"></script>
 <script type="module">
 import {
   getVehicles, getVehicleCrew, getAllUsers, getRoutesByVehicle, getRoutes,
   insertVehicle, assignCrewMember, removeCrewMember, assignRouteToVehicle, updateVehicleStatus,
-  getVehicleUsage, deleteVehicle, updateVehicleColor, MissingColumnError,
+  getVehicleUsage, deleteVehicle, updateVehicleColor, updateVehicleStopsPerLoad, MissingColumnError,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=f2794234';
-import { icon } from './icons.js?v=f2794234';
-import { COLOR_PALETTE, chosenColorFor, mapColorFor, setLocalColor, isValidHex } from './vehicle-colors.js?v=f2794234';
+} from './db.js?v=fe162393';
+import { icon } from './icons.js?v=fe162393';
+import { describeStopsPerLoad, parseStopsPerLoad } from './vehicle-load.js?v=fe162393';
+import { COLOR_PALETTE, chosenColorFor, mapColorFor, setLocalColor, isValidHex } from './vehicle-colors.js?v=fe162393';
 
 window.doLogout = async function() { await signOut(); window.location.href = 'index.html'; };
 
@@ -688,6 +716,15 @@ function routeBlock(vehicleId) {
   </div>`;
 }
 
+function loadBlock(vehicle) {
+  const d = describeStopsPerLoad(vehicle);
+  return `<div class="tc-route ${d.hasValue ? '' : 'empty'}">
+    <span class="tc-route-name">Domicilios por carga: ${escapeHtml(d.valueText)}</span>
+    <span class="tc-route-km" style="white-space:normal;text-align:right">${escapeHtml(d.detail)}</span>
+    <button class="tc-route-btn" onclick="openLoadModal('${vehicle.id}')">${d.action}</button>
+  </div>`;
+}
+
 function crewBlock(vehicle) {
   const crew = crewOf(vehicle.id);
   const rows = crew.length ? crew.map(c => `
@@ -750,6 +787,7 @@ function renderTrucks() {
 
       ${colorBlock(v)}
       ${routeBlock(v.id)}
+      ${loadBlock(v)}
       ${crewBlock(v)}
 
       <div class="tc-actions">
@@ -862,6 +900,54 @@ window.submitRoute = async function(btn) {
   } catch (err) {
     console.error('[assignRoute]', err);
     showToast('' + (err.message || 'No se pudo asignar la ruta', 'error'));;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+};
+
+/* ── Modal: domicilios por carga ── */
+let _loadVehicleId = null;
+
+window.openLoadModal = function(vehicleId) {
+  const vehicle = _vehicles.find(v => v.id === vehicleId);
+  if (!vehicle) return;
+  _loadVehicleId = vehicleId;
+  $('l-vehicle-name').value = `${vehicle.economic_number} — ${vehicle.plates || 'sin placas'}`;
+  const d = describeStopsPerLoad(vehicle);
+  $('l-value').value = d.hasValue ? d.valueText : '';
+  $('l-error').style.display = 'none';
+  $('load-modal').classList.add('open');
+  $('l-value').focus();
+};
+window.closeLoadModal = () => $('load-modal').classList.remove('open');
+$('l-value').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.querySelector('#load-modal .btn-new').click(); } });
+
+window.submitLoad = async function(btn) {
+  const parsed = parseStopsPerLoad($('l-value').value);
+  const errEl = $('l-error');
+  if (!parsed.ok) {
+    errEl.textContent = parsed.error;
+    errEl.style.display = 'block';
+    $('l-value').focus();
+    return;
+  }
+  errEl.style.display = 'none';
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Guardando…';
+  try {
+    await updateVehicleStopsPerLoad(_loadVehicleId, parsed.value);
+    window.closeLoadModal();
+    showToast('Domicilios por carga guardado', 'success');
+    await loadData();
+  } catch (err) {
+    console.error('[updateVehicleStopsPerLoad]', err);
+    errEl.textContent = err instanceof MissingColumnError
+      ? 'Falta la columna vehicles.stops_per_load: corre primero el SQL 007 en Supabase.'
+      : (err.message || 'No se pudo guardar');
+    errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
     btn.textContent = original;

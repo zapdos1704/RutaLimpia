@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Quejas</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=f2794234"/>
+<link rel="stylesheet" href="shared.css?v=fe162393"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
@@ -247,10 +247,10 @@
 <link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=f2794234"/>
-<link rel="modulepreload" href="db.js?v=f2794234"/>
-<link rel="modulepreload" href="events.js?v=f2794234"/>
-<link rel="modulepreload" href="service-stats.js?v=f2794234"/>
+<link rel="modulepreload" href="icons.js?v=fe162393"/>
+<link rel="modulepreload" href="db.js?v=fe162393"/>
+<link rel="modulepreload" href="events.js?v=fe162393"/>
+<link rel="modulepreload" href="service-stats.js?v=fe162393"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -371,16 +371,16 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=f2794234';
+  import './icons.js?v=fe162393';
 </script>
-<script src="shared.js?v=f2794234"></script>
+<script src="shared.js?v=fe162393"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
   getReports, resolveReport, getRoutes, getCollections,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=f2794234';
-import { icon } from './icons.js?v=f2794234';
+} from './db.js?v=fe162393';
+import { icon } from './icons.js?v=fe162393';
 
 window.doLogout = async function() {
   await signOut();

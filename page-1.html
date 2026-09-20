@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Mapa en vivo</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=f2794234"/>
+<link rel="stylesheet" href="shared.css?v=fe162393"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 /* ── Mapa ── */
@@ -796,20 +796,20 @@
 <link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=f2794234"/>
-<link rel="modulepreload" href="db.js?v=f2794234"/>
-<link rel="modulepreload" href="events.js?v=f2794234"/>
-<link rel="modulepreload" href="service-stats.js?v=f2794234"/>
-<link rel="modulepreload" href="bridge-auth.js?v=f2794234"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=f2794234"/>
-<link rel="modulepreload" href="trail.js?v=f2794234"/>
-<link rel="modulepreload" href="fleet-ui.js?v=f2794234"/>
-<link rel="modulepreload" href="route-planning.js?v=f2794234"/>
-<link rel="modulepreload" href="geo.js?v=f2794234"/>
-<link rel="modulepreload" href="route-learning.js?v=f2794234"/>
-<link rel="modulepreload" href="route-watch.js?v=f2794234"/>
-<link rel="modulepreload" href="route-wizard.js?v=f2794234"/>
-<link rel="modulepreload" href="ai-routing.js?v=f2794234"/>
+<link rel="modulepreload" href="icons.js?v=fe162393"/>
+<link rel="modulepreload" href="db.js?v=fe162393"/>
+<link rel="modulepreload" href="events.js?v=fe162393"/>
+<link rel="modulepreload" href="service-stats.js?v=fe162393"/>
+<link rel="modulepreload" href="bridge-auth.js?v=fe162393"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=fe162393"/>
+<link rel="modulepreload" href="trail.js?v=fe162393"/>
+<link rel="modulepreload" href="fleet-ui.js?v=fe162393"/>
+<link rel="modulepreload" href="route-planning.js?v=fe162393"/>
+<link rel="modulepreload" href="geo.js?v=fe162393"/>
+<link rel="modulepreload" href="route-learning.js?v=fe162393"/>
+<link rel="modulepreload" href="route-watch.js?v=fe162393"/>
+<link rel="modulepreload" href="route-wizard.js?v=fe162393"/>
+<link rel="modulepreload" href="ai-routing.js?v=fe162393"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -1210,9 +1210,9 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=f2794234';
+  import './icons.js?v=fe162393';
 </script>
-<script src="shared.js?v=f2794234"></script>
+<script src="shared.js?v=fe162393"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
@@ -1220,25 +1220,25 @@ import {
   TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, todayIso, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=f2794234';
-import { icon } from './icons.js?v=f2794234';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=f2794234';
-import { mapColorFor } from './vehicle-colors.js?v=f2794234';
+} from './db.js?v=fe162393';
+import { icon } from './icons.js?v=fe162393';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=fe162393';
+import { mapColorFor } from './vehicle-colors.js?v=fe162393';
 import {
   cleanTrail, segmentsToLines, createTrailSnapper, buildPlayback, positionAt,
   traveledLine, formatDuration, distanceMeters,
   getOsrmEndpoint, setOsrmEndpoint, DEFAULT_OSRM,
-} from './trail.js?v=f2794234';
-import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=f2794234';
-import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=f2794234';
+} from './trail.js?v=fe162393';
+import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=fe162393';
+import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=fe162393';
 import {
   pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
   fetchOSRMRoute, fetchOSRMRoutes, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
   saveRouteExtras, saveRouteFlags, applyRouteChange, logRouteEvent, setLearningEnabled,
-} from './route-planning.js?v=f2794234';
-import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=f2794234';
-import { createRouteWatcher } from './route-watch.js?v=f2794234';
-import { learnFromGps, generateAiRoute } from './route-wizard.js?v=f2794234';
+} from './route-planning.js?v=fe162393';
+import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=fe162393';
+import { createRouteWatcher } from './route-watch.js?v=fe162393';
+import { learnFromGps, generateAiRoute } from './route-wizard.js?v=fe162393';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {

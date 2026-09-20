@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=f2794234';
-import { localDate, mergeRows, periodRange } from './service-stats.js?v=f2794234';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=fe162393';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=fe162393';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -684,6 +684,27 @@ export async function updateVehicleColor(vehicleId, hex) {
     if (/42703|column .* does not exist|Could not find the '?color'? column/i.test(
           `${error.code || ''} ${error.message || ''} ${error.details || ''}`)) {
       throw new MissingColumnError('vehicles.color');
+    }
+    throw error;
+  }
+  if (!data || data.length === 0) {
+    throw new Error('Supabase no actualizó ninguna fila (revisa la política de UPDATE).');
+  }
+  return data[0];
+}
+
+/* ── Domicilios por carga ──
+   Valor inicial que el backend usa para predecir cuándo se llena el camión (y luego
+   ajusta con cada carga real). No se toca stops_per_load_samples: editar el valor a
+   mano no borra lo aprendido. */
+export async function updateVehicleStopsPerLoad(vehicleId, value) {
+  const { data, error } = await withTimeout(
+    sb.from('vehicles').update({ stops_per_load: value }).eq('id', vehicleId).select()
+  );
+  if (error) {
+    if (/42703|column .* does not exist|Could not find the '?stops_per_load'? column/i.test(
+          `${error.code || ''} ${error.message || ''} ${error.details || ''}`)) {
+      throw new MissingColumnError('vehicles.stops_per_load');
     }
     throw error;
   }
