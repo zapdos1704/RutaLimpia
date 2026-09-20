@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Mapa en vivo</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=6378755c"/>
+<link rel="stylesheet" href="shared.css?v=75ab819d"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 /* ── Mapa ── */
@@ -738,19 +738,19 @@
 <link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=6378755c"/>
-<link rel="modulepreload" href="db.js?v=6378755c"/>
-<link rel="modulepreload" href="events.js?v=6378755c"/>
-<link rel="modulepreload" href="bridge-auth.js?v=6378755c"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=6378755c"/>
-<link rel="modulepreload" href="trail.js?v=6378755c"/>
-<link rel="modulepreload" href="fleet-ui.js?v=6378755c"/>
-<link rel="modulepreload" href="route-planning.js?v=6378755c"/>
-<link rel="modulepreload" href="geo.js?v=6378755c"/>
-<link rel="modulepreload" href="route-learning.js?v=6378755c"/>
-<link rel="modulepreload" href="route-watch.js?v=6378755c"/>
-<link rel="modulepreload" href="route-wizard.js?v=6378755c"/>
-<link rel="modulepreload" href="ai-routing.js?v=6378755c"/>
+<link rel="modulepreload" href="icons.js?v=75ab819d"/>
+<link rel="modulepreload" href="db.js?v=75ab819d"/>
+<link rel="modulepreload" href="events.js?v=75ab819d"/>
+<link rel="modulepreload" href="bridge-auth.js?v=75ab819d"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=75ab819d"/>
+<link rel="modulepreload" href="trail.js?v=75ab819d"/>
+<link rel="modulepreload" href="fleet-ui.js?v=75ab819d"/>
+<link rel="modulepreload" href="route-planning.js?v=75ab819d"/>
+<link rel="modulepreload" href="geo.js?v=75ab819d"/>
+<link rel="modulepreload" href="route-learning.js?v=75ab819d"/>
+<link rel="modulepreload" href="route-watch.js?v=75ab819d"/>
+<link rel="modulepreload" href="route-wizard.js?v=75ab819d"/>
+<link rel="modulepreload" href="ai-routing.js?v=75ab819d"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -1031,7 +1031,7 @@
 
     <div class="modal-body">
       <div class="ai-note">
-        Dibuja la zona, elige el camión y decide cómo se define la ruta: <strong>con aprendizaje</strong> (a partir del recorrido real del camión)
+        Dibuja la zona, marca el inicio y el fin, y decide cómo se define la ruta: <strong>con aprendizaje</strong> (a partir del recorrido real del camión)
         o <strong>automática con IA</strong>. No hay que teclear ninguna clave: se usa tu sesión.
       </div>
 
@@ -1082,8 +1082,18 @@
         <div class="ai-result" id="pl-zone-info">Haz clic en cada esquina de la zona y termina con «Terminar zona» o doble clic.</div>
       </div>
 
+      <div class="ai-step" id="pl-step-2">
+        <div class="ai-step-head"><span class="ai-step-num">2</span> Inicio y fin</div>
+        <div class="pl-btn-row">
+          <button class="btn-cancel" type="button" onclick="startPlanPoint('start')">Elegir inicio</button>
+          <button class="btn-cancel" type="button" onclick="startPlanPoint('end')">Elegir fin</button>
+          <button class="btn-cancel" type="button" id="pl-suggest-btn" onclick="suggestPlanRoute(this)">Sugerir con OSRM</button>
+        </div>
+        <div class="ai-result" id="pl-points-info">Primero dibuja la zona. Después marca dónde empieza y dónde termina: la ruta se calcula entre esos dos puntos.</div>
+      </div>
+
       <div class="ai-step" id="pl-step-mode">
-        <div class="ai-step-head"><span class="ai-step-num">2</span> ¿Cómo se define la ruta?</div>
+        <div class="ai-step-head"><span class="ai-step-num">3</span> ¿Cómo se define la ruta?</div>
         <div class="pl-modes" role="radiogroup" aria-label="Cómo se define la ruta">
           <label class="pl-mode">
             <input type="radio" name="pl-mode" value="learning"/>
@@ -1099,8 +1109,8 @@
 
         <div class="pl-mode-panel" id="pl-mode-learning" hidden>
           <div class="ai-note">
-            Toma el GPS del camión elegido, limpia el recorrido y genera <strong>la ruta, una zona propia (polígono) y la línea del tiempo</strong>
-            con la hora en que suele pasar por cada tramo. Después puedes mover el inicio, el fin o la zona y la ruta se ajusta.
+            Toma el GPS del camión, lo ajusta a las calles con el OSRM local y arma <strong>la ruta y la línea del tiempo</strong> con la hora de cada tramo.
+            Con zona, inicio y fin marcados, la ruta queda entre esos puntos; sin ellos crea una zona propia (polígono) alrededor del recorrido.
           </div>
           <button class="btn-new" type="button" id="ln-learn-btn" style="width:100%;justify-content:center">Aprender del recorrido del camión</button>
           <div class="ai-result" id="ln-info">Elige un camión y pulsa el botón.</div>
@@ -1108,11 +1118,11 @@
 
         <div class="pl-mode-panel" id="pl-mode-ai" hidden>
           <div class="ai-note">
-            Descarga las calles de la zona y la IA propone el recorrido. Se queda así; solo cambia si hay un bloqueo o el camión se desvía
-            (con el aprendizaje activo) y en ese caso se registra el aviso.
+            Toma las calles y sus sentidos del OSRM local y recorre cada calle de la zona una vez, entre el inicio y el fin que marcaste.
+            Puede salirse hasta 100 m de la zona. Se queda así; solo cambia si hay un bloqueo o el camión se desvía (con el aprendizaje activo).
           </div>
           <button class="btn-new" type="button" id="ai-generate-btn" style="width:100%;justify-content:center">Generar ruta con IA</button>
-          <div class="ai-result" id="ai-info">Dibuja la zona y pulsa el botón.</div>
+          <div class="ai-result" id="ai-info">Marca la zona, el inicio y el fin, y pulsa el botón.</div>
         </div>
 
         <label class="pl-switch" id="pl-learn-row" hidden>
@@ -1123,16 +1133,6 @@
               Apagado: solo queda la ruta predeterminada del camión. Se puede cambiar después desde la zona en el mapa.</small>
           </span>
         </label>
-      </div>
-
-      <div class="ai-step" id="pl-step-2">
-        <div class="ai-step-head"><span class="ai-step-num">3</span> Inicio y fin</div>
-        <div class="pl-btn-row">
-          <button class="btn-cancel" type="button" onclick="startPlanPoint('start')">Elegir inicio</button>
-          <button class="btn-cancel" type="button" onclick="startPlanPoint('end')">Elegir fin</button>
-          <button class="btn-cancel" type="button" id="pl-suggest-btn" onclick="suggestPlanRoute(this)">Sugerir con OSRM</button>
-        </div>
-        <div class="ai-result" id="pl-points-info">Primero dibuja la zona.</div>
       </div>
 
       <div class="ai-step" id="pl-step-3">
@@ -1151,9 +1151,9 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=6378755c';
+  import './icons.js?v=75ab819d';
 </script>
-<script src="shared.js?v=6378755c"></script>
+<script src="shared.js?v=75ab819d"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
@@ -1161,25 +1161,25 @@ import {
   TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, todayIso, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=6378755c';
-import { icon } from './icons.js?v=6378755c';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
-import { mapColorFor } from './vehicle-colors.js?v=6378755c';
+} from './db.js?v=75ab819d';
+import { icon } from './icons.js?v=75ab819d';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=75ab819d';
+import { mapColorFor } from './vehicle-colors.js?v=75ab819d';
 import {
   cleanTrail, segmentsToLines, createTrailSnapper, buildPlayback, positionAt,
   traveledLine, formatDuration, distanceMeters,
   getOsrmEndpoint, setOsrmEndpoint, DEFAULT_OSRM,
-} from './trail.js?v=6378755c';
-import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=6378755c';
-import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=6378755c';
+} from './trail.js?v=75ab819d';
+import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=75ab819d';
+import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=75ab819d';
 import {
   pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
   fetchOSRMRoute, fetchOSRMRoutes, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
   saveRouteExtras, saveRouteFlags, applyRouteChange, logRouteEvent, setLearningEnabled,
-} from './route-planning.js?v=6378755c';
-import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=6378755c';
-import { createRouteWatcher } from './route-watch.js?v=6378755c';
-import { learnFromGps, generateAiRoute } from './route-wizard.js?v=6378755c';
+} from './route-planning.js?v=75ab819d';
+import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=75ab819d';
+import { createRouteWatcher } from './route-watch.js?v=75ab819d';
+import { learnFromGps, generateAiRoute } from './route-wizard.js?v=75ab819d';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -3080,8 +3080,8 @@ async function learnFromTruck(btn) {
   btn.textContent = 'Aprendiendo del GPS…';
   info.textContent = 'Descargando el recorrido del camión…';
   try {
-    const r = await learnFromGps({ vehicleId });
-    const km2 = r.areaKm2;
+    const r = await learnFromGps({ vehicleId, zone: plan.zone, start: plan.start, end: plan.end });
+    const km2 = r.areaKm2 ?? ringAreaKm2(r.ring);
     if (km2 > MAX_ZONE_KM2 || km2 < MIN_ZONE_KM2) {
       throw new Error(`La zona aprendida mide ${fmtArea(km2)}; debe estar entre ${fmtArea(MIN_ZONE_KM2)} y ${MAX_ZONE_KM2} km². El recorrido del camión es demasiado ${km2 > MAX_ZONE_KM2 ? 'extenso' : 'corto'}.`);
     }
@@ -3100,8 +3100,9 @@ async function learnFromTruck(btn) {
     info.innerHTML = `${icon('check_circle', { cls: 'ic-green' })} Aprendido del <strong>${escapeHtml(r.day)}</strong> · ` +
       `${r.readings} lecturas · <strong>${(r.distanceM / 1000).toFixed(2)} km</strong>` +
       `${r.daysUsed > 1 ? ` · horario con la mediana de ${r.daysUsed} días` : ' · horario de un solo día (mejora con más días)'}` +
-      `<br/>Zona propia: ${fmtArea(r.areaKm2)} (${r.zoneKind === 'contorno' ? 'sigue las calles del recorrido' : 'envuelve el recorrido'}). ` +
-      `Puedes redibujarla o mover el inicio y el fin: la ruta se ajusta.` +
+      `<br/>${r.zoneKind === 'dibujada' ? `Entre tu inicio y tu fin, dentro de la zona que dibujaste (${Math.round(r.insideRatio * 100)} % dentro).` : `Zona propia: ${fmtArea(r.areaKm2)} (${r.zoneKind === 'contorno' ? 'sigue las calles del recorrido' : 'envuelve el recorrido'}). Puedes redibujarla o mover el inicio y el fin: la ruta se ajusta.`}` +
+      `${Math.max(r.startOffM, r.endOffM) > 60 ? `<br/>${icon('warning', { cls: 'ic-yellow' })} Tu ${r.startOffM >= r.endOffM ? 'inicio' : 'fin'} queda a ${Math.max(r.startOffM, r.endOffM)} m del recorrido aprendido; se une con una línea recta. Acércalo a una calle por donde pasa el camión.` : ''}` +
+      `<br/>${r.snapped ? 'Ajustada a las calles con el OSRM local.' : `${icon('warning', { cls: 'ic-yellow' })} No se pudo ajustar a las calles${r.snapNote ? ' (' + escapeHtml(r.snapNote) + ')' : ''}: es el trazo GPS.`}` +
       `${r.truncated ? `<br/>${icon('warning', { cls: 'ic-yellow' })} Había más lecturas de las que se pudieron descargar; se usó lo más reciente.` : ''}`;
     showToast('Ruta aprendida del recorrido del camión', 'success');
   } catch (err) {
@@ -3121,21 +3122,24 @@ async function generateAiForZone(btn) {
     showToast('Primero dibuja la zona', 'warn');
     return;
   }
+  if (!plan.start || !plan.end) {
+    info.textContent = 'Marca el inicio y el fin (paso 2): la ruta se calcula entre esos dos puntos.';
+    showToast('Marca el inicio y el fin antes de generar la ruta', 'warn');
+    return;
+  }
   btn.disabled = true;
   const original = btn.textContent;
   btn.textContent = 'Consultando la IA…';
-  info.textContent = 'Descargando las calles de la zona y pidiendo el recorrido…';
+  info.textContent = 'Tomando las calles del OSRM local y calculando el recorrido (puede tardar unos 20 s)…';
   try {
     const v = vehicles.find(x => x.id === $id('pl-vehicle').value) || null;
     const r = await generateAiRoute({
-      ring: plan.zone, vehicle: v,
-      depot: plan.start || (v && v._lng != null ? [v._lng, v._lat] : null),
+      ring: plan.zone, start: plan.start, end: plan.end, vehicle: v,
       routeType: $id('nr-type').value,
       avoidNarrow: $id('nr-narrow').checked,
       avoidSteep: $id('nr-steep').checked,
     });
     Object.assign(plan, {
-      start: r.route[0], end: r.route[r.route.length - 1],
       route: { type: 'LineString', coordinates: r.route },
       baseCoords: r.route, timeline: null, timelineFull: null, source: 'ai', mode: 'manual',
       baseMetrics: { distanceMeters: r.distanceM, durationSeconds: r.distanceM / 4 },
@@ -3146,9 +3150,11 @@ async function generateAiForZone(btn) {
     const badge = r.source === 'ia'
       ? `<span class="ai-badge ia">${icon('robot')} Generado por IA</span>`
       : `<span class="ai-badge heur">${icon('settings')} Heurística local (sin IA)</span>`;
-    info.innerHTML = `${badge}<div style="margin-top:8px"><span class="ai-k">Distancia:</span> <strong>${(r.distanceM / 1000).toFixed(2)} km</strong> · ` +
-      `${r.streets} tramos de calle considerados${r.model ? ` · ${escapeHtml(r.model)}` : ''}` +
-      `${r.trimmed ? '<br/>Se recortó a la parte que queda dentro de la zona.' : ''}` +
+    const warn = r.withinTolerance === false ? `<br/>${icon('warning', { cls: 'ic-yellow' })} Se sale hasta ${r.outsideMaxM} m de la zona (tolerancia 100 m): es lo más corto que permiten las calles y sus sentidos.` : '';
+    info.innerHTML = `${badge}<div style="margin-top:8px"><span class="ai-k">Distancia:</span> <strong>${(r.distanceM / 1000).toFixed(2)} km</strong>` +
+      `${r.coverage != null ? ` · <span class="ai-k">Cobertura:</span> <strong>${r.coverage} %</strong> de las calles` : ''}` +
+      `${r.outsideMaxM != null ? ` · <span class="ai-k">Fuera de la zona:</span> máx. ${r.outsideMaxM} m` : ''}` +
+      `${r.fromOsrm ? '<br/>Calles, sentidos y enlaces del OSRM local (sin líneas rectas).' : ''}${warn}` +
       `${r.notes ? `<br/><span class="ai-k">Notas:</span> ${escapeHtml(r.notes)}` : ''}</div>`;
     showToast(r.source === 'ia' ? 'Ruta generada por la IA' : 'Trazo generado localmente', 'success');
   } catch (err) {
@@ -3557,6 +3563,11 @@ function onPlanClick(e) {
   if (planPick === 'start') plan.start = pt; else plan.end = pt;
   plan.mode = 'manual';
   plan.route = null; plan.metrics = null;
+  if (plan.source === 'ai') {
+    /* La ruta con IA depende del inicio y el fin: hay que volver a generarla. */
+    plan.baseCoords = null; plan.source = null;
+    $id('ai-info').textContent = 'Cambiaste el inicio o el fin: vuelve a pulsar «Generar ruta con IA».';
+  }
   endPlanPick();
   recomputePlanRoute();
 }

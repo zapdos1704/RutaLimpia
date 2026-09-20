@@ -20,7 +20,7 @@
 const LS_AI_ENDPOINT   = 'rl_ai_routing_endpoint';
 const LS_AI_KEY        = 'rl_ai_routing_key';
 const LS_OVERPASS       = 'rl_overpass_endpoint';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=75ab819d';
 
 /* Puente estable (Cloudflare Worker) hacia la IA que corre en la PC. No es un
    secreto: la clave de acceso NO va en el código, se captura una vez y queda
@@ -217,7 +217,9 @@ export async function requestAiRoute(request, { signal } = {}) {
     if (res.status === 401) throw new Error('El servicio de IA no reconoció tu sesión. Cierra sesión y vuelve a entrar.');
     if (res.status === 403) throw new Error('Tu cuenta no tiene permiso para usar la IA de rutas.');
     if (res.status === 503) throw new Error('La IA no está disponible ahora (la PC con el servicio debe estar encendida).');
-    throw new Error(`El servicio de IA respondió ${res.status}. ${text.slice(0, 200)}`);
+    let detail = text.slice(0, 200);
+    try { const j = JSON.parse(text); detail = typeof j.detail === 'string' ? j.detail : detail; } catch { /* texto plano */ }
+    throw new Error(res.status === 422 ? detail : `El servicio de IA respondió ${res.status}. ${detail}`);
   }
   const data = await res.json();
   if (!Array.isArray(data?.coordinates) || data.coordinates.length < 2) {
@@ -229,9 +231,33 @@ export async function requestAiRoute(request, { signal } = {}) {
     distanceKm: data.distance_km ?? pathLengthKm(data.coordinates),
     notes: data.notes || null,
     model: data.model || 'servicio-ia',
+    diagnostics: data.diagnostics || null,
     source: 'ia',
   };
 }
+
+/**
+ * Petición «por zona»: el servicio toma las calles (con sentido) y hace los
+ * enlaces con el OSRM local, así que la web ya no descarga nada de Overpass.
+ * Inicio y fin son obligatorios: la ruta se calcula entre esos dos puntos.
+ */
+export function buildZoneRequest({ ring, start, end, vehicle = null, constraints = {}, toleranceM = 100 }) {
+  return {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    zone: { ring, tolerance_m: toleranceM },
+    start: { lng: start[0], lat: start[1] },
+    end: { lng: end[0], lat: end[1] },
+    vehicle: vehicle ? { id: vehicle.id, economic_number: vehicle.economic_number, capacity_tons: vehicle.capacity_tons ?? null, type: vehicle.type ?? null } : null,
+    constraints: {
+      avoid_narrow_alleys: !!constraints.avoidNarrow,
+      avoid_steep_terrain: !!constraints.avoidSteep,
+      route_type: constraints.routeType ?? null,
+    },
+  };
+}
+
+export const requestZoneRoute = (params, options) => requestAiRoute(buildZoneRequest(params), options);
 
 /* ── Trazado heurístico local (mientras no haya modelo) ── */
 

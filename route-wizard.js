@@ -3,21 +3,23 @@
    Los dos caminos de «Nueva ruta», sin tocar la interfaz:
 
    · learnFromGps    → ruta + zona propia (polígono) + línea del tiempo a partir del
-                       GPS del camión.
-   · generateAiRoute → ruta trazada por la IA dentro de la zona dibujada.
+                       GPS del camión, ajustada a las calles con el OSRM local.
+   · generateAiRoute → ruta que cubre las calles de la zona entre el inicio y el fin
+                       elegidos; el servicio de IA toma calles y sentidos del OSRM local.
 
    La interfaz (page-1.html) sólo pinta lo que estas funciones devuelven.
 ══════════════════════════════════════════════════════ */
 
-import { fetchTrail } from './db.js?v=6378755c';
-import { fetchStreetsInBBox, suggestRoute, bboxOfPoints, bboxAreaKm2, pathLengthKm } from './ai-routing.js?v=6378755c';
-import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=6378755c';
-import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, clipRouteToRing } from './route-learning.js?v=6378755c';
+import { fetchTrail } from './db.js?v=75ab819d';
+import { requestZoneRoute } from './ai-routing.js?v=75ab819d';
+import { snapSegmentsToRoads } from './trail.js?v=75ab819d';
+import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=75ab819d';
+import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, fitRouteToPoints } from './route-learning.js?v=75ab819d';
 
 const MIN_DAY_POINTS = 20;
 const MIN_DAY_METERS = 300;
-const MAX_STREETS_AREA_KM2 = 40;
 const MAX_ROUTE_VERTICES = 500;
+export const TOLERANCE_M = 100;   // cuánto puede salirse la ruta del polígono
 
 const localDay = ms => {
   const d = new Date(ms);
@@ -25,11 +27,31 @@ const localDay = ms => {
 };
 
 /**
- * Aprende del GPS: toma los últimos días del camión, se queda con los que sirven
- * y usa el de mayor recorrido como ruta base; la línea del tiempo sale de la
- * mediana de todos los días útiles.
+ * Ajusta el recorrido a las calles (map matching del OSRM local). Si el servidor
+ * no responde se conserva el trazo original y se avisa con `snapped: false`.
  */
-export async function learnFromGps({ vehicleId, windowHours = 72, limit = 25000, widthM = 60 }) {
+async function snapToStreets(points) {
+  try {
+    const segment = points.map(p => ({ lat: p.lat, lng: p.lng, timestamp: new Date(p.ts).toISOString() }));
+    const res = await snapSegmentsToRoads([segment]);
+    const coords = res.lines.flat();
+    if (coords.length < 2) return { coords: null, snapped: false, note: res.error || 'sin resultado' };
+    return { coords, snapped: res.adjusted > 0 && !res.error, note: res.error || null };
+  } catch (err) {
+    return { coords: null, snapped: false, note: err.message };
+  }
+}
+
+/**
+ * Aprende del GPS: toma los últimos días del camión, se queda con los que sirven
+ * y usa el de mayor recorrido como ruta base (ajustada a calles); la línea del
+ * tiempo sale de la mediana de todos los días útiles.
+ *
+ * Con `zone`, `start` y `end` (los que se eligieron antes) la ruta queda entre esos
+ * dos puntos y dentro de esa zona; sin ellos se crea una zona propia que envuelve
+ * el recorrido y el inicio y el fin son los extremos aprendidos.
+ */
+export async function learnFromGps({ vehicleId, zone = null, start = null, end = null, windowHours = 72, limit = 25000, widthM = 60 }) {
   const { points, meta } = await fetchTrail(vehicleId, { from: new Date(Date.now() - windowHours * 3600 * 1000), limit });
   if (!points.length) throw new Error('Este camión no tiene lecturas GPS en los últimos días.');
 
@@ -50,66 +72,71 @@ export async function learnFromGps({ vehicleId, windowHours = 72, limit = 25000,
   }
 
   const reference = days.reduce((best, d) => (d.trace.distanceM > best.trace.distanceM ? d : best));
-  let route = routeFromTrace(reference.trace, 8);
-  if (route.length > MAX_ROUTE_VERTICES) route = simplifyLine(route, 15);
+
+  const snap = await snapToStreets(reference.trace.points);
+  let route = snap.coords ? simplifyLine(snap.coords, 4) : routeFromTrace(reference.trace, 8);
+  if (route.length > MAX_ROUTE_VERTICES) route = simplifyLine(route, 12);
   if (route.length < 2) throw new Error('No se pudo obtener una línea del recorrido.');
 
-  const zone = zoneFromRoute(route, { widthM });
-  const timeline = buildTimeline(days.map(d => d.trace.points), route, { stops: reference.trace.stops });
+  let ring, zoneKind, areaKm2, fit = null;
+  if (zone && start && end) {
+    fit = fitRouteToPoints(route, start, end, zone);
+    route = fit.coords;
+    ring = zone;
+    zoneKind = 'dibujada';
+  } else {
+    const generated = zoneFromRoute(route, { widthM });
+    ring = generated.ring; zoneKind = generated.kind; areaKm2 = generated.areaKm2;
+  }
 
+  const timeline = buildTimeline(days.map(d => d.trace.points), route, { stops: reference.trace.stops });
   const first = reference.trace.points[0], last = reference.trace.points[reference.trace.points.length - 1];
   return {
     day: reference.key,
     daysUsed: days.length,
     readings: reference.trace.points.length,
     truncated: !!meta?.reachedLimit,
+    snapped: snap.snapped,
+    snapNote: snap.note,
     route,
     distanceM: polylineLengthM(route),
     durationS: Math.max(1, Math.round((last.ts - first.ts) / 1000)),
-    ring: zone.ring,
-    zoneKind: zone.kind,
-    areaKm2: zone.areaKm2,
+    ring,
+    zoneKind,
+    areaKm2,
+    insideRatio: fit?.insideRatio ?? 1,
+    startOffM: fit?.startOffM ?? 0,
+    endOffM: fit?.endOffM ?? 0,
     timeline,
     stops: reference.trace.stops.length,
   };
 }
 
 /**
- * Trazo con IA dentro de la zona: descarga las calles del recuadro de la zona,
- * se queda con las que la tocan, pide el recorrido y lo recorta al polígono.
+ * Ruta con IA entre el inicio y el fin, cubriendo las calles de la zona. Las calles
+ * y los sentidos salen del OSRM local (dentro del servicio de IA); no se usa Overpass.
  */
-export async function generateAiRoute({ ring, vehicle = null, depot = null, routeType = null, avoidNarrow = false, avoidSteep = false, signal }) {
-  const bbox = bboxOfPoints(ring, 0.05);
-  const area = bboxAreaKm2(bbox);
-  if (area > MAX_STREETS_AREA_KM2) {
-    throw new Error(`La zona abarca ${area.toFixed(1)} km²; para pedir las calles el máximo es ${MAX_STREETS_AREA_KM2} km². Dibújala más pequeña.`);
-  }
+export async function generateAiRoute({ ring, start, end, vehicle = null, routeType = null, avoidNarrow = false, avoidSteep = false, signal }) {
+  if (!ring || !start || !end) throw new Error('Marca primero la zona y el inicio y el fin.');
+  if (!pointInRing(start, ring) || !pointInRing(end, ring)) throw new Error('El inicio y el fin deben quedar dentro de la zona.');
 
-  const { ways } = await fetchStreetsInBBox(bbox, { signal });
-  const inside = ways.filter(w => w.coords.some(c => pointInRing(c, ring)));
-  if (!inside.length) throw new Error('No se encontraron calles transitables dentro de la zona.');
-
-  const suggestion = await suggestRoute({
-    streets: inside,
-    depot: depot && pointInRing(depot, ring) ? depot : null,
-    vehicle, bbox,
-    constraints: { routeType, avoidNarrow, avoidSteep },
-  }, { signal });
-  if (!suggestion.coordinates?.length) throw new Error('La IA no pudo construir un recorrido con estas calles.');
-
-  const clipped = clipRouteToRing(suggestion.coordinates, ring);
-  if (!clipped) throw new Error('El recorrido propuesto casi no queda dentro de la zona. Intenta con una zona con más calles.');
-  const route = clipped.length > MAX_ROUTE_VERTICES ? simplifyLine(clipped, 6) : clipped;
+  const r = await requestZoneRoute({ ring, start, end, vehicle, constraints: { routeType, avoidNarrow, avoidSteep }, toleranceM: TOLERANCE_M }, { signal });
+  const d = r.diagnostics || {};
+  const route = r.coordinates.length > MAX_ROUTE_VERTICES ? simplifyLine(r.coordinates, 3) : r.coordinates;
 
   return {
     route,
     distanceM: polylineLengthM(route),
     insideRatio: insideRatio(route, ring),
-    source: suggestion.source,
-    model: suggestion.model || null,
-    notes: suggestion.notes || null,
-    streets: inside.length,
-    trimmed: clipped.length < suggestion.coordinates.length,
-    km: pathLengthKm(route),
+    source: r.source,
+    model: r.model || null,
+    notes: r.notes || null,
+    coverage: d.cobertura_pct ?? null,
+    outsideMaxM: d.fuera_max_m ?? null,
+    withinTolerance: d.dentro_tolerancia ?? null,
+    lengthRatio: d.ratio_longitud ?? null,
+    streetsUsed: d.calles_usadas ?? null,
+    straightLinks: d.enlaces_rectos ?? null,
+    fromOsrm: d.fuente === 'osrm-local',
   };
 }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Incidencias</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=6378755c"/>
+<link rel="stylesheet" href="shared.css?v=75ab819d"/>
 <style>
 /* ── Específico de Incidencias ── */
 .main {
@@ -300,9 +300,9 @@
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=6378755c"/>
-<link rel="modulepreload" href="db.js?v=6378755c"/>
-<link rel="modulepreload" href="events.js?v=6378755c"/>
+<link rel="modulepreload" href="icons.js?v=75ab819d"/>
+<link rel="modulepreload" href="db.js?v=75ab819d"/>
+<link rel="modulepreload" href="events.js?v=75ab819d"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -470,17 +470,17 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=6378755c';
+  import './icons.js?v=75ab819d';
 </script>
-<script src="shared.js?v=6378755c"></script>
+<script src="shared.js?v=75ab819d"></script>
 <script type="module">
 import {
   getCollections, getVehicles, getTelemetry, resolveCollection, insertIncident,
   getRoutes, getDrivers, getAllUsers, getShifts, getFleetEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=6378755c';
-import { icon } from './icons.js?v=6378755c';
-import { deriveDeviceIncidents, timeAgo, shortTime } from './events.js?v=6378755c';
+} from './db.js?v=75ab819d';
+import { icon } from './icons.js?v=75ab819d';
+import { deriveDeviceIncidents, timeAgo, shortTime } from './events.js?v=75ab819d';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {

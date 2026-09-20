@@ -11,7 +11,7 @@
    normalizados a un lienzo de 24×24.
 
    Uso:
-     import { icon } from './icons.js?v=6378755c';
+     import { icon } from './icons.js?v=75ab819d';
      el.innerHTML = icon('warning');                       // hereda el color
      el.innerHTML = icon('truck', { size: 18, color: '#22c55e' });
      el.innerHTML = icon('check', { cls: 'mi-clase' });

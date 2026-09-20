@@ -114,7 +114,7 @@ export function cleanTrail(points, options = {}) {
    apuntar a un OSRM propio cuando exista.
 ══════════════════════════════════════ */
 
-import { bridgeAuthHeaders } from './bridge-auth.js?v=6378755c';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=75ab819d';
 
 const LS_OSRM = 'rl_osrm_endpoint';
 export const DEFAULT_OSRM = 'https://rutalimpia-ai-proxy.edgarcharmandercr04.workers.dev/osrm';
