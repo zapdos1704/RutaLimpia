@@ -7,7 +7,7 @@
    Coordenadas siempre [lng, lat].
    ══════════════════════════════════════════════════════ */
 
-import { closeRing, ringAreaKm2, ringSelfIntersects, rad } from './geo.js?v=7d5234fc';
+import { closeRing, ringAreaKm2, ringSelfIntersects, rad } from './geo.js?v=c2e04434';
 
 export const RADIUS_MIN = 30;
 export const RADIUS_MAX = 1000;

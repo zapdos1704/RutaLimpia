@@ -193,7 +193,7 @@ function renderProfile(user) {
 window.renderProfile = renderProfile;
 
 /* La página que importa db.js define window.doLogout con signOut() real. */
-window.doLogout = window.doLogout || function() { window.location.href = 'index.html'; };
+window.doLogout = window.doLogout || function() { window.location.href = 'acceso.html'; };
 
 /* ── INJECT PANELS ── */
 function injectPanels() {

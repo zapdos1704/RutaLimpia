@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RutaLimpia — Acceso</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ══════════════════════════════════════
+   RESET & BASE
+══════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --blue-dark:  #182F76;
+  --blue-mid:   #1e3a8a;
+  --blue-main:  #1e40af;
+  --green:      #22c55e;
+  --green-light:#4ade80;
+  --pale:       #dbeafe;
+  --text-muted: #93c5fd;
+  --radius:     12px;
+  --radius-sm:  8px;
+  --transition: .25s cubic-bezier(.4,0,.2,1);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Montserrat', sans-serif;
+  overflow: hidden;
+  background: var(--blue-dark);
+}
+
+/* ══════════════════════════════════════
+   MAP BACKGROUND
+══════════════════════════════════════ */
+#map {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  filter: brightness(.55) saturate(.8);
+}
+
+/* Oculta controles de Leaflet */
+.leaflet-control-zoom,
+.leaflet-control-attribution { display: none !important; }
+
+/* ══════════════════════════════════════
+   OVERLAY BLUR (desktop left side)
+══════════════════════════════════════ */
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  /* Gradiente: izquierda transparente → derecha oscura para el panel */
+  background: linear-gradient(
+    to right,
+    rgba(24,47,118,0.15) 0%,
+    rgba(24,47,118,0.15) 45%,
+    rgba(24,47,118,0.92) 55%,
+    rgba(24,47,118,0.98) 100%
+  );
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════
+   SCREENS CONTAINER
+══════════════════════════════════════ */
+.screens {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+/* ══════════════════════════════════════
+   AUTH PANEL
+══════════════════════════════════════ */
+.auth-panel {
+  width: 100%;
+  max-width: 460px;
+  background: var(--blue-main);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px 44px;
+  position: relative;
+  overflow-y: auto;
+  box-shadow: -12px 0 48px rgba(0,0,0,0.4);
+}
+
+/* ── BRAND ── */
+.brand {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 36px;
+  line-height: 1;
+}
+.brand span { color: var(--green-light); }
+
+/* ── SCREEN (cada estado: login, register, forgot) ── */
+.screen { display: none; flex-direction: column; gap: 0; }
+.screen.active { display: flex; }
+
+/* ── TITLE ── */
+.screen-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+.screen-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ── FORM FIELDS ── */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+
+.field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pale);
+  letter-spacing: .3px;
+}
+
+.field input {
+  padding: 13px 16px;
+  background: rgba(24,47,118,0.6);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  transition: border-color var(--transition), background var(--transition);
+}
+.field input::placeholder { color: rgba(255,255,255,0.28); }
+.field input:focus {
+  border-color: var(--green);
+  background: rgba(24,47,118,0.8);
+}
+.field input.error { border-color: #ef4444; }
+
+.field-error {
+  font-size: 11px;
+  color: #fca5a5;
+  display: none;
+}
+.field-error.show { display: block; }
+
+/* ── PASSWORD WRAPPER ── */
+.pw-wrap { position: relative; }
+.pw-wrap input { width: 100%; padding-right: 44px; }
+.pw-toggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255,255,255,0.4);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: color var(--transition);
+}
+.pw-toggle:hover { color: rgba(255,255,255,.8); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), transform .1s;
+  margin-top: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover  { background: #16a34a; }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { background: #166534; opacity: .6; cursor: not-allowed; }
+
+/* Spinner dentro del botón */
+.btn-primary .spinner {
+  display: none;
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto;
+}
+.btn-primary.loading .btn-text { display: none; }
+.btn-primary.loading .spinner  { display: block; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-outline {
+  width: 100%;
+  padding: 13px;
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.btn-outline:hover {
+  border-color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.06);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--pale);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.btn-link:hover { color: var(--green-light); }
+
+/* ── DIVIDER ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+}
+.divider span { font-size: 11px; color: rgba(255,255,255,.3); }
+
+/* ── BACK LINK ── */
+.back-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 24px;
+  cursor: pointer;
+  width: fit-content;
+}
+.back-row span {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition: color var(--transition);
+}
+.back-row:hover span { color: #fff; }
+.back-arrow {
+  font-size: 16px;
+  color: var(--text-muted);
+  transition: color var(--transition);
+  line-height: 1;
+}
+.back-row:hover .back-arrow { color: #fff; }
+
+/* ── FORGOT LINK ROW ── */
+.forgot-row {
+  text-align: center;
+  margin: 6px 0 16px;
+}
+
+/* ── SUCCESS STATE ── */
+.success-box {
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: 12px;
+  color: var(--green-light);
+  line-height: 1.5;
+  display: none;
+  margin-bottom: 16px;
+}
+.success-box.show { display: block; }
+
+/* ── TERMS ── */
+.terms {
+  font-size: 10px;
+  color: rgba(255,255,255,.3);
+  text-align: center;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+.terms a { color: var(--pale); text-decoration: underline; cursor: pointer; }
+
+/* ══════════════════════════════════════
+   TOAST NOTIFICATION
+══════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 12px 24px;
+  border-radius: 50px;
+  z-index: 100;
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+/* El toast lleva icono + texto (ver showToast) */
+.toast { display: flex; align-items: center; gap: 9px; }
+.toast .ic { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+.toast .ic-green  { fill: #4ade80; }
+.toast .ic-red    { fill: #ef4444; }
+.toast .ic-yellow { fill: #f59e0b; }
+.toast .ic-blue   { fill: #93c5fd; }
+.toast.toast-error  { border-color: rgba(239,68,68,.4); }
+.toast.toast-success{ border-color: rgba(34,197,94,.4); }
+
+/* ══════════════════════════════════════
+   RESPONSIVE — MOBILE
+══════════════════════════════════════ */
+@media (max-width: 640px) {
+  .map-overlay {
+    background: rgba(24,47,118,0.55);
+  }
+
+  .screens {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+
+  .auth-panel {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding: 32px 28px 40px;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.5);
+    max-height: 88vh;
+  }
+
+  .brand {
+    font-size: 26px;
+    margin-bottom: 24px;
+  }
+}
+
+/* ══════════════════════════════════════
+   ANIMACIÓN DE TRANSICIÓN ENTRE SCREENS
+══════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.screen.active { animation: fadeUp .3s ease; }
+</style>
+<!-- rl-hints:start -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+<link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="modulepreload" href="db.js?v=c2e04434"/>
+<link rel="modulepreload" href="events.js?v=c2e04434"/>
+<link rel="modulepreload" href="service-stats.js?v=c2e04434"/>
+<link rel="modulepreload" href="icons.js?v=c2e04434"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.116.0/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/tslib@2.8.1/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/phoenix@0.4.5/+esm"/>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/iceberg-js@0.8.1/+esm"/>
+<!-- rl-hints:end -->
+</head>
+<body>
+
+<!-- MAPA DE FONDO -->
+<div id="map"></div>
+<div class="map-overlay"></div>
+
+<!-- PANEL DE AUTH -->
+<div class="screens">
+  <div class="auth-panel">
+
+    <!-- BRAND -->
+    <div class="brand">RUTA<span>LIMPIA</span></div>
+
+    <!-- ══ SCREEN 1: LOGIN ══ -->
+    <div class="screen active" id="screen-login">
+      <div class="screen-title">Iniciar sesión</div>
+      <div class="screen-sub">Bienvenido de vuelta. Ingresa tus credenciales para continuar.</div>
+
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" id="login-email" placeholder="correo@ejemplo.com"/>
+        <span class="field-error" id="login-email-err">Ingresa un correo válido.</span>
+      </div>
+
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-pw" placeholder="••••••••"/>
+          <button class="pw-toggle" onclick="togglePw('login-pw', this)" tabindex="-1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
+        </div>
+        <span class="field-error" id="login-pw-err">Ingresa tu contraseña.</span>
+      </div>
+
+      <div class="forgot-row">
+        <button class="btn-link" onclick="goTo('screen-forgot')">¿Olvidaste tu contraseña?</button>
+      </div>
+
+      <button class="btn-primary" id="btn-login" onclick="doLogin()">
+        <span class="btn-text">Iniciar sesión</span>
+        <div class="spinner"></div>
+      </button>
+
+      <p class="terms">Acceso restringido a cuentas ya registradas por el administrador.</p>
+    </div>
+
+    <!-- ══ SCREEN 3: RECUPERAR CONTRASEÑA ══ -->
+    <div class="screen" id="screen-forgot">
+      <div class="back-row" onclick="goTo('screen-login')">
+        <span class="back-arrow">←</span>
+        <span>Volver al inicio de sesión</span>
+      </div>
+
+      <div class="screen-title">Recuperar contraseña</div>
+      <div class="screen-sub">Te enviaremos un enlace a tu correo para restablecer tu contraseña.</div>
+
+      <div class="success-box" id="forgot-success">
+        <svg class="ic ic-green" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> Enlace enviado. Revisa tu bandeja de entrada (y la carpeta de spam).
+      </div>
+
+      <div class="field" id="forgot-field">
+        <label>Correo electrónico</label>
+        <input type="email" id="forgot-email" placeholder="correo@ejemplo.com"/>
+        <span class="field-error" id="forgot-email-err">Ingresa un correo válido.</span>
+      </div>
+
+      <button class="btn-primary" id="btn-forgot" onclick="doForgot()">
+        <span class="btn-text">Enviar enlace</span>
+        <div class="spinner"></div>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- LEAFLET -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { signIn, resetPassword, getSession } from './db.js?v=c2e04434';
+import { icon } from './icons.js?v=c2e04434';
+
+/* ── Si ya hay una sesión activa, saltar directo al dashboard ── */
+getSession().then(session => {
+  if (session) window.location.href = 'page-4.html';
+});
+/* ══════════════════════════════════════
+   MAPA
+══════════════════════════════════════ */
+const map = L.map('map', {
+  center: [20.6597, -103.3496],
+  zoom: 14,
+  zoomControl: false,
+  dragging: false,
+  scrollWheelZoom: false,
+  doubleClickZoom: false,
+  keyboard: false,
+  touchZoom: false,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+/* ══════════════════════════════════════
+   NAVEGACIÓN ENTRE SCREENS
+══════════════════════════════════════ */
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // Limpia errores al cambiar de pantalla
+  document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+  document.querySelectorAll('input').forEach(i => i.classList.remove('error'));
+}
+
+/* ══════════════════════════════════════
+   TOGGLE PASSWORD
+══════════════════════════════════════ */
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const isText = inp.type === 'text';
+  inp.type = isText ? 'password' : 'text';
+  btn.innerHTML = icon(isText ? 'visibility' : 'visibility_off');
+}
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+/* Mismo criterio que shared.js: el icono va aparte y el texto se escapa. */
+const TOAST_ICON = {
+  success: { name: 'check_circle', cls: 'ic-green'  },
+  error:   { name: 'error',        cls: 'ic-red'    },
+  warn:    { name: 'warning',      cls: 'ic-yellow' },
+  info:    { name: 'info',         cls: 'ic-blue'   },
+};
+const escapeToast = str => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  const cfg = TOAST_ICON[type];
+  t.innerHTML = (cfg ? icon(cfg.name, { cls: cfg.cls }) : '') + `<span>${escapeToast(msg)}</span>`;
+  t.className = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ══════════════════════════════════════
+   VALIDACIONES
+══════════════════════════════════════ */
+function validateEmail(val) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); }
+
+function setError(inputId, errId, show) {
+  document.getElementById(inputId).classList.toggle('error', show);
+  document.getElementById(errId).classList.toggle('show', show);
+}
+
+/* ── Helpers de UI ── */
+function setLoading(btn, on) {
+  btn.classList.toggle('loading', on);
+  btn.disabled = on;
+}
+
+// Exponer funciones para onclick en HTML
+window.goTo         = goTo;
+window.togglePw     = togglePw;
+window.showToast    = showToast;
+window.setError     = setError;
+window.validateEmail = validateEmail;
+
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+window.doLogin = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw    = document.getElementById('login-pw').value;
+  let ok = true;
+
+  if (!validateEmail(email)) { setError('login-email','login-email-err', true); ok = false; }
+  else setError('login-email','login-email-err', false);
+
+  if (!pw) { setError('login-pw','login-pw-err', true); ok = false; }
+  else setError('login-pw','login-pw-err', false);
+
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-login');
+  setLoading(btn, true);
+  try {
+    await signIn(email, pw);
+    showToast('Sesión iniciada', 'success');
+    setTimeout(() => window.location.href = 'page-4.html', 700);
+  } catch (err) {
+    showToast(err.message || 'Credenciales incorrectas', 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+};
+
+/* ══════════════════════════════════════
+   RECUPERAR CONTRASEÑA
+══════════════════════════════════════ */
+window.doForgot = async function() {
+  const email = document.getElementById('forgot-email').value.trim();
+
+  if (!validateEmail(email)) {
+    setError('forgot-email','forgot-email-err', true);
+    return;
+  }
+  setError('forgot-email','forgot-email-err', false);
+
+  const btn = document.getElementById('btn-forgot');
+  setLoading(btn, true);
+  try {
+    await resetPassword(email);
+    document.getElementById('forgot-success').classList.add('show');
+    document.getElementById('forgot-field').style.display = 'none';
+    btn.style.display = 'none';
+    showToast('Enlace enviado', 'success');
+  } catch (err) {
+    showToast(err.message || 'Error al enviar el enlace', 'error');
+    setLoading(btn, false);
+  }
+};
+
+/* ── Enter para submit ── */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const active = document.querySelector('.screen.active');
+  if (!active) return;
+  const id = active.id;
+  if (id === 'screen-login')    doLogin();
+  if (id === 'screen-forgot')   doForgot();
+});
+</script>
+</body>
+</html>

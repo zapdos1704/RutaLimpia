@@ -1,0 +1,7 @@
+node_modules
+.git
+.landing-build
+.site-build
+.vercel
+test
+docs

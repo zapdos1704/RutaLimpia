@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=7d5234fc';
-import { localDate, mergeRows, periodRange } from './service-stats.js?v=7d5234fc';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=c2e04434';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=c2e04434';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';

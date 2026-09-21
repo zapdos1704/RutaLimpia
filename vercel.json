@@ -1,4 +1,8 @@
 {
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".site-build",
+  "redirects": [{ "source": "/landing.html", "destination": "/", "permanent": false }],
   "headers": [
     {
       "source": "/(.+\\.(?:js|css))",

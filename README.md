@@ -1,5 +1,52 @@
 # 🚛 RutaLimpia
 
+La entrada pública `/` (`index.html`) es la landing interactiva **Tu ciudad, 10 minutos antes**.
+El inicio de sesión del panel está en `acceso.html`; la landing enlaza a él durante el recorrido y al final.
+
+### Landing interactiva
+
+Código Vue 3 + TypeScript en `landing/`, con Vite, Tailwind, GSAP, Lucide y Chart.js.
+
+La identidad usa el logo original en `landing/assets/rutalimpia-logo.png`, azul #0048E2,
+cian #00B5E2 y verde lima #90DE00. `CinematicHero.vue` reproduce una entrada vectorial
+de ocho segundos y después permite avanzar por tres capítulos mediante scroll o botones.
+`brand.css` aplica las superficies azules y blancas; movimiento reducido elimina el autoplay
+y la extensión del scroll. La pausa también detiene las animaciones de la demostración.
+
+```sh
+npm ci
+npm run build
+npm run preview
+```
+
+La vista previa completa está en `http://127.0.0.1:4173`. Para editar solo la landing: `npm run dev`.
+El build genera `index.html` y recursos con hash en `landing-assets/`; Vercel y Docker corren ese
+build y publican `.site-build/`. Los imports de gráficos y animación se cargan de forma diferida.
+Los datos de la demostración son locales y no escriben en Supabase.
+
+**Recorrido del camión en el simulador.** `landing/model.mjs` define la cuadrícula de calles (`GRID`) y el
+recorrido (`routeCoordinates`): todos sus vértices caen sobre esquinas de esa cuadrícula y cada tramo va por una
+sola calle, para que el camión nunca cruce una manzana. `npm test` lo comprueba. El mapa (`RouteMap.vue`) es un SVG
+ligero con el mismo encuadre que tenía el mapa anterior; ya no se carga MapLibre en la landing.
+
+**Fluidez.** El avance del héroe no es reactivo (se escribe directo en los 4 elementos que lo usan) y
+`--film-progress` está registrada con `@property` sin herencia; la ciudad del héroe se dibuja una vez (`v-once`) y sólo se
+mueve el camión; no hay `backdrop-filter` ni `filter: drop-shadow/blur` sobre contenido animado. Antes de agregar un efecto
+nuevo al héroe, probar que no repinte el SVG completo en cada cuadro.
+
+`vercel.json` corre `npm run build`, publica `.site-build/` y redirige `/landing.html` a `/`.
+El login vive en `acceso.html`: los enlaces de Supabase que lleguen a `/` con una sesión o un código en la URL
+(recuperar contraseña, confirmar correo) se reenvían a `acceso.html` conservando todo (ver `landing/index.html`).
+Si se abre `index.html` directamente mediante `file://`, los módulos requieren un servidor HTTP.
+
+`landing/media.ts` admite video principal, video móvil y póster exportados de Higgsfield.
+Actualmente se usa una escena vectorial: las solicitudes a Higgsfield fueron rechazadas por
+restricciones del plan. El video, cuando esté configurado, respeta movimiento reducido y ahorro
+de datos; la escena permanece disponible como fallback. No se activó ninguna suscripción.
+
+Pruebas: `npm test`; tipos y compilación: `npm run build`. Los costos mostrados son supuestos
+internos del brief y están etiquetados como estimaciones, incluidos los costos de fabricación.
+
 Sistema web de gestión de recolección de residuos en tiempo real para el municipio de **Sahuayo de Morelos, Michoacán**. Permite monitorear la flota de camiones, administrar rutas, gestionar campañas especiales y registrar incidencias desde cualquier dispositivo.
 
 ---

@@ -1,6 +1,13 @@
 # Dockerfile - RutaLimpia
 # Sirve el sitio estático (HTML/CSS/JS) con nginx, listo para Cloud Run.
 
+FROM node:22-alpine AS build
+WORKDIR /site
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+RUN npm run build
+
 FROM nginx:alpine
 
 # Cloud Run inyecta la variable de entorno PORT (por defecto 8080).
@@ -13,7 +20,7 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 # Copia todo el contenido del sitio (index.html, css/, js/, assets, etc.)
 # Ajusta esta ruta si tu código fuente vive en una subcarpeta (ej. ./public)
-COPY . /usr/share/nginx/html
+COPY --from=build /site/.site-build/ /usr/share/nginx/html/
 
 EXPOSE 8080
 

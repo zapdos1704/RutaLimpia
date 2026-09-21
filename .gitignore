@@ -1,5 +1,5 @@
-test/
-docs/
 node_modules/
 .landing-build/
 .site-build/
+.vercel/
+test-results/
