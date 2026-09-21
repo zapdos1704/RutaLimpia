@@ -10,15 +10,16 @@
    La interfaz (page-1.html) sólo pinta lo que estas funciones devuelven.
 ══════════════════════════════════════════════════════ */
 
-import { fetchTrail } from './db.js?v=c2e04434';
-import { requestZoneRoute } from './ai-routing.js?v=c2e04434';
-import { snapSegmentsToRoads } from './trail.js?v=c2e04434';
-import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=c2e04434';
-import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, fitRouteToPoints } from './route-learning.js?v=c2e04434';
+import { fetchTrail } from './db.js?v=426c553c';
+import { requestZoneRoute } from './ai-routing.js?v=426c553c';
+import { snapSegmentsToRoads } from './trail.js?v=426c553c';
+import { pointInRing, insideRatio, polylineLengthM } from './geo.js?v=426c553c';
+import { buildTrace, routeFromTrace, simplifyLine, zoneFromRoute, buildTimeline, fitRouteToPoints } from './route-learning.js?v=426c553c';
 
 const MIN_DAY_POINTS = 20;
 const MIN_DAY_METERS = 300;
 const MAX_ROUTE_VERTICES = 500;
+const MAX_AI_ROUTE_VERTICES = 3000;   // el trazo de la IA no se simplifica: las indicaciones apuntan a sus vértices
 export const TOLERANCE_M = 100;   // cuánto puede salirse la ruta del polígono
 
 const localDay = ms => {
@@ -116,13 +117,17 @@ export async function learnFromGps({ vehicleId, zone = null, start = null, end =
  * Ruta con IA entre el inicio y el fin, cubriendo las calles de la zona. Las calles
  * y los sentidos salen del OSRM local (dentro del servicio de IA); no se usa Overpass.
  */
-export async function generateAiRoute({ ring, start, end, vehicle = null, routeType = null, avoidNarrow = false, avoidSteep = false, signal }) {
+export async function generateAiRoute({ ring, start, end, vehicle = null, routeType = null, avoidNarrow = false, avoidSteep = false,
+  coverage = null, blockedStreets = [], signal, onStatus }) {
   if (!ring || !start || !end) throw new Error('Marca primero la zona y el inicio y el fin.');
   if (!pointInRing(start, ring) || !pointInRing(end, ring)) throw new Error('El inicio y el fin deben quedar dentro de la zona.');
 
-  const r = await requestZoneRoute({ ring, start, end, vehicle, constraints: { routeType, avoidNarrow, avoidSteep }, toleranceM: TOLERANCE_M }, { signal });
+  const r = await requestZoneRoute({ ring, start, end, vehicle, constraints: { routeType, avoidNarrow, avoidSteep, coverage, blockedStreets }, toleranceM: TOLERANCE_M }, { signal, onStatus });
   const d = r.diagnostics || {};
-  const route = r.coordinates.length > MAX_ROUTE_VERTICES ? simplifyLine(r.coordinates, 3) : r.coordinates;
+  /* Con indicaciones, el trazo se conserva tal cual (sus índices dependen de él). */
+  const keepRaw = !!(r.steps && r.steps.length);
+  const limit = keepRaw ? MAX_AI_ROUTE_VERTICES : MAX_ROUTE_VERTICES;
+  const route = r.coordinates.length > limit ? simplifyLine(r.coordinates, 3) : r.coordinates;
 
   return {
     route,
@@ -138,5 +143,9 @@ export async function generateAiRoute({ ring, start, end, vehicle = null, routeT
     streetsUsed: d.calles_usadas ?? null,
     straightLinks: d.enlaces_rectos ?? null,
     fromOsrm: d.fuente === 'osrm-local',
+    /* Motor v2 */
+    metrics: r.metrics || null,
+    steps: keepRaw && route === r.coordinates ? r.steps : null,
+    skipped: r.skipped || null,
   };
 }

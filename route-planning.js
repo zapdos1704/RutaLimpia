@@ -8,17 +8,17 @@
    función save_route_plan, que exige una sesión Supabase autenticada).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=c2e04434';
-import { getOsrmEndpoint } from './trail.js?v=c2e04434';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=c2e04434';
+import { sb } from './db.js?v=426c553c';
+import { getOsrmEndpoint } from './trail.js?v=426c553c';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=426c553c';
 
 const PUBLIC_OSRM = /router\.project-osrm\.org/i;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /* La geometría vive en geo.js (sin dependencias, probada en Node); se reexporta
    aquí para no cambiar los imports existentes. */
-import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=c2e04434';
-export * from './geo.js?v=c2e04434';
+import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=426c553c';
+export * from './geo.js?v=426c553c';
 
 /* ── OSRM ──────────────────────────────────────────── */
 
@@ -48,6 +48,14 @@ const coordText = list => list.map(([lng, lat]) => `${lng.toFixed(6)},${lat.toFi
 export async function snapToRoad(coord) {
   const data = await osrm(`/nearest/v1/driving/${coordText([coord])}?number=1`);
   return data.waypoints?.[0]?.location || null;
+}
+
+/** Nombre de la calle bajo un punto (OSRM nearest); null si no tiene nombre o no responde. */
+export async function streetNameAt(coord) {
+  try {
+    const data = await osrm(`/nearest/v1/driving/${coordText([coord])}?number=1`);
+    return data.waypoints?.[0]?.name || null;
+  } catch { return null; }
 }
 
 export async function fetchOSRMRoute(start, end) {
@@ -198,6 +206,19 @@ export const logRouteEvent = ({ routeId, kind, message, payload, dedupeKey }) =>
 export async function saveRouteFlags(routeId, { steep, narrow }) {
   const { error } = await sb.from('routes').update({ has_steep_terrain: !!steep, has_narrow_alleys: !!narrow }).eq('id', routeId);
   if (error) throw error;
+}
+
+/** Guarda con la ruta el recorrido de la IA (indicaciones, cifras y calles a pie). Necesita el SQL 009 (routes.ai_plan). */
+export async function saveRouteAiPlan(routeId, aiPlan) {
+  const { error } = await sb.from('routes').update({ ai_plan: aiPlan }).eq('id', routeId);
+  if (error) throw error;
+}
+
+/** El recorrido guardado de una ruta, o null si no hay (o falta el SQL 009). */
+export async function fetchRouteAiPlan(routeId) {
+  const { data, error } = await sb.from('routes').select('ai_plan').eq('id', routeId).maybeSingle();
+  if (error) return null;
+  return data?.ai_plan ?? null;
 }
 
 /** Enciende o apaga el aprendizaje; al apagarlo se restaura la ruta predeterminada. */

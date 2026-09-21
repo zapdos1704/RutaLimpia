@@ -8,8 +8,8 @@
    módulo reutilizable para que funcione desde cualquier página.
 ══════════════════════════════════════════════════════ */
 
-import { insertVehicle } from './db.js?v=c2e04434';
-import { icon } from './icons.js?v=c2e04434';
+import { insertVehicle } from './db.js?v=426c553c';
+import { icon } from './icons.js?v=426c553c';
 
 const MODAL_ID = 'shared-truck-modal';
 

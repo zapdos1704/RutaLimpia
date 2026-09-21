@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Camiones</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=c2e04434"/>
+<link rel="stylesheet" href="shared.css?v=426c553c"/>
 <style>
 .main { flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 
@@ -334,12 +334,12 @@
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=c2e04434"/>
-<link rel="modulepreload" href="db.js?v=c2e04434"/>
-<link rel="modulepreload" href="events.js?v=c2e04434"/>
-<link rel="modulepreload" href="service-stats.js?v=c2e04434"/>
-<link rel="modulepreload" href="vehicle-load.js?v=c2e04434"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=c2e04434"/>
+<link rel="modulepreload" href="icons.js?v=426c553c"/>
+<link rel="modulepreload" href="db.js?v=426c553c"/>
+<link rel="modulepreload" href="events.js?v=426c553c"/>
+<link rel="modulepreload" href="service-stats.js?v=426c553c"/>
+<link rel="modulepreload" href="vehicle-load.js?v=426c553c"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=426c553c"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -605,19 +605,19 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=c2e04434';
+  import './icons.js?v=426c553c';
 </script>
-<script src="shared.js?v=c2e04434"></script>
+<script src="shared.js?v=426c553c"></script>
 <script type="module">
 import {
   getVehicles, getVehicleCrew, getAllUsers, getRoutesByVehicle, getRoutes,
   insertVehicle, assignCrewMember, removeCrewMember, assignRouteToVehicle, updateVehicleStatus,
   getVehicleUsage, deleteVehicle, updateVehicleColor, updateVehicleStopsPerLoad, MissingColumnError,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=c2e04434';
-import { icon } from './icons.js?v=c2e04434';
-import { describeStopsPerLoad, parseStopsPerLoad } from './vehicle-load.js?v=c2e04434';
-import { COLOR_PALETTE, chosenColorFor, mapColorFor, setLocalColor, isValidHex } from './vehicle-colors.js?v=c2e04434';
+} from './db.js?v=426c553c';
+import { icon } from './icons.js?v=426c553c';
+import { describeStopsPerLoad, parseStopsPerLoad } from './vehicle-load.js?v=426c553c';
+import { COLOR_PALETTE, chosenColorFor, mapColorFor, setLocalColor, isValidHex } from './vehicle-colors.js?v=426c553c';
 
 window.doLogout = async function() { await signOut(); window.location.href = 'acceso.html'; };
 

@@ -1,0 +1,67 @@
+/* ══════════════════════════════════════════════════════
+   RUTALIMPIA — route-player.css
+   Tarjeta «Ver recorrido» sobre el mapa. Usa los mismos tokens que shared.css
+   (fondos, bordes, verde, radios): no introduce colores nuevos.
+══════════════════════════════════════════════════════ */
+
+.rp-card {
+  position: fixed; z-index: 60;
+  top: calc(var(--topbar-h) + 12px); right: 14px; bottom: 14px;
+  width: min(392px, calc(100vw - 28px));
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-surface); color: var(--text-1);
+  border: 1px solid var(--border-md); border-radius: var(--radius);
+  padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  font-size: 12px;
+}
+.rp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.rp-title { font-size: 13px; font-weight: 800; }
+.rp-sub { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.rp-x { background: none; border: 0; color: var(--text-2); cursor: pointer; font-size: 16px; padding: 2px 4px; border-radius: 6px; }
+.rp-x:hover { background: var(--bg-raised); color: var(--text-1); }
+.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-chips span {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 20px;
+  padding: 3px 9px; font-size: 10px; color: var(--text-2);
+}
+.rp-chips b { color: var(--text-1); font-variant-numeric: tabular-nums; }
+.rp-now {
+  min-height: 3.2em; line-height: 1.5; font-size: 13px; font-weight: 600;
+  background: var(--bg-raised); border-radius: var(--radius-sm); padding: 9px 11px;
+}
+.rp-badge {
+  display: inline-block; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 20px; margin-right: 6px;
+  background: var(--green-dim); color: var(--green-light); vertical-align: 1px;
+}
+.rp-badge.tr { background: rgba(255,255,255,.08); color: var(--text-2); }
+.rp-seek { width: 100%; accent-color: var(--green); }
+.rp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rp-controls .btn-new, .rp-controls .btn-cancel { padding: 7px 12px; }
+.rp-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-2); cursor: pointer; }
+.rp-opt .form-select { width: auto; padding: 4px 6px; font-size: 11px; }
+.rp-prog { font-size: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.rp-steps { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 80px; border-top: 1px solid var(--border); }
+.rp-steps li {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start;
+  padding: 7px 6px; border-bottom: 1px solid var(--border); cursor: pointer; line-height: 1.4;
+}
+.rp-steps li:hover { background: rgba(255,255,255,.04); }
+.rp-steps li.active { background: var(--green-dim); }
+.rp-steps li.tr { color: var(--text-2); }
+.rp-n { color: var(--text-2); font-size: 10px; font-weight: 800; text-align: right; }
+.rp-m { color: var(--text-2); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-note { font-size: 10px; color: var(--text-2); border-left: 2px solid var(--border-md); padding-left: 8px; }
+.rp-truck {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #fff; border: 3px solid var(--green);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+
+@media (max-width: 768px) {
+  .rp-card {
+    top: auto; left: 8px; right: 8px; bottom: calc(var(--bottom-nav-h) + 8px);
+    width: auto; max-height: 56vh;
+  }
+  .rp-steps { max-height: 18vh; }
+}

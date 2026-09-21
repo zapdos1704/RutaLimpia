@@ -20,7 +20,9 @@
 const LS_AI_ENDPOINT   = 'rl_ai_routing_endpoint';
 const LS_AI_KEY        = 'rl_ai_routing_key';
 const LS_OVERPASS       = 'rl_overpass_endpoint';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=c2e04434';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=426c553c';
+import { AiUnavailableError, describeAiFailure, fetchWithRecovery, withTimeout } from './ai-recovery.js?v=426c553c';
+export { AiUnavailableError, describeAiFailure, AI_CLIENT_TIMEOUT_MS, AI_RETRY_WAIT_MS } from './ai-recovery.js?v=426c553c';
 
 /* Puente estable (Cloudflare Worker) hacia la IA que corre en la PC. No es un
    secreto: la clave de acceso NO va en el código, se captura una vez y queda
@@ -168,6 +170,32 @@ export class AiNotConfiguredError extends Error {
 }
 
 /**
+ * ¿Está viva la IA? Consulta /health del servicio (público, sin sesión). Sirve para decir la causa exacta cuando algo falla.
+ * @returns {{ok:boolean, kind:string, message:string, version?:string, dem?:boolean, learned?:string}}
+ */
+export async function checkAiHealth({ signal } = {}) {
+  const endpoint = getAiEndpoint();
+  if (!endpoint) return { ok: false, kind: 'config', message: 'La IA todavía no está conectada.' };
+  let url;
+  try { const u = new URL(endpoint); u.pathname = '/health'; u.search = ''; url = u.toString(); }
+  catch { return { ok: false, kind: 'config', message: 'La dirección del servicio de IA no es válida.' }; }
+  const guard = withTimeout(signal, 8000);
+  try {
+    const res = await fetch(url, { signal: guard.signal, cache: 'no-store' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const e = describeAiFailure({ status: res.status, code: body?.error, elapsedMs: 0 });
+      return { ok: false, kind: e.kind, message: e.message };
+    }
+    const h = await res.json();
+    return { ok: true, kind: 'ok', message: 'La IA está lista.', version: h.version, dem: !!h.dem, learned: h.route_model || null };
+  } catch (err) {
+    if (err?.name === 'AbortError' && signal?.aborted) throw err;
+    return { ok: false, kind: 'red', message: 'No hay conexión con el servicio de IA. Revisa tu internet.' };
+  } finally { guard.done(); }
+}
+
+/**
  * Construye el cuerpo que recibirá el modelo. Este objeto ES el contrato:
  * documentarlo aquí evita que el servicio de Python y la web se desincronicen.
  * Ver AI_RUTAS.md.
@@ -205,22 +233,14 @@ export function buildAiRequest({ streets, depot, vehicle, bbox, constraints = {}
  *
  * @throws {AiNotConfiguredError} si aún no se capturó la URL del servicio.
  */
-export async function requestAiRoute(request, { signal } = {}) {
+export async function requestAiRoute(request, { signal, onStatus } = {}) {
   const endpoint = getAiEndpoint();
   if (!endpoint) throw new AiNotConfiguredError();
 
-  const headers = { 'Content-Type': 'application/json', ...await bridgeAuthHeaders(endpoint) };
-
-  const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(request), signal });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    if (res.status === 401) throw new Error('El servicio de IA no reconoció tu sesión. Cierra sesión y vuelve a entrar.');
-    if (res.status === 403) throw new Error('Tu cuenta no tiene permiso para usar la IA de rutas.');
-    if (res.status === 503) throw new Error('La IA no está disponible ahora (la PC con el servicio debe estar encendida).');
-    let detail = text.slice(0, 200);
-    try { const j = JSON.parse(text); detail = typeof j.detail === 'string' ? j.detail : detail; } catch { /* texto plano */ }
-    throw new Error(res.status === 422 ? detail : `El servicio de IA respondió ${res.status}. ${detail}`);
-  }
+  const res = await fetchWithRecovery(async sig => {
+    const headers = { 'Content-Type': 'application/json', ...await bridgeAuthHeaders(endpoint) };
+    return fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(request), signal: sig });
+  }, { signal, onStatus });
   const data = await res.json();
   if (!Array.isArray(data?.coordinates) || data.coordinates.length < 2) {
     throw new Error('El servicio de IA no devolvió un trazo válido (se esperaba "coordinates").');
@@ -232,6 +252,11 @@ export async function requestAiRoute(request, { signal } = {}) {
     notes: data.notes || null,
     model: data.model || 'servicio-ia',
     diagnostics: data.diagnostics || null,
+    /* Motor v2: cifras de la ruta, indicaciones paso a paso (ligadas a índices de `coordinates`)
+       y las calles que atienden los recolectores a pie. */
+    metrics: data.metrics || null,
+    steps: Array.isArray(data.steps) ? data.steps : null,
+    skipped: Array.isArray(data.skipped_streets) ? data.skipped_streets : null,
     source: 'ia',
   };
 }
@@ -253,6 +278,10 @@ export function buildZoneRequest({ ring, start, end, vehicle = null, constraints
       avoid_narrow_alleys: !!constraints.avoidNarrow,
       avoid_steep_terrain: !!constraints.avoidSteep,
       route_type: constraints.routeType ?? null,
+      /* Motor v2: 0 = la ruta más corta (los recolectores caminan más) … 1 = todas las calles. */
+      ...(constraints.coverage != null ? { coverage: Math.max(0, Math.min(1, Number(constraints.coverage))) } : {}),
+      /* Calles que el camión no debe usar (lista manual): puntos sobre la calle o ids de OSM. */
+      blocked_streets: (constraints.blockedStreets || []).map(b => ({ lng: b.lng, lat: b.lat, name: b.name ?? null, osm_id: b.osm_id ?? null })),
     },
   };
 }
