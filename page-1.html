@@ -615,14 +615,6 @@
 .pl-cov { display: flex; flex-direction: column; gap: 6px; }
 .pl-cov input[type=range] { width: 100%; accent-color: var(--green); }
 .pl-cov-scale { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-2); }
-.pl-blocked { display: flex; flex-direction: column; gap: 6px; }
-.pl-blocked-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.pl-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; background: rgba(255,255,255,.06);
-  border: 1px solid var(--border); border-radius: 20px; padding: 3px 4px 3px 10px; }
-.pl-chip button { background: none; border: 0; color: var(--text-2); cursor: pointer; padding: 0 5px; font-size: 12px; }
-.pl-chip button:hover { color: var(--red); }
-.pl-blocked-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; border: 2px solid #fff;
-  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 6px rgba(0,0,0,.5); }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
@@ -829,8 +821,6 @@
 <link rel="modulepreload" href="schedules.js?v=426c553c"/>
 <link rel="modulepreload" href="route-player.js?v=426c553c"/>
 <link rel="modulepreload" href="route-playback.js?v=426c553c"/>
-<link rel="modulepreload" href="blocked-streets.js?v=426c553c"/>
-<link rel="modulepreload" href="blocked-streets-core.js?v=426c553c"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -887,7 +877,6 @@
           <span id="draw-hint-text">Haz clic en dos esquinas para delimitar el área</span>
           <button type="button" id="draw-undo" onclick="undoPlanPoint()" hidden>Deshacer</button>
           <button type="button" id="draw-finish" onclick="finishPlanDraw()" hidden>Terminar zona</button>
-          <button type="button" id="draw-done" onclick="endBlockPick()" hidden>Listo</button>
           <button type="button" onclick="cancelAreaDraw()">Cancelar</button>
         </div>
 
@@ -1209,14 +1198,6 @@
             <div class="pl-cov-scale"><span>Más rápida</span><span>Todas las calles</span></div>
             <div class="ai-result" id="ai-cov-info"></div>
           </div>
-          <div class="pl-blocked">
-            <label class="form-label">Cuadras por las que el camión no debe pasar</label>
-            <div class="pl-blocked-list" id="ai-blocked-list"></div>
-            <div class="pl-btn-row">
-              <button class="btn-cancel" type="button" onclick="startPlanPoint('block')">Marcar cuadra prohibida</button>
-            </div>
-            <div class="ai-note" id="ai-blocked-note">El mapa no dice qué tan angostas son las calles: la cuadra donde hagas clic se evita siempre.</div>
-          </div>
           <button class="btn-new" type="button" id="ai-generate-btn" style="width:100%;justify-content:center">Generar ruta con IA</button>
           <div class="ai-result" id="ai-info">Marca la zona, el inicio y el fin, y pulsa el botón.</div>
         </div>
@@ -1270,7 +1251,7 @@ import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=426c553c';
 import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=426c553c';
 import {
   pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
-  fetchOSRMRoute, fetchOSRMRoutes, streetNameAt, saveRouteAiPlan, fetchRouteAiPlan, isMissingMigration, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
+  fetchOSRMRoute, fetchOSRMRoutes, saveRouteAiPlan, fetchRouteAiPlan, isMissingMigration, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
   saveRouteExtras, saveRouteFlags, applyRouteChange, logRouteEvent, setLearningEnabled,
 } from './route-planning.js?v=426c553c';
 import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=426c553c';
@@ -1279,8 +1260,6 @@ import { learnFromGps, generateAiRoute } from './route-wizard.js?v=426c553c';
 import { mountDumpSites, mountSchedules } from './admin-tools.js?v=426c553c';
 import { openRoutePlayer, closeRoutePlayer, printRoutePlan } from './route-player.js?v=426c553c';
 import { normalizePlan, packAiPlan, unpackAiPlan } from './route-playback.js?v=426c553c';
-import { loadBlockedStreets, addBlockedStreet, removeBlockedStreet, findNear, toRequest } from './blocked-streets.js?v=426c553c';
-import { friendlyDbError } from './db-errors.js?v=426c553c';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -3245,7 +3224,6 @@ async function generateAiForZone(btn) {
       avoidNarrow: $id('nr-narrow').checked,
       avoidSteep: $id('nr-steep').checked,
       coverage: Number($id('ai-cov').value) / 100,
-      blockedStreets: toRequest(blockedStreets.list),
       onStatus: msg => { fase = msg; pintarEspera(); },
     });
     clearInterval(reloj);
@@ -3415,9 +3393,7 @@ const plan = {
   baseMetrics: null, timeline: null, timelineFull: null, prevZone: null, aiStats: null,
   aiPlan: null,        // recorrido de la IA listo para animar / imprimir (normalizePlan)
 };
-let planPick = null;   // 'zone' | 'start' | 'end' | 'block' | null
-let blockedStreets = { list: [], shared: false, note: null };
-const blockedMarkers = new Map();
+let planPick = null;   // 'zone' | 'start' | 'end' | null
 
 const routeWatcher = createRouteWatcher({
   persist: applyRouteChange,
@@ -3648,7 +3624,7 @@ function updatePlanInfo() {
 /* ── Selección en el mapa (zona / inicio / fin) ── */
 function beginPlanPick(kind) {
   if (planPick) return;
-  if (kind !== 'zone' && kind !== 'block' && !plan.zone) { showToast('Primero dibuja la zona', 'warn'); return; }
+  if (kind !== 'zone' && !plan.zone) { showToast('Primero dibuja la zona', 'warn'); return; }
 
   planPick = kind;
   if (kind === 'zone') {
@@ -3663,11 +3639,9 @@ function beginPlanPick(kind) {
   $id('draw-hint').classList.add('show');
   $id('draw-undo').hidden = kind !== 'zone';
   $id('draw-finish').hidden = kind !== 'zone';
-  $id('draw-done').hidden = kind !== 'block';
   $id('draw-hint-text').textContent =
     kind === 'zone'  ? 'Haz clic en cada esquina de la zona' :
     kind === 'start' ? 'Haz clic en el punto de INICIO (dentro de la zona)' :
-    kind === 'block' ? 'Haz clic sobre cada cuadra que el camión NO debe usar; toca una marca roja para quitarla. «Listo» al terminar' :
                        'Haz clic en el punto de FIN (dentro de la zona)';
   map.doubleClickZoom.disable();
   map.on('click', onPlanClick);
@@ -3684,7 +3658,6 @@ function endPlanPick() {
   $id('draw-hint').classList.remove('show');
   $id('draw-undo').hidden = true;
   $id('draw-finish').hidden = true;
-  $id('draw-done').hidden = true;
   $id('route-modal').classList.add('open');
   renderPlanDraft(); updatePlanInfo();
 }
@@ -3700,8 +3673,6 @@ function cancelPlanPick() {
 
 function onPlanClick(e) {
   const pt = [e.lngLat.lng, e.lngLat.lat];
-
-  if (planPick === 'block') { markBlockedStreet(pt); return; }
 
   if (planPick === 'zone') {
     /* Un doble clic dispara dos clics casi idénticos: el segundo se ignora. */
@@ -3800,71 +3771,6 @@ function updateCoverageInfo() {
 }
 $id('ai-cov').addEventListener('input', updateCoverageInfo);
 updateCoverageInfo();
-
-/* ── Calles prohibidas (lista manual) ── */
-function renderBlocked() {
-  const box = $id('ai-blocked-list');
-  box.innerHTML = blockedStreets.list.length
-    ? blockedStreets.list.map((b, i) => `<span class="pl-chip">${i + 1}. ${escapeHtml(b.name || 'calle sin nombre')}<button type="button" data-id="${escapeHtml(b.id)}" aria-label="Quitar">×</button></span>`).join('')
-    : '<span class="ai-k" style="font-size:10px">Ninguna: la IA solo evita las calles que el mapa marca como angostas.</span>';
-  box.querySelectorAll('button[data-id]').forEach(btn => btn.addEventListener('click', () => unblockStreet(btn.dataset.id)));
-  $id('ai-blocked-note').textContent = blockedStreets.shared
-    ? 'Se guardan para toda la administración. El mapa no dice qué tan angostas son las calles: la cuadra que marques se evita siempre.'
-    : 'Se guardan solo en este navegador (falta correr el SQL 009 en Supabase para compartirlas). Se evitan siempre.';
-  blockedMarkers.forEach(m => m.remove());
-  blockedMarkers.clear();
-  blockedStreets.list.forEach((b, i) => {
-    const el = document.createElement('div');
-    el.className = 'pl-blocked-dot';
-    el.textContent = String(i + 1);
-    el.title = b.name || 'Calle prohibida';
-    el.addEventListener('click', ev => { if (planPick === 'block') { ev.stopPropagation(); unblockStreet(b.id); } });
-    blockedMarkers.set(b.id, new maplibregl.Marker({ element: el }).setLngLat([b.lng, b.lat]).addTo(map));
-  });
-  syncBlockedMarkers();
-}
-
-/* Las marcas rojas solo se ven mientras se arma una ruta (asistente abierto o eligiendo calles). */
-function syncBlockedMarkers() {
-  const on = planPick === 'block' || $id('route-modal').classList.contains('open');
-  blockedMarkers.forEach(m => { m.getElement().style.display = on ? '' : 'none'; });
-}
-new MutationObserver(syncBlockedMarkers).observe($id('route-modal'), { attributes: true, attributeFilter: ['class'] });
-
-async function refreshBlocked() {
-  blockedStreets = await loadBlockedStreets();
-  renderBlocked();
-}
-
-async function markBlockedStreet(pt) {
-  const near = findNear(blockedStreets.list, pt);
-  if (near) { showToast('Esa calle ya está marcada', 'info'); return; }
-  try {
-    const name = await streetNameAt(pt);
-    const item = await addBlockedStreet({ lng: pt[0], lat: pt[1], name }, blockedStreets.shared);
-    blockedStreets.list = [...blockedStreets.list, item];
-    renderBlocked();
-    showToast(`Cuadra prohibida: ${item.name || 'calle sin nombre'}`, 'success');
-    if (plan.source === 'ai') $id('ai-info').textContent = 'Cambiaste las calles prohibidas: vuelve a pulsar «Generar ruta con IA».';
-  } catch (err) {
-    console.error('[blocked-streets]', err);
-    showToast(friendlyDbError(err), 'error');
-  }
-}
-
-async function unblockStreet(id) {
-  try {
-    await removeBlockedStreet(id, blockedStreets.shared);
-    blockedStreets.list = blockedStreets.list.filter(b => b.id !== id);
-    renderBlocked();
-  } catch (err) {
-    console.error('[blocked-streets]', err);
-    showToast(friendlyDbError(err), 'error');
-  }
-}
-
-window.endBlockPick = () => { if (planPick === 'block') { endPlanPick(); syncBlockedMarkers(); } };
-refreshBlocked();
 
 window.startPlanZone = () => beginPlanPick('zone');
 window.startPlanPoint = kind => beginPlanPick(kind);
