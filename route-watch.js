@@ -20,7 +20,7 @@
 import {
   prepareLine, createDeviationTracker, spliceDetour, routeChange,
   rerouteAroundBlock, retimeTimeline, fmtClock,
-} from './route-learning.js?v=426c553c';
+} from './route-learning.js?v=playphotos20261111';
 
 const FRESH_MS = 15 * 60 * 1000;
 const WINDOW_MS = 10 * 60 * 1000;   // los avisos repetidos se agrupan en ventanas de 10 min

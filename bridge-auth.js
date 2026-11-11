@@ -8,7 +8,7 @@
    respaldo cuando no hay sesión.
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=426c553c';
+import { sb } from './db.js?v=playphotos20261111';
 
 const LS_AI_KEY = 'rl_ai_routing_key';
 /* El servidor público de demostración no acepta credenciales ajenas. */

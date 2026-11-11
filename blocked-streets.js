@@ -9,8 +9,8 @@
    y la interfaz lo avisa. La IA recibe cada calle como un punto sobre ella (lng, lat).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=426c553c';
-import { clean, findNear, toRequest } from './blocked-streets-core.js?v=426c553c';
+import { sb } from './db.js?v=playphotos20261111';
+import { clean, findNear, toRequest } from './blocked-streets-core.js?v=playphotos20261111';
 
 export { findNear, toRequest };
 

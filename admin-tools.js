@@ -10,18 +10,18 @@
 
 import {
   getDumpSites, saveDumpSite, deleteDumpSite, getPickupSchedules, savePickupSchedule, deletePickupSchedule, getRoutes,
-} from './db.js?v=426c553c';
-import { icon } from './icons.js?v=426c553c';
-import { escapeHtml } from './fleet-ui.js?v=426c553c';
-import { friendlyDbError } from './db-errors.js?v=426c553c';
+} from './db.js?v=playphotos20261111';
+import { icon } from './icons.js?v=playphotos20261111';
+import { escapeHtml } from './fleet-ui.js?v=playphotos20261111';
+import { friendlyDbError } from './db-errors.js?v=playphotos20261111';
 import {
   RADIUS_DEFAULT, RADIUS_MAX, RADIUS_MIN, buildSavePayload, circleRing, describeSite, ringAreaM2, shapeOf,
   siteCenter, siteRing, sitesToFeatureCollection,
-} from './dump-sites.js?v=426c553c';
+} from './dump-sites.js?v=playphotos20261111';
 import {
   DAY_LABEL, GENERAL, WASTE_LABEL, buildSchedulePayload, countByRoute, describeSchedule, schedulesFor,
-} from './schedules.js?v=426c553c';
-import { closeRing } from './geo.js?v=426c553c';
+} from './schedules.js?v=playphotos20261111';
+import { closeRing } from './geo.js?v=playphotos20261111';
 
 const toast = (msg, type = 'info') => window.showToast?.(msg, type);
 

@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=426c553c';
-import { localDate, mergeRows, periodRange } from './service-stats.js?v=426c553c';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=playphotos20261111';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=playphotos20261111';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -800,8 +800,32 @@ export async function getReports() {
       sb.from('reports').select('*').order('created_at', { ascending: false })
     );
     if (error) throw error;
-    return data || [];
-  } catch (err) { console.error('[reports]', err); return []; }
+    const rows = data || [];
+    const pathOf = report => {
+      if (!report.photo_url) return null;
+      try {
+        let path = report.photo_url;
+        if (/^https?:\/\//i.test(path)) {
+          const url = new URL(path);
+          const prefix = '/storage/v1/object/public/report-photos/';
+          if (!url.pathname.startsWith(prefix)) return null;
+          path = decodeURIComponent(url.pathname.slice(prefix.length));
+        }
+        if (!path.startsWith(`${report.user_id}/`) || /[\\?#%]/.test(path) ||
+            path.split('/').some(p => !p || p === '.' || p === '..')) return null;
+        return path;
+      } catch { return null; }
+    };
+    const paths = [...new Set(rows.map(pathOf).filter(Boolean))];
+    const urls = new Map();
+    for (let i = 0; i < paths.length; i += 100) {
+      const signed = await withTimeout(sb.storage.from('report-photos').createSignedUrls(paths.slice(i, i + 100), 300));
+      if (!signed.error) for (const item of signed.data || []) {
+        if (item.path && item.signedUrl && !item.error) urls.set(item.path, item.signedUrl);
+      }
+    }
+    return rows.map(report => ({ ...report, photo_url: urls.get(pathOf(report)) || null }));
+  } catch (err) { console.error('[reports] No se pudieron cargar los reportes'); return []; }
 }
 
 export async function resolveReport(id) {
