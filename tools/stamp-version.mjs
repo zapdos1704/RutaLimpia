@@ -21,7 +21,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', process.argv.includes('--site') ? '.site-build' : '.');
 const check = process.argv.includes('--check');
 
 const ignored = new Set(['node_modules', 'test', 'tools', 'sql', 'docs', 'Proyect', '.git']);

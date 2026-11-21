@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Campañas</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=9401b989"/>
+<link rel="stylesheet" href="shared.css?v=ffdd6c4b"/>
 <style>
 /* ── Específico de Campañas ── */
+#camp-new[hidden], #camp-edit[hidden], #camp-delete[hidden] { display: none; }
 .main {
   flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
@@ -238,16 +239,17 @@
   .form-row    { grid-template-columns: 1fr; }
 }
 </style>
-<link rel="stylesheet" href="mobile.css?v=9401b989"/>
+<link rel="stylesheet" href="mobile.css?v=ffdd6c4b"/>
 <!-- rl-hints:start -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=9401b989"/>
-<link rel="modulepreload" href="db.js?v=9401b989"/>
-<link rel="modulepreload" href="events.js?v=9401b989"/>
-<link rel="modulepreload" href="service-stats.js?v=9401b989"/>
+<link rel="modulepreload" href="icons.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="fleet-ui.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="db.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="events.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="service-stats.js?v=ffdd6c4b"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -290,7 +292,7 @@
             <div class="page-title">Campañas</div>
             <div class="page-sub">Gestión de operativos de recolección especiales</div>
           </div>
-          <button class="btn-new" onclick="openModal()">
+          <button id="camp-new" hidden class="btn-new" onclick="openModal()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Nueva campaña
           </button>
@@ -324,6 +326,8 @@
     </div>
     <div class="modal-body" id="d-body"></div>
     <div class="modal-footer">
+      <button id="camp-edit" hidden class="btn-new">Editar</button>
+      <button id="camp-delete" hidden class="btn-cancel">Eliminar</button>
       <button class="btn-cancel" onclick="closeDetail()">Cerrar</button>
     </div>
   </div>
@@ -333,7 +337,7 @@
 <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Nueva campaña</span>
+      <span class="modal-title" id="camp-form-title">Nueva campaña</span>
       <button class="modal-close" onclick="closeModal()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     <div class="modal-body">
@@ -369,10 +373,12 @@
         <input class="form-input" type="text" id="camp-notes" placeholder="Ej. Lun – Vie, 08:00 – 18:00"/>
       </div>
       <div class="form-field">
-        <label class="form-label">Estado inicial</label>
+        <label class="form-label">Estado</label>
         <select class="form-select" id="camp-status">
           <option value="planned">Planificada</option>
           <option value="active">Activa</option>
+          <option value="completed">Completada</option>
+          <option value="cancelled">Cancelada</option>
         </select>
       </div>
     </div>
@@ -385,11 +391,12 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=9401b989';
+  import './icons.js?v=ffdd6c4b';
 </script>
-<script src="shared.js?v=9401b989"></script>
+<script src="shared.js?v=ffdd6c4b"></script>
 <script type="module">
-import { getCampaigns, getVehicles, getTelemetry, insertCampaign, getSession, getCurrentUserProfile, getNotifications, signOut } from './db.js?v=9401b989';
+import { escapeHtml } from './fleet-ui.js?v=ffdd6c4b';
+import { updateCampaign, deleteCampaign, getCampaigns, getVehicles, getTelemetry, insertCampaign, getSession, getNotifications, signOut } from './db.js?v=ffdd6c4b';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -409,6 +416,8 @@ const statusText = { active:'En curso', planned:'Planificada', completed:'Comple
 const typeLabel = { neighborhood_cleanup:'Limpieza vecinal', large_waste:'Residuos grandes', electronic_waste:'Residuos electrónicos', other:'Otro' };
 
 let _campaigns = [];
+let editingId = null;
+let admin = false;
 let _activeFilter = 'all';
 
 function formatDate(d) {
@@ -426,8 +435,8 @@ function renderCampaigns(list) {
   el.innerHTML = list.map(c => `
     <div class="camp-card ${c.status}">
       <div class="camp-left">
-        <div class="camp-name">${c.name}</div>
-        <div class="camp-desc">${c.description || typeLabel[c.campaign_type] || '—'}</div>
+        <div class="camp-name">${escapeHtml(c.name)}</div>
+        <div class="camp-desc">${escapeHtml(c.description || typeLabel[c.campaign_type] || '—')}</div>
         <div class="camp-meta">
           <div class="camp-meta-item">
             <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -475,7 +484,7 @@ window.showCampaignDetail = function(id) {
       ${statusBadge[c.status] || `<span class="badge badge-gray">${c.status}</span>`}
       <div class="detail-type">${typeLabel[c.campaign_type] || c.campaign_type}</div>
     </div>
-    <p class="detail-desc">${c.description || 'Esta campaña no tiene descripción registrada.'}</p>
+    <p class="detail-desc">${escapeHtml(c.description || 'Esta campaña no tiene descripción registrada.')}</p>
     <div class="detail-grid">
       ${detailRow('Inicio', formatDate(c.start_date))}
       ${detailRow('Fin', formatDate(c.end_date))}
@@ -485,8 +494,24 @@ window.showCampaignDetail = function(id) {
           : (statusText[c.status] || c.status))}
       ${detailRow('Registrada', c.created_at ? formatDate(c.created_at.slice(0, 10)) : '—')}
     </div>
-    ${c.notes ? `<div class="detail-notes"><b>Notas:</b> ${c.notes}</div>` : ''}`;
+    ${c.notes ? `<div class="detail-notes"><b>Notas:</b> ${escapeHtml(c.notes)}</div>` : ''}`;
 
+  $('camp-edit').hidden = $('camp-delete').hidden = !admin;
+  $('camp-edit').onclick = () => { closeDetail(); openModal(c); };
+  $('camp-delete').onclick = async () => {
+    if (!admin || !confirm('¿Eliminar la campaña «' + c.name + '»?')) return;
+    $('camp-delete').disabled = true;
+    try {
+      await deleteCampaign(c.id);
+      closeDetail();
+      await loadData();
+      showToast('Campaña eliminada', 'success');
+    } catch (err) {
+      showToast(err.message || 'No se pudo eliminar la campaña', 'error');
+    } finally {
+      $('camp-delete').disabled = false;
+    }
+  };
   document.getElementById('detail-overlay').classList.add('open');
 };
 window.closeDetail = () => document.getElementById('detail-overlay').classList.remove('open');
@@ -501,11 +526,17 @@ window.filterCamp = function(type, btn) {
 /* ── MODAL ── */
 const $ = id => document.getElementById(id);
 
-window.openModal = function() {
-  ['camp-name','camp-desc','camp-end','camp-notes'].forEach(id => { $(id).value = ''; });
-  $('camp-start').value = new Date().toISOString().slice(0, 10);
-  $('camp-type').value = 'neighborhood_cleanup';
-  $('camp-status').value = 'planned';
+window.openModal = function(campaign = null) {
+  if (!admin) return;
+  editingId = campaign?.id ?? null;
+  $('camp-form-title').textContent = editingId ? 'Editar campaña' : 'Nueva campaña';
+  $('camp-name').value = campaign?.name ?? '';
+  $('camp-desc').value = campaign?.description ?? '';
+  $('camp-start').value = campaign?.start_date ?? new Date().toISOString().slice(0, 10);
+  $('camp-end').value = campaign?.end_date ?? '';
+  $('camp-notes').value = campaign?.notes ?? '';
+  $('camp-type').value = campaign?.campaign_type ?? 'neighborhood_cleanup';
+  $('camp-status').value = campaign?.status ?? 'planned';
   $('modal-overlay').classList.add('open');
   $('camp-name').focus();
 };
@@ -523,7 +554,7 @@ window.submitCampaign = async function(btn) {
   const originalText = btn.textContent;
   btn.textContent = 'Guardando…';
   try {
-    await insertCampaign({
+    const form = {
       name,
       campaign_type: $('camp-type').value,
       description:   $('camp-desc').value.trim() || null,
@@ -531,13 +562,19 @@ window.submitCampaign = async function(btn) {
       end_date:      $('camp-end').value || null,
       notes:         $('camp-notes').value.trim() || null,
       status:        $('camp-status').value,
-    });
+    };
+    if (form.end_date && form.end_date < start) {
+      showToast('La fecha final debe ser igual o posterior al inicio', 'warn');
+      return;
+    }
+    if (editingId) await updateCampaign(editingId, form);
+    else await insertCampaign(form);
     window.closeModal();
-    showToast('Campaña creada correctamente', 'success');;
+    showToast('Campaña guardada', 'success');
     await loadData();
   } catch(err) {
     console.error('[insertCampaign]', err);
-    showToast('' + (err.message || 'No se pudo guardar la campaña', 'error'));;
+    showToast(err.message || 'No se pudo guardar la campaña', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -604,7 +641,9 @@ async function main() {
   if (!session) { window.location.href = 'acceso.html'; return; }
 
   initShared('Campañas');
-  getCurrentUserProfile().then(p => window.renderProfile?.(p));
+  admin = session.municipalProfile.admin;
+  $('camp-new').hidden = !admin;
+  window.renderProfile?.(session.municipalProfile);
 
   await loadData();
   refreshNotifications();

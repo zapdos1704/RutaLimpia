@@ -187,7 +187,7 @@ function renderProfile(user) {
   const roleEl  = document.querySelector('#panel-profile .profile-role');
   const emailEl = document.querySelector('#panel-profile .profile-email');
   if (nameEl)  nameEl.textContent  = user.name || 'Usuario';
-  if (roleEl)  roleEl.textContent  = (user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Usuario') + ' · RutaLimpia';
+  if (roleEl)  roleEl.textContent  = (user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Usuario') + ' · ' + (user.cityName || 'RutaLimpia');
   if (emailEl) emailEl.textContent = user.email || '';
 }
 window.renderProfile = renderProfile;
@@ -282,7 +282,7 @@ function injectPanels() {
           <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
         </div>
         <div class="profile-name">Administrador</div>
-        <div class="profile-role">Admin · RutaLimpia</div>
+        <div class="profile-role">Personal municipal</div>
         <div class="profile-email">admin@rutalimpia.mx</div>
       </div>
       <div class="sp-divider"></div>

@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "preview": "node tools/preview-landing.mjs",
-    "build": "vue-tsc --noEmit && vite build && node tools/build-landing.mjs",
+    "build": "vue-tsc --noEmit && vite build && node tools/build-landing.mjs && node tools/stamp-version.mjs --site",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Mapa en vivo</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=9401b989"/>
-<link rel="stylesheet" href="route-player.css?v=9401b989"/>
+<link rel="stylesheet" href="shared.css?v=ffdd6c4b"/>
+<link rel="stylesheet" href="route-player.css?v=ffdd6c4b"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 /* ── Mapa ── */
@@ -793,35 +793,44 @@
 .ai-step { border-radius: 12px; }
 .ai-step-head { font-size: 12px; letter-spacing: .01em; }
 .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.22); }
+#municipal-catalog { width:min(620px,94vw); max-height:85vh; overflow:auto; border:1px solid var(--border); border-radius:12px; background:var(--bg-card,#172330); color:var(--text-1,#fff); padding:20px; }
+#municipal-catalog::backdrop { background:#081018bd; }
+#municipal-catalog header, #municipal-catalog footer { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#municipal-catalog h3 { margin:18px 0 8px; }
+#municipal-catalog article { padding:12px 0; border-bottom:1px solid var(--border); }
+#municipal-catalog article p, #municipal-catalog form label { margin:8px 0; }
+#municipal-catalog button { cursor:pointer; margin:2px; }
+#municipal-catalog select { padding:8px; }
 </style>
-<link rel="stylesheet" href="mobile.css?v=9401b989"/>
+<link rel="stylesheet" href="mobile.css?v=ffdd6c4b"/>
 <!-- rl-hints:start -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=9401b989"/>
-<link rel="modulepreload" href="db.js?v=9401b989"/>
-<link rel="modulepreload" href="events.js?v=9401b989"/>
-<link rel="modulepreload" href="service-stats.js?v=9401b989"/>
-<link rel="modulepreload" href="bridge-auth.js?v=9401b989"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=9401b989"/>
-<link rel="modulepreload" href="trail.js?v=9401b989"/>
-<link rel="modulepreload" href="fleet-ui.js?v=9401b989"/>
-<link rel="modulepreload" href="route-planning.js?v=9401b989"/>
-<link rel="modulepreload" href="geo.js?v=9401b989"/>
-<link rel="modulepreload" href="route-learning.js?v=9401b989"/>
-<link rel="modulepreload" href="route-watch.js?v=9401b989"/>
-<link rel="modulepreload" href="route-wizard.js?v=9401b989"/>
-<link rel="modulepreload" href="ai-routing.js?v=9401b989"/>
-<link rel="modulepreload" href="ai-recovery.js?v=9401b989"/>
-<link rel="modulepreload" href="admin-tools.js?v=9401b989"/>
-<link rel="modulepreload" href="db-errors.js?v=9401b989"/>
-<link rel="modulepreload" href="dump-sites.js?v=9401b989"/>
-<link rel="modulepreload" href="schedules.js?v=9401b989"/>
-<link rel="modulepreload" href="route-player.js?v=9401b989"/>
-<link rel="modulepreload" href="route-playback.js?v=9401b989"/>
+<link rel="modulepreload" href="icons.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="municipal-catalog.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="db.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="events.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="service-stats.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="fleet-ui.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="bridge-auth.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="trail.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-planning.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="geo.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-learning.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-watch.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-wizard.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="ai-routing.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="ai-recovery.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="admin-tools.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="db-errors.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="dump-sites.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="schedules.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-player.js?v=ffdd6c4b"/>
+<link rel="modulepreload" href="route-playback.js?v=ffdd6c4b"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -908,6 +917,7 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           Nueva ruta
         </button>
+        <button class="btn-secondary" id="btn-catalog" type="button">Rutas y dispositivos</button>
         <button class="btn-secondary" id="btn-plans" type="button" onclick="togglePlans()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
           Zonas
@@ -1096,7 +1106,7 @@
 <div class="modal-overlay" id="route-modal">
   <div class="modal wide">
     <div class="modal-header">
-      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3 20.34 3.03 15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg> Nueva ruta</span>
+      <span class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3 20.34 3.03 15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg> <span id="route-editor-title">Nueva ruta</span></span>
       <button class="modal-close" data-close-route="1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
 
@@ -1122,12 +1132,14 @@
           <div class="pl-colors" id="pl-colors"></div>
         </div>
         <div class="form-field">
-          <label class="form-label" for="nr-type">Tipo de zona</label>
+          <label class="form-label" for="nr-type">Servicio de recolección</label>
           <select class="form-select" id="nr-type">
-            <option value="residential">Residencial</option>
+            <option value="public">Público general</option>
             <option value="commercial">Comercial</option>
-            <option value="market">Mercado</option>
-            <option value="rural">Rural</option>
+          </select>
+          <label class="form-label" for="nr-area">Zona de cobertura</label>
+          <select class="form-select" id="nr-area">
+            <option value="urban">Urbana</option><option value="rural">Rural</option>
           </select>
         </div>
       </div>
@@ -1229,38 +1241,43 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=9401b989';
+  import './icons.js?v=ffdd6c4b';
 </script>
-<script src="shared.js?v=9401b989"></script>
+<script src="shared.js?v=ffdd6c4b"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<dialog id="municipal-catalog" aria-labelledby="catalog-title">
+  <header><h2 id="catalog-title">Rutas y dispositivos</h2><button type="button" data-close>Cerrar</button></header>
+  <p role="status" aria-live="polite"></p><div data-body></div>
+</dialog>
 <script type="module">
+import { mountMunicipalCatalog } from './municipal-catalog.js?v=ffdd6c4b';
 import {
   getVehicles, getTelemetry, getGpsLogs, fetchTrailWindow, subscribeVehicleGps, subscribeFleetPositions,
   TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, todayIso, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=9401b989';
-import { icon } from './icons.js?v=9401b989';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=9401b989';
-import { mapColorFor } from './vehicle-colors.js?v=9401b989';
+} from './db.js?v=ffdd6c4b';
+import { icon } from './icons.js?v=ffdd6c4b';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=ffdd6c4b';
+import { mapColorFor } from './vehicle-colors.js?v=ffdd6c4b';
 import {
   cleanTrail, segmentsToLines, createTrailSnapper, buildPlayback, positionAt,
   traveledLine, formatDuration, distanceMeters,
   getOsrmEndpoint, setOsrmEndpoint, DEFAULT_OSRM,
-} from './trail.js?v=9401b989';
-import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=9401b989';
-import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=9401b989';
+} from './trail.js?v=ffdd6c4b';
+import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=ffdd6c4b';
+import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=ffdd6c4b';
 import {
   pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
-  fetchOSRMRoute, fetchOSRMRoutes, saveRouteAiPlan, fetchRouteAiPlan, isMissingMigration, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
+  fetchOSRMRoute, fetchOSRMRoutes, fetchRouteAiPlan, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
   saveRouteExtras, saveRouteFlags, applyRouteChange, logRouteEvent, setLearningEnabled,
-} from './route-planning.js?v=9401b989';
-import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=9401b989';
-import { createRouteWatcher } from './route-watch.js?v=9401b989';
-import { learnFromGps, generateAiRoute } from './route-wizard.js?v=9401b989';
-import { mountDumpSites, mountSchedules } from './admin-tools.js?v=9401b989';
-import { openRoutePlayer, closeRoutePlayer, printRoutePlan } from './route-player.js?v=9401b989';
-import { normalizePlan, packAiPlan, unpackAiPlan } from './route-playback.js?v=9401b989';
+} from './route-planning.js?v=ffdd6c4b';
+import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=ffdd6c4b';
+import { createRouteWatcher } from './route-watch.js?v=ffdd6c4b';
+import { learnFromGps, generateAiRoute } from './route-wizard.js?v=ffdd6c4b';
+import { mountDumpSites, mountSchedules } from './admin-tools.js?v=ffdd6c4b';
+import { openRoutePlayer, closeRoutePlayer, printRoutePlan } from './route-player.js?v=ffdd6c4b';
+import { normalizePlan, packAiPlan, unpackAiPlan } from './route-playback.js?v=ffdd6c4b';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {
@@ -3100,11 +3117,34 @@ const $id = id => document.getElementById(id);
    Zona → «con aprendizaje» o «automática con IA» → inicio y fin → guardar.
    La IA y OSRM usan la sesión iniciada: no hay claves que teclear.
 ══════════════════════════════════════ */
+let editingRoute = null;
 let routeMode = null;   // 'learning' | 'ai' | null
 
 function openRouteModal() {
   fillPlanVehicleSelect();
   $id('route-modal').classList.add('open');
+}
+function redrawMunicipalRoute(row) {
+  resetRouteModal();
+  editingRoute = row;
+  openRouteModal();
+  $id('route-editor-title').textContent = 'Redibujar recorrido';
+  $id('nr-name').value = row.name;
+  $id('nr-desc').value = row.description || '';
+  $id('nr-type').value = row.service_kind || '';
+  $id('nr-area').value = row.area_kind || '';
+  $id('pl-vehicle').value = row.vehicle_id || '';
+  $id('ln-enabled').checked = row.learning_enabled;
+  $id('nr-steep').checked = row.has_steep_terrain;
+  $id('nr-narrow').checked = row.has_narrow_alleys;
+  plan.color = row.color;
+  if (row.zone_geojson?.coordinates?.[0]) {
+    plan.zone = row.zone_geojson.coordinates[0];
+    plan.ring = plan.zone.slice(0,-1);
+    plan.start = row.start_geojson?.coordinates;
+    plan.end = row.end_geojson?.coordinates;
+    renderPlanDraft(); updatePlanInfo(); fitToRing(plan.zone);
+  }
 }
 function closeRouteModal() {
   $id('route-modal').classList.remove('open');
@@ -3221,7 +3261,7 @@ async function generateAiForZone(btn) {
     const v = vehicles.find(x => x.id === $id('pl-vehicle').value) || null;
     const r = await generateAiRoute({
       ring: plan.zone, start: plan.start, end: plan.end, vehicle: v,
-      routeType: $id('nr-type').value,
+      routeType: $id('nr-type').value === 'commercial' ? 'commercial' : $id('nr-area').value === 'rural' ? 'rural' : 'residential',
       avoidNarrow: $id('nr-narrow').checked,
       avoidSteep: $id('nr-steep').checked,
       coverage: Number($id('ai-cov').value) / 100,
@@ -3265,6 +3305,7 @@ async function generateAiForZone(btn) {
 /* ── Guardar ── */
 async function saveRoute(btn) {
   const name = $id('nr-name').value.trim();
+  if (!$id('nr-type').value || !$id('nr-area').value) { showToast('Selecciona el servicio y la zona', 'warn'); return; }
   if (!name) { showToast('El nombre de la ruta es obligatorio', 'warn'); $id('nr-name').focus(); return; }
   if (!plan.zone) { showToast('Dibuja la zona o aprende del recorrido del camión primero', 'warn'); return; }
   if (!plan.route || !plan.start || !plan.end) { showToast('Falta el inicio, el fin o el recorrido de la zona', 'warn'); return; }
@@ -3273,39 +3314,21 @@ async function saveRoute(btn) {
   const originalLabel = btn.textContent;
   btn.textContent = 'Guardando…';
   try {
-    const routeId = await saveRoutePlan({
-      name,
-      vehicleId: $id('pl-vehicle').value,
-      ring: plan.zone,
-      color: plan.color,
-      start: plan.start,
-      end: plan.end,
-      routeGeometry: plan.route,
-      mode: plan.source === 'osrm' ? 'osrm' : 'manual',
-      description: $id('nr-desc').value.trim(),
-      routeType: $id('nr-type').value,
-    });
-
-    /* Lo que no cabe en save_route_plan: modo, aprendizaje, ruta predeterminada y horario. */
-    const warnings = [];
-    const mode = plan.source === 'learning' ? 'learning' : plan.source === 'ai' ? 'ai' : 'predefined';
-    try {
-      await saveRouteExtras(routeId, { mode, learningEnabled: $id('ln-enabled').checked, baseRoute: plan.route, timeline: plan.timeline });
-    } catch (err) { console.warn('[route-extras]', err); warnings.push(err.message); }
-    if (plan.source === 'ai' && plan.aiPlan?.hasNames) {
-      try { await saveRouteAiPlan(routeId, packAiPlan(plan.aiPlan)); }
-      catch (err) {
-        console.warn('[route-ai-plan]', err);
-        warnings.push(isMissingMigration(err) ? 'Falta correr el SQL 009 para guardar las indicaciones de la ruta.' : err.message);
+    await saveRoutePlan({
+      name, vehicleId: $id('pl-vehicle').value || null, ring: plan.zone, color: plan.color,
+      start: plan.start, end: plan.end, routeGeometry: plan.route,
+      mode: plan.source === 'osrm' ? 'osrm' : 'manual', description: $id('nr-desc').value.trim(),
+      id: editingRoute?.id, expected: editingRoute?.updated_at,
+      service: $id('nr-type').value, area: $id('nr-area').value,
+      extras: {
+        mode: plan.source === 'learning' ? 'learning' : plan.source === 'ai' ? 'ai' : 'predefined',
+        learning: $id('ln-enabled').checked, timeline: plan.timeline,
+        steep: $id('nr-steep').checked, narrow: $id('nr-narrow').checked,
+        ai_plan: plan.source === 'ai' && plan.aiPlan?.hasNames ? packAiPlan(plan.aiPlan) : null
       }
-    }
-    if ($id('nr-steep').checked || $id('nr-narrow').checked) {
-      try { await saveRouteFlags(routeId, { steep: $id('nr-steep').checked, narrow: $id('nr-narrow').checked }); }
-      catch (err) { console.warn('[route-flags]', err); }
-    }
-
+    });
     closeRouteModal();
-    showToast(warnings.length ? `Ruta y zona guardadas. ${warnings[0]}` : 'Ruta y zona guardadas', warnings.length ? 'warn' : 'success');
+    showToast('Ruta y zona guardadas', 'success');
     loadMapData();
   } catch (err) {
     console.error('[saveRoutePlan]', err);
@@ -3317,6 +3340,9 @@ async function saveRoute(btn) {
 }
 
 function resetRouteModal() {
+  editingRoute = null;
+  $id('route-editor-title').textContent = 'Nueva ruta';
+  $id('nr-type').value = 'public'; $id('nr-area').value = 'urban';
   ['nr-name', 'nr-desc'].forEach(id => { $id(id).value = ''; });
   $id('nr-steep').checked = false;
   $id('nr-narrow').checked = false;
@@ -3411,7 +3437,7 @@ function checkProximity() {
       notify: (title, msg, kind) => showToast(`${title}. ${msg}`, kind),
     });
   } catch (err) { console.warn('[proximidad]', err); }
-  try { routeWatcher.tick(vehicles, plans); } catch (err) { console.warn('[rutas]', err); }
+  try { routeWatcher.tick(vehicles, plans.filter(p => p.can_edit)); } catch (err) { console.warn('[rutas]', err); }
 }
 
 const planColorExpr = () => ['coalesce', ['get', 'color'], '#4F8CFF'];
@@ -3477,7 +3503,7 @@ function planPopupHtml(p, v) {
       cell('Termina', hasTimeline ? fmtClock(p.timeline.endS) : '—') +
     `</div>` +
     (hasTimeline ? `<div class="rl-pop-note">Horario aprendido de ${p.timeline.days} día${p.timeline.days === 1 ? '' : 's'} de datos.</div>` : '') +
-    (p.route_mode ? `<div class="rl-pop-foot"><span>Aprendizaje <span class="rl-chip ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Apagado'}</span></span>` +
+    (p.route_mode && p.can_edit ? `<div class="rl-pop-foot"><span>Aprendizaje <span class="rl-chip ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Apagado'}</span></span>` +
       `<button type="button" class="rl-pop-btn" onclick="toggleLearning('${p.id}')">${on ? 'Apagar' : 'Activar'}</button></div>` : '') +
     (p.last_change_at ? `<div class="rl-pop-note">Último cambio: ${new Date(p.last_change_at).toLocaleString('es-MX')}</div>` : '') +
     (p.route_geojson?.coordinates?.length > 1 ? `<div class="rl-pop-foot"><span>Recorrido</span><button type="button" class="rl-pop-btn" onclick="viewSavedRoute('${p.id}')">Ver recorrido</button></div>` : '');
@@ -3942,10 +3968,11 @@ async function main() {
   if (!session) { window.location.href = 'acceso.html'; return; }
 
   initShared('Mapa en vivo');
+  mountMunicipalCatalog({profile:session.municipalProfile,vehicles:()=>vehicles,reload:loadMapData,showRoute:window.viewSavedRoute,redraw:redrawMunicipalRoute});
   getCurrentUserProfile().then(p => {
     window.renderProfile?.(p);
     /* Tiraderos y horarios: sólo administradores (la base de datos lo vuelve a comprobar al guardar). */
-    if (p?.role === 'admin') {
+    if (p?.admin) {
       const actions = document.querySelector('.map-actions');
       if (actions) {
         mountDumpSites({ map, stage: $id('map-stage'), actions });

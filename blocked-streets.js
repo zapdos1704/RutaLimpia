@@ -9,16 +9,19 @@
    y la interfaz lo avisa. La IA recibe cada calle como un punto sobre ella (lng, lat).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=9401b989';
-import { clean, findNear, toRequest } from './blocked-streets-core.js?v=9401b989';
+import { sb } from './db.js?v=ffdd6c4b';
+import { clean, findNear, toRequest } from './blocked-streets-core.js?v=ffdd6c4b';
 
 export { findNear, toRequest };
 
-const KEY = 'rl.blockedStreets.v1';
+let key = null;
+export function setBlockedStreetCity(city) {
+  key = city ? 'rl.blockedStreets.city.' + city : null;
+}
 const readLocal = () => {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+  try { const v = JSON.parse((key && localStorage.getItem(key)) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 };
-const writeLocal = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* navegación privada */ } };
+const writeLocal = list => { try { if (key) localStorage.setItem(key, JSON.stringify(list)); } catch { /* navegación privada */ } };
 
 /** { list, shared, note }: `shared` = viene de Supabase; si no, `note` dice por qué es local. */
 export async function loadBlockedStreets() {

@@ -20,9 +20,9 @@
 const LS_AI_ENDPOINT   = 'rl_ai_routing_endpoint';
 const LS_AI_KEY        = 'rl_ai_routing_key';
 const LS_OVERPASS       = 'rl_overpass_endpoint';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=9401b989';
-import { AiUnavailableError, describeAiFailure, fetchWithRecovery, withTimeout } from './ai-recovery.js?v=9401b989';
-export { AiUnavailableError, describeAiFailure, AI_CLIENT_TIMEOUT_MS, AI_RETRY_WAIT_MS } from './ai-recovery.js?v=9401b989';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=ffdd6c4b';
+import { AiUnavailableError, describeAiFailure, fetchWithRecovery, withTimeout } from './ai-recovery.js?v=ffdd6c4b';
+export { AiUnavailableError, describeAiFailure, AI_CLIENT_TIMEOUT_MS, AI_RETRY_WAIT_MS } from './ai-recovery.js?v=ffdd6c4b';
 
 /* Puente estable (Cloudflare Worker) hacia la IA que corre en la PC. No es un
    secreto: la clave de acceso NO va en el código, se captura una vez y queda

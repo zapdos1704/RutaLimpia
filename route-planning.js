@@ -8,17 +8,17 @@
    función save_route_plan, que exige una sesión Supabase autenticada).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=9401b989';
-import { getOsrmEndpoint } from './trail.js?v=9401b989';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=9401b989';
+import { sb } from './db.js?v=ffdd6c4b';
+import { getOsrmEndpoint } from './trail.js?v=ffdd6c4b';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=ffdd6c4b';
 
 const PUBLIC_OSRM = /router\.project-osrm\.org/i;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /* La geometría vive en geo.js (sin dependencias, probada en Node); se reexporta
    aquí para no cambiar los imports existentes. */
-import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=9401b989';
-export * from './geo.js?v=9401b989';
+import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=ffdd6c4b';
+export * from './geo.js?v=ffdd6c4b';
 
 /* ── OSRM ──────────────────────────────────────────── */
 
@@ -139,7 +139,7 @@ const parseJson = v => {
 
 /** Rutas activas con zona, color, camión, inicio y fin. Lanza si la migración no está aplicada. */
 export async function fetchRoutePlans() {
-  const { data, error } = await sb.from('routes_geojson').select('*').eq('is_active', true).order('name');
+  const { data, error } = await sb.from('municipal_route_plans').select('*').eq('is_active', true).order('name');
   if (error) throw error;
   return (data || []).map(r => ({
     ...r,
@@ -154,22 +154,11 @@ export async function fetchRoutePlans() {
 
 /** Guarda la ruta con la función save_route_plan (solo usuarios autenticados). */
 export async function saveRoutePlan(plan) {
-  const { data: sessionData } = await sb.auth.getSession();
-  if (!sessionData?.session) throw new Error('Debes iniciar sesión para guardar rutas');
-
-  const { data, error } = await sb.rpc('save_route_plan', {
-    p_name: plan.name,
-    p_vehicle_id: plan.vehicleId || null,
-    p_zone_geojson: { type: 'Polygon', coordinates: [closeRing(plan.ring)] },
-    p_color: plan.color,
-    p_start_lng: plan.start[0],
-    p_start_lat: plan.start[1],
-    p_end_lng: plan.end[0],
-    p_end_lat: plan.end[1],
-    p_route_geojson: plan.routeGeometry,
-    p_planning_mode: plan.mode,
-    p_description: plan.description || null,
-    p_route_type: plan.routeType || 'residential',
+  const { data, error } = await sb.rpc('save_municipal_route', {
+    p_service: plan.service, p_area: plan.area, p_extras: plan.extras,
+    p_plan: { id: plan.id, expected: plan.expected, name: plan.name, vehicle: plan.vehicleId, zone: { type:'Polygon', coordinates:[closeRing(plan.ring)] },
+      color: plan.color, start: plan.start, end: plan.end, line: plan.routeGeometry, mode: plan.mode,
+      description: plan.description, legacy_type: plan.service === 'commercial' ? 'commercial' : plan.area === 'rural' ? 'rural' : 'residential' }
   });
   if (error) throw error;
   return data;

@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
-import { deriveDeviceIncidents, timeAgo } from './events.js?v=9401b989';
-import { localDate, mergeRows, periodRange } from './service-stats.js?v=9401b989';
+import { deriveDeviceIncidents, timeAgo } from './events.js?v=ffdd6c4b';
+import { localDate, mergeRows, periodRange } from './service-stats.js?v=ffdd6c4b';
 
 const SUPABASE_URL     = 'https://psbxfrwcubgwmycztiqu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnhmcndjdWJnd215Y3p0aXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2OTkyNzEsImV4cCI6MjA5MzI3NTI3MX0.EYCGIACWSP9ByEeiAHSnIN_Z6k7IxDkf0shIiJVZF2g';
@@ -147,7 +147,7 @@ export const capacityLabel = value => CAPACITY_LABEL[value] || '—';
 /* ── Rutas ── */
 export async function getRoutes() {
   try {
-    const { data, error } = await withTimeout(sb.from('routes').select('*').order('name'));
+    const { data, error } = await withTimeout(sb.from('routes').select('*').eq('is_active', true).order('name'));
     if (error) throw error;
     return data || [];
   } catch (err) { console.error('[routes]', err); return []; }
@@ -780,6 +780,18 @@ export async function insertCampaign(form) {
   return data;
 }
 
+export async function updateCampaign(id, form) {
+  const { data, error } = await withTimeout(sb.from('campaigns').update(form).eq('id', id).select('id').single());
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCampaign(id) {
+  const { data, error } = await withTimeout(sb.from('campaigns').delete().eq('id', id).select('id').single());
+  if (error) throw error;
+  return data;
+}
+
 /* ── Registrar una incidencia (fila en collections con status incompleto) ── */
 export async function insertIncident(form) {
   const { data, error } = await withTimeout(sb.from('collections').insert([form]).select());
@@ -896,35 +908,25 @@ export async function resetPassword(email) {
 }
 
 export async function getSession() {
-  try {
-    const { data, error } = await withTimeout(sb.auth.getSession(), 8000);
-    if (error) throw error;
-    return data.session || null;
-  } catch (err) { console.error('[session]', err); return null; }
+  const { data, error } = await withTimeout(sb.auth.getSession(), 8000);
+  if (error || !data.session) return null;
+  const { data: member, error: memberError } = await withTimeout(sb.from('municipal_members')
+    .select('municipality_id,is_admin,municipalities(name),users(name,role)').eq('user_id',data.session.user.id).maybeSingle());
+  if (memberError || !member || !['admin','driver','collector'].includes(member.users?.role)) return null;
+  return { ...data.session, municipalProfile: {
+    id: data.session.user.id, email: data.session.user.email, name: member.users.name,
+    role: member.users.role, admin: member.is_admin && member.users.role === 'admin',
+    city: member.municipality_id, cityName: member.municipalities?.name || member.municipality_id
+  } };
 }
 
 export async function signOut() {
-  try { await withTimeout(sb.auth.signOut(), 8000); } catch (err) { console.error('[signOut]', err); }
+  const { error } = await withTimeout(sb.auth.signOut(), 8000);
+  if (error) throw error;
 }
 
-/* Perfil del usuario autenticado, cruzado con la tabla "users" si existe ahí */
 export async function getCurrentUserProfile() {
-  const session = await getSession();
-  if (!session) return null;
-  try {
-    const { data, error } = await withTimeout(
-      sb.from('users').select('*').eq('id', session.user.id).maybeSingle()
-    );
-    if (error) throw error;
-    return {
-      email: session.user.email,
-      name:  data?.name || session.user.user_metadata?.name || session.user.email,
-      role:  data?.role || 'admin',
-    };
-  } catch (err) {
-    console.error('[profile]', err);
-    return { email: session.user.email, name: session.user.user_metadata?.name || session.user.email, role: 'admin' };
-  }
+  return (await getSession())?.municipalProfile || null;
 }
 
 /* ══════════════════════════════════════

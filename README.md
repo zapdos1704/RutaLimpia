@@ -1,5 +1,7 @@
 # 🚛 RutaLimpia
 
+Consulta la [guía de operación municipal](docs/operacion-municipal.md) para los permisos por ciudad, el catálogo de rutas y dispositivos y la preparación del piloto.
+
 La entrada pública `/` (`index.html`) es la landing interactiva **Tu ciudad, 10 minutos antes**.
 El inicio de sesión del panel está en `acceso.html`; la landing enlaza a él durante el recorrido y al final.
 
