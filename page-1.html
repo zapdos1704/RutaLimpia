@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RutaLimpia — Mapa en vivo</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"/>
-<link rel="stylesheet" href="shared.css?v=playphotos20261111"/>
-<link rel="stylesheet" href="route-player.css?v=playphotos20261111"/>
+<link rel="stylesheet" href="shared.css?v=9401b989"/>
+<link rel="stylesheet" href="route-player.css?v=9401b989"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
 <style>
 /* ── Mapa ── */
@@ -794,33 +794,34 @@
 .ai-step-head { font-size: 12px; letter-spacing: .01em; }
 .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.22); }
 </style>
+<link rel="stylesheet" href="mobile.css?v=9401b989"/>
 <!-- rl-hints:start -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://psbxfrwcubgwmycztiqu.supabase.co" crossorigin/>
 <link rel="preconnect" href="https://api.maptiler.com" crossorigin/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="modulepreload" href="icons.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="db.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="events.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="service-stats.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="bridge-auth.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="vehicle-colors.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="trail.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="fleet-ui.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-planning.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="geo.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-learning.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-watch.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-wizard.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="ai-routing.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="ai-recovery.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="admin-tools.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="db-errors.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="dump-sites.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="schedules.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-player.js?v=playphotos20261111"/>
-<link rel="modulepreload" href="route-playback.js?v=playphotos20261111"/>
+<link rel="modulepreload" href="icons.js?v=9401b989"/>
+<link rel="modulepreload" href="db.js?v=9401b989"/>
+<link rel="modulepreload" href="events.js?v=9401b989"/>
+<link rel="modulepreload" href="service-stats.js?v=9401b989"/>
+<link rel="modulepreload" href="bridge-auth.js?v=9401b989"/>
+<link rel="modulepreload" href="vehicle-colors.js?v=9401b989"/>
+<link rel="modulepreload" href="trail.js?v=9401b989"/>
+<link rel="modulepreload" href="fleet-ui.js?v=9401b989"/>
+<link rel="modulepreload" href="route-planning.js?v=9401b989"/>
+<link rel="modulepreload" href="geo.js?v=9401b989"/>
+<link rel="modulepreload" href="route-learning.js?v=9401b989"/>
+<link rel="modulepreload" href="route-watch.js?v=9401b989"/>
+<link rel="modulepreload" href="route-wizard.js?v=9401b989"/>
+<link rel="modulepreload" href="ai-routing.js?v=9401b989"/>
+<link rel="modulepreload" href="ai-recovery.js?v=9401b989"/>
+<link rel="modulepreload" href="admin-tools.js?v=9401b989"/>
+<link rel="modulepreload" href="db-errors.js?v=9401b989"/>
+<link rel="modulepreload" href="dump-sites.js?v=9401b989"/>
+<link rel="modulepreload" href="schedules.js?v=9401b989"/>
+<link rel="modulepreload" href="route-player.js?v=9401b989"/>
+<link rel="modulepreload" href="route-playback.js?v=9401b989"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.116.0/+esm"/>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.116.0/+esm"/>
@@ -1228,9 +1229,9 @@
 
 <script type="module" id="rl-icons-bridge">
   /* Publica window.rlIcon antes de que shared.js pinte nada. */
-  import './icons.js?v=playphotos20261111';
+  import './icons.js?v=9401b989';
 </script>
-<script src="shared.js?v=playphotos20261111"></script>
+<script src="shared.js?v=9401b989"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import {
@@ -1238,28 +1239,28 @@ import {
   TRAIL_WINDOWS, DEFAULT_TRAIL_WINDOW, todayIso, capacityPct, capacityLabel,
   getRoutesByVehicle, getVehicleCrew, getFleetEvents, getVehicleEvents,
   getSession, getCurrentUserProfile, getNotifications, signOut,
-} from './db.js?v=playphotos20261111';
-import { icon } from './icons.js?v=playphotos20261111';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=playphotos20261111';
-import { mapColorFor } from './vehicle-colors.js?v=playphotos20261111';
+} from './db.js?v=9401b989';
+import { icon } from './icons.js?v=9401b989';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=9401b989';
+import { mapColorFor } from './vehicle-colors.js?v=9401b989';
 import {
   cleanTrail, segmentsToLines, createTrailSnapper, buildPlayback, positionAt,
   traveledLine, formatDuration, distanceMeters,
   getOsrmEndpoint, setOsrmEndpoint, DEFAULT_OSRM,
-} from './trail.js?v=playphotos20261111';
-import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=playphotos20261111';
-import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=playphotos20261111';
+} from './trail.js?v=9401b989';
+import { mountNewTruckModal, escapeHtml } from './fleet-ui.js?v=9401b989';
+import { eventMeta, derivePauseState, groupByVehicle, timeAgo, shortTime, EVENT_META } from './events.js?v=9401b989';
 import {
   pointInRing, ringAreaKm2, ringSelfIntersects, insideRatio, closeRing,
   fetchOSRMRoute, fetchOSRMRoutes, saveRouteAiPlan, fetchRouteAiPlan, isMissingMigration, suggestRouteForZone, fetchRoutePlans, saveRoutePlan, evaluateProximity,
   saveRouteExtras, saveRouteFlags, applyRouteChange, logRouteEvent, setLearningEnabled,
-} from './route-planning.js?v=playphotos20261111';
-import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=playphotos20261111';
-import { createRouteWatcher } from './route-watch.js?v=playphotos20261111';
-import { learnFromGps, generateAiRoute } from './route-wizard.js?v=playphotos20261111';
-import { mountDumpSites, mountSchedules } from './admin-tools.js?v=playphotos20261111';
-import { openRoutePlayer, closeRoutePlayer, printRoutePlan } from './route-player.js?v=playphotos20261111';
-import { normalizePlan, packAiPlan, unpackAiPlan } from './route-playback.js?v=playphotos20261111';
+} from './route-planning.js?v=9401b989';
+import { fmtClock, fitRouteToPoints, clipRouteToRing, retimeTimeline } from './route-learning.js?v=9401b989';
+import { createRouteWatcher } from './route-watch.js?v=9401b989';
+import { learnFromGps, generateAiRoute } from './route-wizard.js?v=9401b989';
+import { mountDumpSites, mountSchedules } from './admin-tools.js?v=9401b989';
+import { openRoutePlayer, closeRoutePlayer, printRoutePlan } from './route-player.js?v=9401b989';
+import { normalizePlan, packAiPlan, unpackAiPlan } from './route-playback.js?v=9401b989';
 
 /* ── SESIÓN / LOGOUT ── */
 window.doLogout = async function() {

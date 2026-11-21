@@ -10,8 +10,8 @@
    `plan` sale de normalizePlan(): coords, cum, steps, metrics, skipped…
 ══════════════════════════════════════════════════════ */
 
-import { icon } from './icons.js?v=playphotos20261111';
-import { pointAt, stepIndexAt, fmtKm, fmtMin, escapeHtml, buildPrintHtml } from './route-playback.js?v=playphotos20261111';
+import { icon } from './icons.js?v=9401b989';
+import { pointAt, stepIndexAt, fmtKm, fmtMin, escapeHtml, buildPrintHtml } from './route-playback.js?v=9401b989';
 
 const BASE_MPS = 30;            // velocidad ×1: 30 m/s (108 km/h de pantalla), pensada para verla, no para medir
 const SPEEDS = [1, 2, 4, 8];

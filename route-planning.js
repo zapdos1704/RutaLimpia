@@ -8,17 +8,17 @@
    función save_route_plan, que exige una sesión Supabase autenticada).
 ══════════════════════════════════════════════════════ */
 
-import { sb } from './db.js?v=playphotos20261111';
-import { getOsrmEndpoint } from './trail.js?v=playphotos20261111';
-import { bridgeAuthHeaders } from './bridge-auth.js?v=playphotos20261111';
+import { sb } from './db.js?v=9401b989';
+import { getOsrmEndpoint } from './trail.js?v=9401b989';
+import { bridgeAuthHeaders } from './bridge-auth.js?v=9401b989';
 
 const PUBLIC_OSRM = /router\.project-osrm\.org/i;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /* La geometría vive en geo.js (sin dependencias, probada en Node); se reexporta
    aquí para no cambiar los imports existentes. */
-import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=playphotos20261111';
-export * from './geo.js?v=playphotos20261111';
+import { haversineM, pointInRing, distanceToRingM, polylineLengthM, alongLine, closeRing, ringAreaKm2, ringCentroid, ringSelfIntersects, insideRatio } from './geo.js?v=9401b989';
+export * from './geo.js?v=9401b989';
 
 /* ── OSRM ──────────────────────────────────────────── */
 

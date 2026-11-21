@@ -1,0 +1,264 @@
+/* ══════════════════════════════════════════════════════
+   RUTALIMPIA — mobile.css
+   Ajustes SOLO para celular (≤ 768 px). Se carga al final del <head> de
+   cada página del panel, después de sus estilos en línea, así que gana a
+   igualdad de especificidad. En computadora no cambia nada.
+
+   Qué hace:
+   · Alto real de la pantalla (100dvh): con 100vh la barra de abajo quedaba
+     escondida detrás de la barra del navegador en Android y iPhone.
+   · Áreas táctiles de al menos 40 px y campos de 16 px (con menos, el
+     iPhone hace zoom al escribir y descuadra la página).
+   · Letra mínima legible: lo que medía 8–10 px pasa a 10–12 px.
+   · Mapa: botones de acción en dos renglones (antes se salían por los
+     lados) y el detalle del camión como hoja inferior que se esconde
+     del todo (antes asomaba 156 px y tapaba los botones).
+
+   El prefijo `html` sube un punto la especificidad para ganarle también a
+   los estilos que algunos módulos inyectan después (admin-tools.js).
+══════════════════════════════════════════════════════ */
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (max-width: 768px) {
+
+  /* ── Alto real de la pantalla ── */
+  html .shell { height: 100vh; height: 100dvh; }
+  html .side-panel {
+    height: calc(100vh - var(--topbar-h) - var(--bottom-nav-h));
+    height: calc(100dvh - var(--topbar-h) - var(--bottom-nav-h));
+  }
+
+  /* ── Barra superior e inferior ── */
+  html .topbar { padding: 0 12px 0 16px; }
+  html .topbar-right { gap: 8px; }
+  html .icon-btn,
+  html .topbar-avatar { width: 40px; height: 40px; }
+  html .topbar-avatar { border-radius: 50%; }
+  html .bn-label { font-size: 10px; }
+
+  /* ── Botones de cerrar ── */
+  html .sp-close,
+  html .modal-close,
+  html .vp-close { width: 40px; height: 40px; }
+  html .pb-close { width: 36px; height: 36px; }
+
+  /* ── Paneles de notificaciones, ajustes y perfil ── */
+  html .ac-title { font-size: 12px; }
+  html .ac-desc { font-size: 12px; }
+  html .ac-meta { font-size: 11px; }
+  html .ac-actions { gap: 8px; flex-wrap: wrap; }
+  html .ac-btn { font-size: 11px; min-height: 36px; padding: 6px 12px; border-radius: 6px; }
+  html .setting-row { min-height: 48px; }
+  html .profile-email { font-size: 12px; }
+  html .toggle { width: 44px; height: 24px; }
+  html .toggle-slider::before { width: 18px; height: 18px; }
+  html .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+  /* ── Aviso flotante: puede ocupar dos renglones en vez de salirse ── */
+  html .toast {
+    white-space: normal; text-align: center; line-height: 1.4;
+    width: max-content; max-width: calc(100% - 32px);
+    font-size: 12px; border-radius: 16px;
+  }
+
+  /* ── Botones comunes ── */
+  html .btn-primary,
+  html .btn-secondary,
+  html .btn-new,
+  html .btn-cancel,
+  html .btn-submit,
+  html .btn-warn,
+  html .btn-destructive { min-height: 44px; }
+
+  /* ── Formularios: 16 px evita el zoom automático del iPhone ── */
+  html .form-input,
+  html .form-select,
+  html .form-textarea,
+  html .search-input,
+  html .sidebar-search,
+  html .vp-select { font-size: 16px; min-height: 44px; }
+  html .form-label { font-size: 11px; }
+  html .form-hint { font-size: 12px; }
+  html .modal input[type=checkbox],
+  html .modal input[type=radio],
+  html .vp-check input { width: 20px; height: 20px; flex-shrink: 0; }
+  html .modal label:has(> input[type=checkbox]),
+  html .modal label:has(> input[type=radio]) { min-height: 36px; align-items: center; }
+
+  /* ── Ventanas (modales): casi a pantalla completa ── */
+  html .modal-overlay { padding: 12px; }
+  html .modal { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+  html .modal-header { padding: 12px 12px 12px 16px; }
+  html .modal-body { padding: 16px; }
+  html .modal-footer { padding: 12px 16px 16px; }
+  html .modal-footer > button { flex: 1 1 auto; justify-content: center; }
+
+  /* ── Pestañas y filtros en forma de pastilla ── */
+  html .ptab,
+  html .vtab,
+  html .fbar-btn,
+  html .cat-chip { min-height: 40px; font-size: 12px; }
+  html .vtab { justify-content: center; }
+  html .btn-camp-detail,
+  html .btn-inc { min-height: 40px; font-size: 12px; padding-inline: 16px; }
+  html .search-input { width: 100%; padding-inline: 16px; }
+
+  /* ── Letra mínima: etiquetas que medían 8–10 px ── */
+  html .bar-label, html .bar-pct, html .bar-lbl,
+  html .hday, html .hscl, html .svc-day-lbl,
+  html .zone-sec, html .tc-spec-label { font-size: 10px; }
+
+  html .ftab, html .vruta,
+  html .chart-badge, html .card-badge, html .badge,
+  html .svc-tile-label, html .svc-h, html .gauge-lbl,
+  html .mini-table th, html .sc-table th,
+  html .fbar-count, html .zf-lbl, html .map-legend-lbl,
+  html .tc-status, html .tc-crew-title, html .crew-role,
+  html .tc-color-label, html .rp-badge, html .rp-flag,
+  html .kpi-label, html .stat-label, html .inc-section-label,
+  html .vp-section-title, html .vp-field-lbl, html .vp-trail-k,
+  html .rl-pop-k, html .rl-stat span, html .vp-gauge-label,
+  html .vp-tab-badge, html .ai-badge, html .pl-cov-scale { font-size: 11px; }
+
+  html .kpi-sub, html .chart-sub, html .d-item, html .prog-row,
+  html .svc-note, html .svc-nums, html .mini-table td,
+  html .cp-head, html .card-sub, html .cat-count,
+  html .zone-line, html .rank-count, html .rg-type, html .rg-count,
+  html .queja-dist, html .queja-meta,
+  html .tc-model, html .tc-route-km, html .tc-alert-desc, html .tc-color-note,
+  html .crew-empty, html .de-raw summary, html .de-raw code,
+  html .de-fix, html .de-fix code, html .rp-type, html .rp-notes,
+  html .rp-sub, html .rp-chips span, html .rp-opt, html .rp-prog,
+  html .rp-n, html .rp-m, html .rp-note,
+  html .at-note, html .at-item-sub, html .at-mini, html .at-hint,
+  html .terms { font-size: 12px; }
+
+  /* ── Dashboard ── */
+  html .ftab { padding-block: 9px; }
+  /* Leyenda de la gráfica con tamaño fijo en línea (style="font-size:8px") */
+  html [style*="font-size:8px"] { font-size: 10px !important; }
+
+  /* ── Camiones ── */
+  html .tc-color { flex-wrap: wrap; row-gap: 10px; }
+  html .tc-swatches { gap: 8px; margin-left: 0; width: 100%; }
+  html .tc-swatch { width: 30px; height: 30px; }
+  html .tc-route-btn { min-height: 36px; padding: 6px 14px; font-size: 12px; }
+  html .tc-crew-add { min-height: 36px; padding: 0 4px; font-size: 12px; }
+  html .crew-del { min-width: 36px; min-height: 36px; font-size: 15px; }
+  html .tc-delete { width: 48px; }
+  html .tc-toggle,
+  html .tc-delete { min-height: 44px; }
+
+  /* ══ Mapa en vivo ══ */
+  /* Los paneles cerrados esperan debajo del mapa; con `hidden` el contenedor
+     se podía desplazar solo (al enfocar un botón) y el mapa subía dejando
+     un hueco azul. `clip` recorta igual pero no permite desplazarse. */
+  html .map-wrap { overflow: clip; }
+  html .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+
+  /* Filtros de incidencias */
+  html .map-filters { padding: 6px 10px; }
+  html .mf-toggle { min-width: 40px; justify-content: center; font-size: 11px; }
+  html .mf-chev { font-size: 12px; }
+  html .inc-chip { font-size: 12px; min-height: 36px; padding: 6px 12px; }
+  html .inc-chip .chip-count { font-size: 11px; }
+  html .alert-strip .as-pill { min-height: 36px; font-size: 12px; }
+
+  /* Botones de acción: una sola fila que se desliza con el dedo, como la
+     barra de incidencias. Antes medían 637 px en una pantalla de 375 y
+     «Nueva ruta», «Zonas» y «Horarios» quedaban fuera, sin forma de llegar.
+     Va por encima de la atribución del mapa (abajo a la derecha). */
+  html .map-actions {
+    left: 0; right: 0; bottom: 34px; transform: none;
+    flex-wrap: nowrap; justify-content: flex-start; gap: 8px;
+    overflow-x: auto; overscroll-behavior-x: contain;
+    padding: 4px 12px; scroll-padding-inline: 12px;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  html .map-actions::-webkit-scrollbar { display: none; }
+  html .map-actions > * { flex: 0 0 auto; }
+  html .map-actions::after { content: ''; flex: 0 0 16px; }
+  html .map-actions .btn-primary,
+  html .map-actions .btn-secondary {
+    min-height: 40px; font-size: 12px; padding: 8px 14px; gap: 6px;
+  }
+  html .map-actions .btn-primary svg,
+  html .map-actions .btn-secondary svg { width: 13px; height: 13px; }
+
+  /* Detalle del camión: hoja inferior que se esconde por completo */
+  html #vehicle-panel {
+    top: auto; bottom: 0; height: auto;
+    max-height: min(72vh, 100%); max-height: min(72dvh, 100%);
+    padding: 14px 16px 16px;
+  }
+  html .vp-title { font-size: 15px; }
+  html .vp-ruta { font-size: 12px; }
+  html .vp-status { font-size: 11px; }
+  html .vp-tab { min-height: 40px; font-size: 12px; }
+  html .vp-row { font-size: 13px; padding: 10px 12px; }
+  html .vp-signal { font-size: 12px; }
+  html .vp-trail-v { font-size: 13px; }
+  html .vp-trail-empty, html .vp-check, html .vp-link,
+  html .vp-ev, html .vp-snap-note { font-size: 12px; }
+  html .vp-ev-when { font-size: 11px; }
+  html .vp-btn,
+  html .vp-trail-btns .vp-btn { min-height: 44px; font-size: 12px; }
+  html .vp-day-nav { width: 44px; }
+  html .vp-link { min-height: 32px; }
+
+  /* Pastilla del camión minimizado: arriba a la izquierda, libre de botones */
+  html .vp-mini { top: 12px; left: 12px; right: auto; bottom: auto; font-size: 12px; }
+  html .vp-mini-sub { font-size: 10px; }
+
+  /* Paneles de eventos y tiraderos */
+  html .ep-header { padding: 12px 12px 12px 16px; }
+  html .ev-item { padding: 11px 12px; }
+  html .ev-veh { font-size: 13px; }
+  html .ev-label { font-size: 12px; }
+  html .ev-when, html .ev-meta { font-size: 11px; }
+
+  /* Reproductor del recorrido */
+  html .pb-veh { font-size: 13px; }
+  html .pb-clock { font-size: 12px; }
+  html .pb-speed { font-size: 11px; padding: 6px 9px; min-height: 32px; }
+  html .pb-foot { font-size: 11px; }
+  html .pb-scrub { height: 8px; }
+  html .pb-scrub::-webkit-slider-thumb { width: 22px; height: 22px; }
+  html .pb-scrub::-moz-range-thumb { width: 22px; height: 22px; }
+
+  /* Camiones fuera de cuadro y aviso de dibujo */
+  html .off-pin { font-size: 11px; padding: 5px 10px 5px 7px; }
+  html .draw-hint { font-size: 12px; flex-wrap: wrap; justify-content: center; border-radius: 16px; }
+  html .draw-hint button { font-size: 12px; min-height: 36px; padding: 6px 12px; border-radius: 18px; }
+
+  /* Ventana «Nueva ruta» */
+  html .pl-swatch { width: 32px; height: 32px; }
+  html .pl-colors { gap: 8px; }
+  html .pl-color-input { width: 44px; height: 36px; }
+  html .pl-more > summary { font-size: 12px; padding-block: 10px; }
+  html .pl-mode-title { font-size: 13px; }
+  html .pl-mode-desc, html .pl-switch small,
+  html .ai-note, html .street-names, html .rl-stats-note { font-size: 12px; }
+  html .pl-mode input { width: 20px; height: 20px; left: 10px; top: 11px; }
+  html .pl-mode { padding-left: 40px; }
+  html .ai-step-head { font-size: 13px; }
+  html .ai-step-num { width: 22px; height: 22px; font-size: 12px; }
+  html .ai-result { font-size: 12px; }
+
+  /* ══ Acceso (login) ══ */
+  html .field input { font-size: 16px; min-height: 48px; }
+  html .pw-toggle { right: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+  html .pw-wrap input { padding-right: 50px; }
+  html .btn-link { min-height: 40px; padding: 8px 12px; }
+
+  /* Texto flotante del mapa */
+  html .maplibregl-popup.rl-popup .maplibregl-popup-content { max-width: min(300px, calc(100vw - 32px)); }
+  html .maplibregl-popup.rl-popup .maplibregl-popup-close-button { width: 36px; height: 36px; }
+  html .rl-pop-title { font-size: 15px; padding-right: 44px; }
+  html .rl-pop-sub, html .rl-pop-foot { font-size: 12px; }
+  html .rl-chip, html .rl-pop-note { font-size: 11px; }
+  html .rl-pop-btn { min-height: 40px; padding: 8px 14px; font-size: 12px; }
+}

@@ -4,7 +4,7 @@
    en Node. El guardado vive en blocked-streets.js.
 ══════════════════════════════════════════════════════ */
 
-import { haversineM } from './geo.js?v=playphotos20261111';
+import { haversineM } from './geo.js?v=9401b989';
 
 export const SAME_STREET_M = 12;
 
